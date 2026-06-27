@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D7B6E"/>
+      <stop offset="100%" stop-color="#074F46"/>
+    </linearGradient>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D7B6E"/>
+      <stop offset="100%" stop-color="#095C52"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0C060"/>
+      <stop offset="100%" stop-color="#D4A853"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fond plein (pas de coins arrondis : l'OS applique son propre masque) -->
+  <rect width="240" height="240" fill="url(#bgGrad)"/>
+
+  <g transform="translate(-11.7, 44.4) scale(1.15)">
+    <!-- Main gauche (teal) -->
+    <g transform="translate(28, 38)">
+      <path d="M 10 55 C 6 55 3 52 3 48 L 3 28 C 3 25 5 23 8 23 C 9 23 10 23.5 11 24 L 11 16 C 11 13 13 11 16 11 C 19 11 21 13 21 16 L 21 14 C 21 11 23 9 26 9 C 29 9 31 11 31 14 L 31 15 C 31 12 33 10 36 10 C 39 10 41 12 41 15 L 41 20 C 42 19 43 18.5 44 18.5 C 47 18.5 49 20.5 49 23.5 L 49 42 C 49 50 44 57 37 59 L 22 59 C 16 59 10 55 10 55 Z" fill="url(#tealGrad)" opacity="0.92"/>
+      <line x1="21" y1="16" x2="21" y2="11" stroke="#C2E8E2" stroke-width="1" opacity="0.4"/>
+      <line x1="31" y1="14" x2="31" y2="9" stroke="#C2E8E2" stroke-width="1" opacity="0.4"/>
+      <line x1="41" y1="15" x2="41" y2="10" stroke="#C2E8E2" stroke-width="1" opacity="0.4"/>
+    </g>
+
+    <!-- Main droite (or) -->
+    <g transform="translate(116, 38) scale(-1,1) translate(-88,0)">
+      <path d="M 10 55 C 6 55 3 52 3 48 L 3 28 C 3 25 5 23 8 23 C 9 23 10 23.5 11 24 L 11 16 C 11 13 13 11 16 11 C 19 11 21 13 21 16 L 21 14 C 21 11 23 9 26 9 C 29 9 31 11 31 14 L 31 15 C 31 12 33 10 36 10 C 39 10 41 12 41 15 L 41 20 C 42 19 43 18.5 44 18.5 C 47 18.5 49 20.5 49 23.5 L 49 42 C 49 50 44 57 37 59 L 22 59 C 16 59 10 55 10 55 Z" fill="url(#goldGrad)" opacity="0.95"/>
+      <line x1="21" y1="16" x2="21" y2="11" stroke="#FFF8E8" stroke-width="1" opacity="0.4"/>
+      <line x1="31" y1="14" x2="31" y2="9" stroke="#FFF8E8" stroke-width="1" opacity="0.4"/>
+      <line x1="41" y1="15" x2="41" y2="10" stroke="#FFF8E8" stroke-width="1" opacity="0.4"/>
+    </g>
+
+    <!-- Jonction dorée (centrée dans l'espace entre les deux mains) -->
+    <circle cx="116" cy="91" r="7" fill="url(#goldGrad)"/>
+    <circle cx="116" cy="91" r="4" fill="#FFF8E0" opacity="0.7"/>
+
+    <!-- Étincelles -->
+    <circle cx="116" cy="76" r="2" fill="#F0C060" opacity="0.8"/>
+    <circle cx="104" cy="85" r="1.5" fill="#F0C060" opacity="0.5"/>
+    <circle cx="128" cy="85" r="1.5" fill="#F0C060" opacity="0.5"/>
+    <circle cx="108" cy="100" r="1.5" fill="#C2E8E2" opacity="0.5"/>
+    <circle cx="124" cy="100" r="1.5" fill="#C2E8E2" opacity="0.5"/>
+
+    <!-- Cœur -->
+    <g transform="translate(107, 30)">
+      <path d="M 9 4 C 9 2 11 0 13 0 C 15 0 17 2 17 4 C 17 6 13 10 9 13 C 5 10 1 6 1 4 C 1 2 3 0 5 0 C 7 0 9 2 9 4 Z" fill="url(#goldGrad)" opacity="0.9"/>
+    </g>
+  </g>
+</svg>

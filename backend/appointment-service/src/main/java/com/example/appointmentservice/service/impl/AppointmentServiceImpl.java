@@ -1,0 +1,578 @@
+package com.example.appointmentservice.service.impl;
+
+import org.springframework.stereotype.Service;
+
+import com.example.appointmentservice.client.NotificationClient;
+import com.example.appointmentservice.dto.AppointmentResponse;
+import com.example.appointmentservice.dto.CreateAppointmentRequest;
+import com.example.appointmentservice.dto.RescheduleAppointmentRequest;
+import com.example.appointmentservice.entity.Appointment;
+import com.example.appointmentservice.entity.AppointmentStatus;
+import com.example.appointmentservice.exception.ForbiddenOperationException;
+import com.example.appointmentservice.exception.ResourceNotFoundException;
+import com.example.appointmentservice.repository.AppointmentRepository;
+import com.example.appointmentservice.security.SecurityUtils;
+import com.example.appointmentservice.service.AppointmentService;
+import com.example.appointmentservice.service.OwnershipResolver;
+import com.example.appointmentservice.service.PaymentService;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class AppointmentServiceImpl
+        implements AppointmentService {
+
+    private final AppointmentRepository
+            appointmentRepository;
+
+    private final NotificationClient notificationClient;
+
+    private final OwnershipResolver ownershipResolver;
+
+    private final PaymentService paymentService;
+
+    public AppointmentServiceImpl(
+            AppointmentRepository appointmentRepository,
+            NotificationClient notificationClient,
+            OwnershipResolver ownershipResolver,
+            PaymentService paymentService
+    ) {
+
+        this.appointmentRepository =
+                appointmentRepository;
+
+        this.notificationClient = notificationClient;
+
+        this.ownershipResolver = ownershipResolver;
+
+        this.paymentService = paymentService;
+    }
+
+    /** Vérifie que l'appelant courant est bien le patient ou le psychologue de ce rendez-vous. */
+    private void checkParticipant(Appointment appointment) {
+
+        if (SecurityUtils.hasRole("PATIENT")) {
+            Long ownPatientId = ownershipResolver.resolveOwnPatientId();
+            if (ownPatientId.equals(appointment.getPatientId())) {
+                return;
+            }
+        }
+
+        if (SecurityUtils.hasRole("PSYCHOLOGIST")) {
+            Long ownPsychologistId = ownershipResolver.resolveOwnPsychologistId();
+            if (ownPsychologistId.equals(appointment.getPsychologistId())) {
+                return;
+            }
+        }
+
+        throw new ForbiddenOperationException(
+                "Ce rendez-vous ne vous appartient pas"
+        );
+    }
+
+    @Override
+    public AppointmentResponse createAppointment(
+            CreateAppointmentRequest request
+    ) {
+
+        if (!SecurityUtils.hasRole("PATIENT")) {
+            throw new ForbiddenOperationException(
+                    "Seul un patient peut réserver un rendez-vous"
+            );
+        }
+
+        Long ownPatientId = ownershipResolver.resolveOwnPatientId();
+
+        if (!ownPatientId.equals(request.getPatientId())) {
+            throw new ForbiddenOperationException(
+                    "Vous ne pouvez réserver un rendez-vous que pour vous-même"
+            );
+        }
+
+        if (
+            !request.getEndTime()
+                    .isAfter(request.getStartTime())
+        ) {
+    
+            throw new RuntimeException(
+                    "La date de fin doit être après la date de début"
+            );
+        }
+
+        if (
+            request.getStartTime()
+                    .isBefore(
+                            java.time.LocalDateTime.now()
+                    )
+        ) {
+    
+            throw new RuntimeException(
+                    "Les rendez-vous ne peuvent pas être programmés dans le passé"
+            );
+        }
+
+        boolean conflict =
+                appointmentRepository
+                        .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThan(
+                                request.getPsychologistId(),
+                                request.getEndTime(),
+                                request.getStartTime()
+                        );
+
+        
+
+        if (conflict) {
+
+            throw new RuntimeException(
+                    "Le psychologue possède déjà un rendez-vous sur ce créneau"
+            );
+        }
+
+        Appointment appointment =
+                new Appointment();
+
+        appointment.setPatientId(
+                request.getPatientId()
+        );
+
+        appointment.setPsychologistId(
+                request.getPsychologistId()
+        );
+
+        appointment.setStartTime(
+                request.getStartTime()
+        );
+
+        appointment.setEndTime(
+                request.getEndTime()
+        );
+
+        appointment.setConsultationType(
+                request.getConsultationType()
+        );
+
+        appointment.setStatus(
+                AppointmentStatus.PENDING
+        );
+
+        Appointment savedAppointment =
+                appointmentRepository.save(
+                        appointment
+                );
+
+        // Le RDV est créé PENDING : le message ne doit pas donner
+        // l'impression que c'est déjà acté, le psychologue peut encore
+        // refuser.
+        notifyPatient(
+                savedAppointment.getId(),
+                request.getPatientId(),
+                "Demande de rendez-vous envoyée",
+                "Votre demande de rendez-vous est en cours de traitement. "
+                        + "Elle doit être confirmée par le psychologue avant "
+                        + "d'être effective."
+        );
+
+        // Notifie aussi le psychologue, qui sinon ne découvre la demande
+        // qu'en ouvrant son agenda.
+        notifyPsychologist(
+                savedAppointment.getId(),
+                request.getPsychologistId(),
+                "Nouvelle demande de rendez-vous",
+                "Un patient souhaite réserver un rendez-vous avec vous. "
+                        + "Consultez votre agenda pour la confirmer ou la "
+                        + "refuser."
+        );
+
+        return mapToResponse(savedAppointment);
+    }
+
+    /// Envoie une notification au patient via notification-service.
+    /// Best-effort : un échec d'envoi (service down, etc.) ne doit jamais
+    /// faire échouer l'opération principale (création/changement de statut
+    /// du rendez-vous) — seulement logué en warning. Cf. commentaire
+    /// d'origine sur createAppointment.
+    private void notifyPatient(
+            Long appointmentId,
+            Long patientId,
+            String title,
+            String message
+    ) {
+
+        notificationClient.send(
+                patientId,
+                title,
+                message,
+                "APPOINTMENT"
+        );
+    }
+
+    /// Même contrat que {@link #notifyPatient}, mais vers le psychologue.
+    private void notifyPsychologist(
+            Long appointmentId,
+            Long psychologistId,
+            String title,
+            String message
+    ) {
+
+        notificationClient.send(
+                psychologistId,
+                title,
+                message,
+                "APPOINTMENT"
+        );
+    }
+
+    @Override
+    public AppointmentResponse getAppointmentById(
+            Long id
+    ) {
+
+        Appointment appointment =
+                appointmentRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Rendez-vous non trouvé"
+                                )
+                        );
+
+        checkParticipant(appointment);
+
+        return mapToResponse(appointment);
+    }
+
+    @Override
+    public AppointmentResponse updateAppointmentStatus(
+            Long id,
+            String status
+    ) {
+
+        Appointment appointment =
+                appointmentRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Rendez-vous non trouvé"
+                                )
+                        );
+
+        checkParticipant(appointment);
+
+        AppointmentStatus newStatus =
+                AppointmentStatus.valueOf(status.toUpperCase());
+
+        // `checkParticipant` vérifie juste que l'appelant est l'une des deux
+        // parties, pas quel statut il a le droit de poser : sans ce
+        // contrôle, un patient pourrait forcer CONFIRMED sur son propre RDV.
+        // Seul le psychologue confirme/refuse, seul le patient annule.
+        boolean callerIsPsychologist = SecurityUtils.hasRole("PSYCHOLOGIST");
+        if (
+            (newStatus == AppointmentStatus.CONFIRMED
+                    || newStatus == AppointmentStatus.REJECTED)
+                && !callerIsPsychologist
+        ) {
+            throw new ForbiddenOperationException(
+                    "Seul le psychologue peut confirmer ou refuser ce rendez-vous"
+            );
+        }
+        if (newStatus == AppointmentStatus.CANCELLED && callerIsPsychologist) {
+            throw new ForbiddenOperationException(
+                    "Seul le patient peut annuler ce rendez-vous"
+            );
+        }
+
+        // Politique de remboursement : une annulation à plus de 48h du début
+        // du rendez-vous déclenche un remboursement automatique de tout
+        // paiement COMPLETED associé (cf. maquette confirmer_RDV.png). En
+        // dessous de 48h, aucun remboursement n'est déclenché. Le calcul se
+        // fait avant la sauvegarde du nouveau statut, sur l'horaire encore
+        // inchangé du rendez-vous.
+        boolean refunded = false;
+
+        if (newStatus == AppointmentStatus.CANCELLED) {
+            long hoursUntilStart = Duration.between(
+                    LocalDateTime.now(),
+                    appointment.getStartTime()
+            ).toHours();
+
+            if (hoursUntilStart >= 48) {
+                paymentService.refundCompletedPayments(appointment.getId());
+                refunded = true;
+            }
+        }
+
+        appointment.setStatus(
+                newStatus
+        );
+
+        Appointment updatedAppointment =
+                appointmentRepository.save(
+                        appointment
+                );
+
+        String title;
+        String message;
+
+        switch (newStatus) {
+            case CONFIRMED:
+                title = "Rendez-vous confirmé";
+                message = "Votre rendez-vous a été confirmé par le psychologue. "
+                        + "Vous pouvez maintenant procéder au paiement.";
+                break;
+            case REJECTED:
+                title = "Rendez-vous refusé";
+                message = "Votre rendez-vous a été refusé par le psychologue.";
+                break;
+            case CANCELLED:
+                title = "Rendez-vous annulé";
+                message = refunded
+                        ? "Votre rendez-vous a été annulé. Le paiement associé a été crédité sur votre solde PsyConnect (annulation à plus de 48h du rendez-vous)."
+                        : "Votre rendez-vous a été annulé. Aucun remboursement n'est applicable (annulation à moins de 48h du rendez-vous).";
+                break;
+            default:
+                title = null;
+                message = null;
+        }
+
+        if (title != null) {
+            notifyPatient(
+                    updatedAppointment.getId(),
+                    updatedAppointment.getPatientId(),
+                    title,
+                    message
+            );
+        }
+
+        return mapToResponse(updatedAppointment);
+    }
+
+    @Override
+    public AppointmentResponse rescheduleAppointment(
+            Long id,
+            RescheduleAppointmentRequest request
+    ) {
+
+        Appointment appointment =
+                appointmentRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Rendez-vous non trouvé"
+                                )
+                        );
+
+        if (!SecurityUtils.hasRole("PATIENT")
+                || !ownershipResolver.resolveOwnPatientId().equals(appointment.getPatientId())) {
+            throw new ForbiddenOperationException(
+                    "Seul le patient à l'origine du rendez-vous peut le reporter"
+            );
+        }
+
+        if (appointment.getStatus() != AppointmentStatus.PENDING
+                && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
+            throw new RuntimeException(
+                    "Seul un rendez-vous en attente ou confirmé peut être reporté"
+            );
+        }
+
+        if (!request.getNewEndTime().isAfter(request.getNewStartTime())) {
+            throw new RuntimeException(
+                    "La date de fin doit être après la date de début"
+            );
+        }
+
+        if (request.getNewStartTime().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException(
+                    "Le nouveau créneau ne peut pas être dans le passé"
+            );
+        }
+
+        boolean conflict =
+                appointmentRepository
+                        .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndIdNot(
+                                appointment.getPsychologistId(),
+                                request.getNewEndTime(),
+                                request.getNewStartTime(),
+                                appointment.getId()
+                        );
+
+        if (conflict) {
+            throw new RuntimeException(
+                    "Le psychologue possède déjà un rendez-vous sur ce nouveau créneau"
+            );
+        }
+
+        boolean wasConfirmed =
+                appointment.getStatus() == AppointmentStatus.CONFIRMED;
+
+        appointment.setStartTime(request.getNewStartTime());
+        appointment.setEndTime(request.getNewEndTime());
+
+        if (wasConfirmed) {
+            // Un rendez-vous déjà confirmé repasse en attente : le
+            // psychologue doit reconfirmer explicitement le nouveau créneau.
+            appointment.setStatus(AppointmentStatus.PENDING);
+        }
+
+        Appointment updatedAppointment =
+                appointmentRepository.save(appointment);
+
+        notificationClient.send(
+                updatedAppointment.getPsychologistId(),
+                "Rendez-vous reporté",
+                wasConfirmed
+                        ? "Un patient a reporté un rendez-vous confirmé à un nouveau créneau : veuillez le reconfirmer."
+                        : "Un patient a reporté un rendez-vous en attente à un nouveau créneau.",
+                "APPOINTMENT"
+        );
+
+        return mapToResponse(updatedAppointment);
+    }
+
+    @Override
+    public List<AppointmentResponse>
+    getAppointmentsByPsychologistId(
+            Long psychologistId
+    ) {
+
+        if (!SecurityUtils.hasRole("PSYCHOLOGIST")
+                || !ownershipResolver.resolveOwnPsychologistId().equals(psychologistId)) {
+            throw new ForbiddenOperationException(
+                    "Vous ne pouvez consulter que vos propres rendez-vous"
+            );
+        }
+
+        List<Appointment> appointments =
+                appointmentRepository
+                        .findByPsychologistId(
+                                psychologistId
+                        );
+
+        return appointments
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AppointmentResponse>
+    getAppointmentsByPatientId(
+            Long patientId
+    ) {
+
+        if (!SecurityUtils.hasRole("PATIENT")
+                || !ownershipResolver.resolveOwnPatientId().equals(patientId)) {
+            throw new ForbiddenOperationException(
+                    "Vous ne pouvez consulter que vos propres rendez-vous"
+            );
+        }
+
+        List<Appointment> appointments =
+                appointmentRepository
+                        .findByPatientId(
+                                patientId
+                        );
+
+        return appointments
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AppointmentResponse> getAllAppointmentsForAdmin(String status) {
+
+        List<Appointment> appointments;
+
+        if (status == null || status.isBlank()) {
+            appointments = appointmentRepository.findAll();
+        } else {
+            appointments = appointmentRepository.findByStatus(
+                    AppointmentStatus.valueOf(status.toUpperCase())
+            );
+        }
+
+        return appointments
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    private AppointmentResponse mapToResponse(
+            Appointment appointment
+    ) {
+
+        AppointmentResponse response =
+                new AppointmentResponse();
+
+        response.setId(
+                appointment.getId()
+        );
+
+        response.setPatientId(
+                appointment.getPatientId()
+        );
+
+        response.setPsychologistId(
+                appointment.getPsychologistId()
+        );
+
+        response.setStartTime(
+                appointment.getStartTime()
+        );
+
+        response.setEndTime(
+                appointment.getEndTime()
+        );
+
+        response.setConsultationType(
+                appointment.getConsultationType()
+        );
+
+        response.setStatus(
+                appointment.getStatus()
+        );
+
+        response.setCreatedAt(
+                appointment.getCreatedAt()
+        );
+
+        return response;
+    }
+
+    @Override
+    public void deleteAppointment(Long id) {
+
+        Appointment appointment =
+                appointmentRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Rendez-vous non trouvé"
+                                )
+                        );
+
+        // Suppression réservée au patient propriétaire, pour nettoyer son
+        // agenda — jamais au psychologue.
+        if (!SecurityUtils.hasRole("PATIENT")
+                || !ownershipResolver.resolveOwnPatientId().equals(appointment.getPatientId())) {
+            throw new ForbiddenOperationException(
+                    "Vous ne pouvez supprimer que vos propres rendez-vous"
+            );
+        }
+
+        // Limité aux RDV déjà sans suite (ANNULÉ ou REFUSÉ) : un PENDING/
+        // CONFIRMED/COMPLETED doit rester visible (RDV actif, ou historique
+        // de consultation/paiement). Pas de contrainte FK en base sur
+        // Payment.appointmentId (simple Long, pas de @ManyToOne) : la
+        // suppression ne casse rien côté paiements, mais on la restreint
+        // côté métier plutôt que technique.
+        if (appointment.getStatus() != AppointmentStatus.CANCELLED
+                && appointment.getStatus() != AppointmentStatus.REJECTED) {
+            throw new ForbiddenOperationException(
+                    "Seuls les rendez-vous annulés ou refusés peuvent être supprimés"
+            );
+        }
+
+        appointmentRepository.delete(appointment);
+    }
+}
