@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PsyConnect Sénégal — Maquettes</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --teal:#0D7B6E; --teal-dark:#095C52; --teal-light:#E6F4F1; --teal-mid:#C2E8E2;
+  --gold:#D4A853; --gold-light:#FBF3E2;
+  --rose:#E8746A;
+  --bg:#F7F5F2; --white:#FFFFFF;
+  --text:#1A1A2E; --muted:#7A7A8C;
+  --shadow:0 4px 24px rgba(13,123,110,0.10);
+  --r:20px; --rs:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:#EDEBE6;min-height:100vh;padding:32px 16px;}
+
+.page-header{text-align:center;margin-bottom:36px;}
+.page-header h1{font-family:'Playfair Display',serif;font-size:2rem;color:var(--teal-dark);margin-bottom:6px;}
+.page-header p{color:var(--muted);font-size:.9rem;}
+.badge{display:inline-block;background:var(--teal);color:white;padding:4px 14px;border-radius:20px;font-size:.75rem;font-weight:600;margin-bottom:12px;}
+
+.tabs{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:36px;}
+.tab-btn{background:white;border:2px solid transparent;border-radius:30px;padding:10px 22px;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:500;color:var(--muted);cursor:pointer;transition:all .2s;}
+.tab-btn:hover{border-color:var(--teal);color:var(--teal);}
+.tab-btn.active{background:var(--teal);color:white;border-color:var(--teal);box-shadow:0 4px 12px rgba(13,123,110,.3);}
+
+.screens-grid{display:none;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px;max-width:1280px;margin:0 auto;justify-items:center;}
+.screens-grid.active{display:grid;}
+
+.phone-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
+.phone-label{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.phone{width:300px;height:620px;background:#1A1A1A;border-radius:40px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.25),inset 0 0 0 1px rgba(255,255,255,.08);position:relative;flex-shrink:0;}
+.phone::before{content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);width:80px;height:5px;background:#333;border-radius:3px;z-index:10;}
+.screen{width:100%;height:100%;border-radius:28px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;}
+
+/* STATUS BAR */
+.sb{display:flex;justify-content:space-between;align-items:center;padding:10px 16px 4px;font-size:.65rem;font-weight:600;position:absolute;top:0;left:0;right:0;z-index:5;}
+.sb.light{color:white;} .sb.dark{color:var(--text);}
+
+/* BOTTOM NAV */
+.bnav{display:flex;justify-content:space-around;align-items:center;padding:8px 4px 12px;background:white;border-top:1px solid #F0F0F0;box-shadow:0 -4px 20px rgba(0,0,0,.06);}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.58rem;color:var(--muted);font-weight:500;}
+.ni.on{color:var(--teal);}
+.ni svg{width:18px;height:18px;}
+
+/* COMMON */
+.card{background:white;border-radius:var(--rs);padding:12px;box-shadow:var(--shadow);}
+.chip{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.62rem;font-weight:600;}
+.ct{background:var(--teal-light);color:var(--teal);}
+.cg{background:var(--gold-light);color:#8A6010;}
+.cr{background:#FDECEA;color:var(--rose);}
+.sec-title{font-family:'Playfair Display',serif;font-size:.9rem;color:var(--text);margin-bottom:8px;}
+.btn-p{background:var(--teal);color:white;border:none;border-radius:30px;padding:12px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.82rem;width:100%;cursor:pointer;box-shadow:0 4px 14px rgba(13,123,110,.3);}
+.btn-o{background:transparent;color:var(--teal);border:1.5px solid var(--teal);border-radius:30px;padding:11px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.82rem;width:100%;cursor:pointer;}
+
+/* SVG ICONS */
+svg{display:block;}
+
+/* ═══ SPLASH ═══ */
+.splash{background:linear-gradient(160deg,var(--teal-dark) 0%,var(--teal) 55%,#1DB39A 100%);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:46px 22px 26px;flex:1;position:relative;overflow:hidden;}
+.splash::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.06);}
+.splash::after{content:'';position:absolute;bottom:100px;left:-40px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.05);}
+.splash-logo{display:flex;flex-direction:column;align-items:center;gap:10px;z-index:1;}
+.splash-icon{width:68px;height:68px;background:rgba(255,255,255,.18);border-radius:18px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.25);}
+.splash-title{font-family:'Playfair Display',serif;color:white;font-size:1.5rem;text-align:center;}
+.splash-sub{color:rgba(255,255,255,.75);font-size:.75rem;text-align:center;}
+.splash-feats{display:flex;flex-direction:column;gap:8px;width:100%;z-index:1;}
+.splash-feat{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:9px 12px;display:flex;align-items:center;gap:10px;}
+.splash-feat svg{width:16px;height:16px;flex-shrink:0;}
+.splash-feat span{color:white;font-size:.72rem;}
+.splash-actions{display:flex;flex-direction:column;gap:8px;width:100%;z-index:1;}
+.sbtn-w{background:white;color:var(--teal);border:none;border-radius:30px;padding:12px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.82rem;width:100%;cursor:pointer;}
+.sbtn-g{background:transparent;color:white;border:1.5px solid rgba(255,255,255,.5);border-radius:30px;padding:11px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.82rem;width:100%;cursor:pointer;}
+
+/* ═══ HOME ═══ */
+.hdr{background:linear-gradient(135deg,var(--teal-dark),var(--teal));padding:36px 16px 20px;position:relative;overflow:hidden;}
+.hdr::before{content:'';position:absolute;top:-30px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08);}
+.hdr-greeting{color:rgba(255,255,255,.8);font-size:.72rem;}
+.hdr-name{color:white;font-family:'Playfair Display',serif;font-size:1.2rem;}
+.hdr-sub{color:rgba(255,255,255,.65);font-size:.68rem;margin-top:3px;}
+.body-scroll{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px;}
+
+.mood-w{background:white;border-radius:var(--rs);padding:11px;box-shadow:var(--shadow);}
+.mood-lbl{font-size:.72rem;font-weight:600;color:var(--text);margin-bottom:7px;}
+.mood-row{display:flex;justify-content:space-between;}
+.mood-btn{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;}
+.mood-btn svg{width:24px;height:24px;}
+.mood-btn span{font-size:.55rem;color:var(--muted);}
+.mood-btn.sel svg{filter:drop-shadow(0 2px 6px rgba(13,123,110,.5));transform:scale(1.15);}
+
+.rdv-banner{background:linear-gradient(135deg,#095C52,var(--teal));border-radius:var(--rs);padding:13px;display:flex;align-items:center;gap:10px;}
+.rdv-icon{width:38px;height:38px;background:rgba(255,255,255,.18);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rdv-icon svg{width:20px;height:20px;}
+.rdv-info{flex:1;}
+.rdv-lbl{color:rgba(255,255,255,.7);font-size:.62rem;}
+.rdv-who{color:white;font-weight:700;font-size:.8rem;margin-top:1px;}
+.rdv-when{color:rgba(255,255,255,.85);font-size:.68rem;margin-top:1px;}
+.rdv-join{background:rgba(255,255,255,.2);color:white;border:none;border-radius:20px;padding:6px 12px;font-size:.65rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+
+.psy-mini{background:white;border-radius:var(--rs);padding:11px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;}
+.psy-av{width:42px;height:42px;border-radius:50%;background:var(--teal-mid);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.psy-av svg{width:22px;height:22px;}
+.psy-inf{flex:1;}
+.psy-n{font-weight:600;font-size:.8rem;color:var(--text);}
+.psy-s{font-size:.64rem;color:var(--muted);margin-top:1px;}
+.psy-r{display:flex;align-items:center;gap:3px;font-size:.65rem;color:var(--gold);margin-top:3px;}
+.psy-r svg{width:11px;height:11px;}
+.mini-btn{background:var(--teal);color:white;border:none;border-radius:20px;padding:7px 13px;font-size:.66rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+
+.qa{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.qa-btn{background:white;border-radius:var(--rs);padding:13px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:var(--shadow);cursor:pointer;}
+.qa-btn svg{width:24px;height:24px;}
+.qa-lbl{font-size:.68rem;font-weight:600;color:var(--text);text-align:center;}
+.qa-sub{font-size:.58rem;color:var(--muted);text-align:center;}
+
+/* ═══ SEARCH ═══ */
+.shdr{background:var(--teal-dark);padding:36px 14px 14px;}
+.shdr-title{color:white;font-family:'Playfair Display',serif;font-size:1.05rem;margin-bottom:8px;}
+.search-bar{background:white;border-radius:30px;display:flex;align-items:center;gap:8px;padding:9px 14px;}
+.search-bar svg{width:16px;height:16px;color:var(--muted);flex-shrink:0;}
+.search-bar span{font-size:.72rem;color:var(--muted);}
+.fchips{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px;}
+.fchip{white-space:nowrap;border-radius:20px;padding:5px 11px;font-size:.63rem;font-weight:600;border:1.5px solid rgba(255,255,255,.4);color:white;background:rgba(255,255,255,.12);cursor:pointer;}
+.fchip.on{background:white;color:var(--teal);border-color:white;}
+
+.ml-box{background:var(--gold-light);border:1px solid var(--gold);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:8px;}
+.ml-box svg{width:18px;height:18px;flex-shrink:0;}
+.ml-txt{font-size:.65rem;color:#6B4E10;}
+.ml-txt strong{display:block;font-size:.7rem;color:#4A3308;}
+
+.psy-card{background:white;border-radius:var(--rs);padding:13px;box-shadow:var(--shadow);}
+.psy-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.psy-badge-w{position:relative;}
+.psy-av-lg{width:46px;height:46px;border-radius:50%;background:var(--teal-mid);display:flex;align-items:center;justify-content:center;}
+.psy-av-lg svg{width:24px;height:24px;}
+.verified{position:absolute;bottom:0;right:0;background:var(--teal);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border:2px solid white;}
+.verified svg{width:8px;height:8px;}
+.psy-meta{display:flex;align-items:center;gap:5px;font-size:.63rem;color:var(--muted);margin-top:3px;}
+.psy-meta svg{width:10px;height:10px;}
+.psy-acts{display:flex;gap:8px;}
+.btn-out{flex:1;border:1.5px solid var(--teal);color:var(--teal);background:transparent;border-radius:20px;padding:8px;font-size:.68rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-fill{flex:1;background:var(--teal);color:white;border:none;border-radius:20px;padding:8px;font-size:.68rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+
+/* ═══ PROFIL PSY ═══ */
+.phdr{background:linear-gradient(160deg,var(--teal-dark),var(--teal));padding:42px 14px 56px;position:relative;overflow:hidden;}
+.phdr::after{content:'';position:absolute;bottom:-28px;left:0;right:0;height:56px;background:var(--bg);border-radius:28px 28px 0 0;}
+.back{color:white;font-size:.72rem;display:flex;align-items:center;gap:5px;margin-bottom:10px;}
+.back svg{width:16px;height:16px;}
+.prof-center{display:flex;flex-direction:column;align-items:center;gap:7px;}
+.prof-av{width:70px;height:70px;border-radius:50%;background:var(--teal-mid);display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,.35);}
+.prof-av svg{width:36px;height:36px;}
+.prof-name{color:white;font-family:'Playfair Display',serif;font-size:1.05rem;text-align:center;}
+.prof-spec{color:rgba(255,255,255,.78);font-size:.68rem;text-align:center;}
+.prof-tags{display:flex;gap:5px;}
+.prof-tag{background:rgba(255,255,255,.2);color:white;border-radius:20px;padding:3px 9px;font-size:.6rem;font-weight:600;}
+
+.stats-r{display:flex;justify-content:space-around;background:white;border-radius:var(--rs);padding:11px;box-shadow:var(--shadow);}
+.stat{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.stat-v{font-size:1rem;font-weight:700;color:var(--teal);}
+.stat-l{font-size:.57rem;color:var(--muted);}
+
+.modals{display:flex;gap:7px;}
+.modal-btn{flex:1;border-radius:10px;padding:9px 4px;text-align:center;font-size:.62rem;font-weight:600;border:1.5px solid;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;}
+.modal-btn svg{width:16px;height:16px;}
+.modal-btn.sel{background:var(--teal);color:white;border-color:var(--teal);}
+.modal-btn:not(.sel){background:white;color:var(--muted);border-color:#E0E0E0;}
+
+.crens{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.cren{border-radius:9px;padding:7px 3px;text-align:center;font-size:.6rem;font-weight:600;cursor:pointer;border:1.5px solid transparent;}
+.cren.ok{background:var(--teal-light);color:var(--teal);border-color:var(--teal-mid);}
+.cren.sel{background:var(--teal);color:white;}
+.cren.full{background:#F0F0F0;color:#BABABA;}
+
+/* ═══ VIDEO ═══ */
+.vid-screen{background:#0F1923;flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.vid-remote{flex:1;background:linear-gradient(160deg,#1A2A35,#0F1923);display:flex;align-items:center;justify-content:center;position:relative;}
+.vid-remote-av{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--teal-dark));display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,.2);}
+.vid-remote-av svg{width:40px;height:40px;}
+.vid-name{position:absolute;bottom:10px;left:10px;color:white;font-size:.72rem;font-weight:600;background:rgba(0,0,0,.4);padding:4px 10px;border-radius:20px;}
+.vid-timer{position:absolute;top:40px;left:50%;transform:translateX(-50%);color:white;font-size:.68rem;background:rgba(0,0,0,.3);padding:4px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;}
+.vid-dot{width:6px;height:6px;background:var(--rose);border-radius:50%;animation:blink 1.2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.vid-self{position:absolute;top:50px;right:10px;width:64px;height:86px;border-radius:11px;background:linear-gradient(135deg,#2A3A4A,#1A2A35);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;}
+.vid-self svg{width:28px;height:28px;}
+.vid-ctrls{background:rgba(15,25,35,.95);padding:13px 14px 18px;display:flex;justify-content:space-around;align-items:center;}
+.ctrl{width:44px;height:44px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.ctrl svg{width:18px;height:18px;}
+.ctrl.n{background:rgba(255,255,255,.12);}
+.ctrl.d{background:var(--rose);box-shadow:0 4px 14px rgba(232,116,106,.4);}
+.ctrl.a{background:var(--teal);}
+
+/* ═══ PSY DASHBOARD ═══ */
+.dhdr{background:linear-gradient(135deg,var(--teal-dark),var(--teal));padding:36px 14px 18px;}
+.dhdr-g{color:rgba(255,255,255,.78);font-size:.7rem;}
+.dhdr-n{color:white;font-family:'Playfair Display',serif;font-size:1.05rem;}
+.dstats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px;}
+.dstat{background:rgba(255,255,255,.14);border-radius:10px;padding:9px 11px;border:1px solid rgba(255,255,255,.2);}
+.dstat-v{color:white;font-size:1.1rem;font-weight:700;}
+.dstat-l{color:rgba(255,255,255,.68);font-size:.6rem;}
+.rev-card{background:var(--gold-light);border:1px solid var(--gold);border-radius:var(--rs);padding:13px;display:flex;align-items:center;gap:11px;}
+.rev-icon{width:38px;height:38px;background:rgba(212,168,83,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.rev-icon svg{width:20px;height:20px;}
+.rev-lbl{font-size:.63rem;color:#8A6010;}
+.rev-amt{font-size:1.1rem;font-weight:700;color:#4A3308;}
+.rev-sub{font-size:.6rem;color:#A07820;}
+.rdv-list{display:flex;flex-direction:column;gap:7px;}
+.rdv-it{background:white;border-radius:10px;padding:9px 11px;display:flex;align-items:center;gap:9px;box-shadow:0 2px 10px rgba(0,0,0,.06);border-left:3px solid var(--teal);}
+.rdv-it-t{font-size:.63rem;font-weight:700;color:var(--teal);min-width:36px;}
+.rdv-it-i{flex:1;}
+.rdv-it-n{font-size:.76rem;font-weight:600;color:var(--text);}
+.rdv-it-s{font-size:.6rem;color:var(--muted);}
+.rdv-it-a{width:28px;height:28px;background:var(--teal-light);border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.rdv-it-a svg{width:14px;height:14px;}
+
+/* ═══ ADMIN ═══ */
+.adhdr{background:linear-gradient(135deg,#1A1A2E,#16213E);padding:36px 14px 18px;}
+.adhdr-t{color:white;font-family:'Playfair Display',serif;font-size:1rem;}
+.adhdr-s{color:rgba(255,255,255,.58);font-size:.63rem;margin-top:2px;}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px;}
+.kpi{border-radius:10px;padding:11px;}
+.kpi.k1{background:rgba(13,123,110,.3);border:1px solid rgba(13,123,110,.5);}
+.kpi.k2{background:rgba(212,168,83,.2);border:1px solid rgba(212,168,83,.4);}
+.kpi.k3{background:rgba(232,116,106,.2);border:1px solid rgba(232,116,106,.4);}
+.kpi.k4{background:rgba(100,149,237,.2);border:1px solid rgba(100,149,237,.4);}
+.kpi-v{color:white;font-size:1.15rem;font-weight:700;}
+.kpi-l{color:rgba(255,255,255,.6);font-size:.6rem;}
+.val-card{background:white;border-radius:10px;padding:11px;box-shadow:0 2px 10px rgba(0,0,0,.06);border-left:3px solid var(--gold);}
+.val-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.val-av{width:36px;height:36px;border-radius:50%;background:var(--teal-mid);display:flex;align-items:center;justify-content:center;}
+.val-av svg{width:18px;height:18px;}
+.val-n{font-size:.78rem;font-weight:600;color:var(--text);}
+.val-i{font-size:.62rem;color:var(--muted);}
+.val-doc{font-size:.62rem;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.val-doc svg{width:12px;height:12px;}
+.val-acts{display:flex;gap:6px;margin-top:8px;}
+.va{flex:1;border-radius:20px;padding:7px;font-size:.66rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;}
+.va.ok{background:var(--teal);color:white;}
+.va.ko{background:#FFF0EF;color:var(--rose);border:1.5px solid var(--rose);}
+
+/* ═══ JOURNAL ═══ */
+.jhdr{background:linear-gradient(135deg,#2D5E8E,#1A3A5C);padding:36px 14px 18px;}
+.jhdr-t{color:white;font-family:'Playfair Display',serif;font-size:1.05rem;}
+.jhdr-s{color:rgba(255,255,255,.68);font-size:.68rem;margin-top:3px;display:flex;align-items:center;gap:5px;}
+.jhdr-s svg{width:12px;height:12px;}
+.graph-card{background:white;border-radius:var(--rs);padding:11px;box-shadow:var(--shadow);}
+.graph-t{font-size:.72rem;font-weight:600;color:var(--text);margin-bottom:8px;}
+.bars{display:flex;align-items:flex-end;gap:4px;height:48px;}
+.bar-w{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;}
+.bar{width:100%;border-radius:3px 3px 0 0;}
+.bar.hi{background:var(--teal);}
+.bar.md{background:var(--gold);}
+.bar.lo{background:var(--rose);}
+.bar-d{font-size:.52rem;color:var(--muted);}
+.jentry{background:white;border-radius:var(--rs);padding:11px;box-shadow:var(--shadow);}
+.jentry-d{font-size:.62rem;color:var(--muted);margin-bottom:4px;}
+.jentry-mood{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:5px;}
+.jentry-mood svg{width:16px;height:16px;}
+.jentry-t{font-size:.7rem;color:var(--text);line-height:1.5;}
+.jentry-tags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+.new-btn{background:linear-gradient(135deg,#2D5E8E,#1A3A5C);color:white;border:none;border-radius:30px;padding:12px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;display:flex;align-items:center;justify-content:center;gap:7px;}
+.new-btn svg{width:16px;height:16px;}
+
+/* ═══ PAYMENT ═══ */
+.pay-hdr{background:linear-gradient(135deg,#1A1A2E,#16213E);padding:42px 14px 18px;}
+.pay-lbl{color:rgba(255,255,255,.75);font-size:.7rem;}
+.pay-title{color:white;font-family:'Playfair Display',serif;font-size:1.05rem;}
+.pay-option{border-radius:11px;padding:11px;display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:7px;}
+.pay-option.sel{background:var(--teal-light);border:2px solid var(--teal);}
+.pay-option.unsel{background:white;border:1.5px solid #E0E0E0;}
+.pay-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pay-icon svg{width:20px;height:20px;}
+.pay-name{font-weight:600;font-size:.78rem;}
+.pay-sub{font-size:.6rem;color:var(--muted);}
+.pay-check{margin-left:auto;}
+.pay-check svg{width:18px;height:18px;}
+.total-row{display:flex;justify-content:space-between;align-items:center;font-size:.75rem;margin-bottom:5px;}
+.total-row.big{font-size:.85rem;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid #F0F0F0;}
+.pay-note{text-align:center;font-size:.6rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;}
+.pay-note svg{width:12px;height:12px;}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="badge">M2 SIR — Projet de Fin d'Études</div>
+  <h1>PsyConnect Sénégal</h1>
+  <p>Maquettes interactives — Application Flutter multi-rôle</p>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('patient',this)">Patient</button>
+  <button class="tab-btn" onclick="showTab('psy',this)">Psychologue</button>
+  <button class="tab-btn" onclick="showTab('admin',this)">Administrateur</button>
+  <button class="tab-btn" onclick="showTab('special',this)">Fonctionnalités spéciales</button>
+</div>
+
+<!-- ══ PATIENT ══ -->
+<div class="screens-grid active" id="tab-patient">
+
+  <!-- SPLASH -->
+  <div class="phone-wrap">
+    <div class="phone-label">Accueil / Onboarding</div>
+    <div class="phone"><div class="screen">
+      <div class="splash">
+        <div class="splash-logo">
+          <div class="splash-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
+              <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+            </svg>
+          </div>
+          <div class="splash-title">PsyConnect<br>Sénégal</div>
+          <div class="splash-sub">Prenez soin de vous, en toute confiance.</div>
+        </div>
+        <div class="splash-feats">
+          <div class="splash-feat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <span>Anonymat garanti — aucun jugement</span>
+          </div>
+          <div class="splash-feat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>Psys à Dakar, Thiès, Saint-Louis…</span>
+          </div>
+          <div class="splash-feat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <span>Paiement Wave & Orange Money</span>
+          </div>
+        </div>
+        <div class="splash-actions">
+          <button class="sbtn-w">Je suis un patient</button>
+          <button class="sbtn-g">Je suis un psychologue</button>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- HOME PATIENT -->
+  <div class="phone-wrap">
+    <div class="phone-label">Accueil Patient</div>
+    <div class="phone"><div class="screen">
+      <div class="hdr">
+        <div class="sb light"><span>9:41</span><span style="display:flex;gap:4px;align-items:center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0119 12.55M5 5a10.94 10.94 0 012.81-1.82M10.71 5.05A11 11 0 0123 12.55M1.42 9A16 16 0 014.72 11.06M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </span></div>
+        <div style="height:18px"></div>
+        <div class="hdr-greeting">Bonjour</div>
+        <div class="hdr-name">Fatou A.</div>
+        <div class="hdr-sub">Comment vous sentez-vous aujourd'hui ?</div>
+      </div>
+      <div class="body-scroll">
+        <div class="mood-w">
+          <div class="mood-lbl">Mon humeur du jour</div>
+          <div class="mood-row">
+            <div class="mood-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#7A7A8C" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg><span>Triste</span></div>
+            <div class="mood-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A853" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg><span>Neutre</span></div>
+            <div class="mood-btn sel"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg><span>Bien</span></div>
+            <div class="mood-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#1DB39A" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 3 4 3 4-3 4-3"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg><span>Super</span></div>
+          </div>
+        </div>
+        <div class="rdv-banner">
+          <div class="rdv-icon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+          <div class="rdv-info">
+            <div class="rdv-lbl">Prochain rendez-vous</div>
+            <div class="rdv-who">Dr. Aminata Diallo</div>
+            <div class="rdv-when">Aujourd'hui · 15h00 · Vidéo</div>
+          </div>
+          <button class="rdv-join">Rejoindre</button>
+        </div>
+        <div class="sec-title">Recommandé pour vous</div>
+        <div class="psy-mini">
+          <div class="psy-av"><svg viewBox="0 0 24 24" fill="none" stroke="#095C52" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <div class="psy-inf">
+            <div class="psy-n">Dr. Khady Sarr</div>
+            <div class="psy-s">Anxiété · Trauma · TCC</div>
+            <div class="psy-r"><svg viewBox="0 0 24 24" fill="#D4A853" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>4.9 <span style="color:var(--muted)">(47 avis)</span></div>
+          </div>
+          <button class="mini-btn">Voir</button>
+        </div>
+        <div class="qa">
+          <div class="qa-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><div class="qa-lbl">Trouver un psy</div><div class="qa-sub">Par spécialité</div></div>
+          <div class="qa-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg><div class="qa-lbl">Mon journal</div><div class="qa-sub">Humeurs & notes</div></div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Accueil</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Chercher</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>RDV</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Messages</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profil</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- RECHERCHE -->
+  <div class="phone-wrap">
+    <div class="phone-label">Recherche de Psychologue</div>
+    <div class="phone"><div class="screen">
+      <div class="shdr">
+        <div class="sb light"><span>9:41</span><span style="display:flex;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></span></div>
+        <div style="height:18px"></div>
+        <div class="shdr-title">Trouver un psy</div>
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#7A7A8C" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>Spécialité, nom, ville…</span>
+        </div>
+        <div class="fchips">
+          <div class="fchip on">Tous</div>
+          <div class="fchip">Anxiété</div>
+          <div class="fchip">Dépression</div>
+          <div class="fchip">Couple</div>
+          <div class="fchip">Enfant</div>
+        </div>
+      </div>
+      <div class="body-scroll">
+        <div class="ml-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#D4A853" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+          <div class="ml-txt"><strong>Recommandé par IA</strong>Basé sur votre profil et vos symptômes</div>
+        </div>
+        <div class="psy-card">
+          <div class="psy-top">
+            <div class="psy-badge-w">
+              <div class="psy-av-lg"><svg viewBox="0 0 24 24" fill="none" stroke="#095C52" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              <div class="verified"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            </div>
+            <div style="flex:1">
+              <div class="psy-n">Dr. Aminata Diallo</div>
+              <div class="psy-meta"><svg viewBox="0 0 24 24" fill="#D4A853" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>4.9 · <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg>Dakar · 15 000 F</div>
+              <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap"><div class="chip ct">TCC</div><div class="chip cg">Anxiété</div><div class="chip ct">Trauma</div></div>
+            </div>
+          </div>
+          <div class="psy-acts"><button class="btn-out">Voir profil</button><button class="btn-fill">Réserver</button></div>
+        </div>
+        <div class="psy-card">
+          <div class="psy-top">
+            <div class="psy-badge-w">
+              <div class="psy-av-lg"><svg viewBox="0 0 24 24" fill="none" stroke="#095C52" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              <div class="verified"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            </div>
+            <div style="flex:1">
+              <div class="psy-n">Dr. Moussa Ndiaye</div>
+              <div class="psy-meta"><svg viewBox="0 0 24 24" fill="#D4A853" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>4.7 · <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg>Thiès · 10 000 F</div>
+              <div style="display:flex;gap:4px;margin-top:5px"><div class="chip ct">Dépression</div><div class="chip cr">Couple</div></div>
+            </div>
+          </div>
+          <div class="psy-acts"><button class="btn-out">Voir profil</button><button class="btn-fill">Réserver</button></div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Accueil</div>
+        <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Chercher</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>RDV</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Messages</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profil</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- PROFIL PSY -->
+  <div class="phone-wrap">
+    <div class="phone-label">Profil Psychologue & Réservation</div>
+    <div class="phone"><div class="screen">
+      <div class="phdr">
+        <div class="sb light"><span>9:41</span><span></span></div>
+        <div style="height:10px"></div>
+        <div class="back"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Retour</div>
+        <div class="prof-center">
+          <div class="prof-av"><svg viewBox="0 0 24 24" fill="none" stroke="#095C52" stroke-width="1.6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <div class="prof-name">Dr. Aminata Diallo</div>
+          <div class="prof-spec">Psychologue Clinicienne · TCC · Trauma</div>
+          <div class="prof-tags"><div class="prof-tag">Certifiée OPSP</div><div class="prof-tag">FR / Wolof</div></div>
+        </div>
+      </div>
+      <div class="body-scroll" style="margin-top:-4px">
+        <div class="stats-r">
+          <div class="stat"><div class="stat-v">4.9</div><div class="stat-l">Note</div></div>
+          <div class="stat"><div class="stat-v">247</div><div class="stat-l">Patients</div></div>
+          <div class="stat"><div class="stat-v">8 ans</div><div class="stat-l">Expérience</div></div>
+          <div class="stat"><div class="stat-v">15k F</div><div class="stat-l">Séance</div></div>
+        </div>
+        <div class="card">
+          <div style="font-size:.72rem;font-weight:600;color:var(--text);margin-bottom:8px">Modalités de consultation</div>
+          <div class="modals">
+            <div class="modal-btn sel"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Vidéo</div>
+            <div class="modal-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 01.03 2.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.09 6.09l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>Audio</div>
+            <div class="modal-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Cabinet</div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="font-size:.72rem;font-weight:600;color:var(--text);margin-bottom:8px">Disponibilités — Demain</div>
+          <div class="crens">
+            <div class="cren ok">09h00</div><div class="cren full">10h00</div>
+            <div class="cren sel">11h00</div><div class="cren full">14h00</div>
+            <div class="cren ok">15h00</div><div class="cren ok">16h00</div>
+          </div>
+        </div>
+        <button class="btn-p">Confirmer — 15 000 F CFA</button>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ PSY ══ -->
+<div class="screens-grid" id="tab-psy">
+
+  <!-- DASHBOARD PSY -->
+  <div class="phone-wrap">
+    <div class="phone-label">Tableau de Bord Psychologue</div>
+    <div class="phone"><div class="screen">
+      <div class="dhdr">
+        <div class="sb light"><span>9:41</span><span></span></div>
+        <div style="height:18px"></div>
+        <div class="dhdr-g">Bonjour</div>
+        <div class="dhdr-n">Dr. Aminata Diallo</div>
+        <div class="dstats">
+          <div class="dstat"><div class="dstat-v">5</div><div class="dstat-l">RDV aujourd'hui</div></div>
+          <div class="dstat"><div class="dstat-v">23</div><div class="dstat-l">Cette semaine</div></div>
+          <div class="dstat"><div class="dstat-v">247</div><div class="dstat-l">Patients actifs</div></div>
+          <div class="dstat"><div class="dstat-v">4.9</div><div class="dstat-l">Ma note</div></div>
+        </div>
+      </div>
+      <div class="body-scroll">
+        <div class="rev-card">
+          <div class="rev-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A853" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+          <div>
+            <div class="rev-lbl">Revenus ce mois</div>
+            <div class="rev-amt">375 000 F CFA</div>
+            <div class="rev-sub">+12% vs mois dernier</div>
+          </div>
+        </div>
+        <div class="sec-title">Planning du jour</div>
+        <div class="rdv-list">
+          <div class="rdv-it">
+            <div class="rdv-it-t">09h00</div>
+            <div class="rdv-it-i"><div class="rdv-it-n">Patient Anonyme #42</div><div class="rdv-it-s">Vidéo · 1h</div></div>
+            <div class="rdv-it-a"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+          <div class="rdv-it">
+            <div class="rdv-it-t">11h00</div>
+            <div class="rdv-it-i"><div class="rdv-it-n">Fatou A.</div><div class="rdv-it-s">Audio · 45 min</div></div>
+            <div class="rdv-it-a"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+          <div class="rdv-it">
+            <div class="rdv-it-t">14h00</div>
+            <div class="rdv-it-i"><div class="rdv-it-n">Ibrahim D.</div><div class="rdv-it-s">Présentiel · 1h</div></div>
+            <div class="rdv-it-a"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+          <div class="rdv-it" style="border-left-color:var(--gold)">
+            <div class="rdv-it-t" style="color:var(--gold)">16h30</div>
+            <div class="rdv-it-i"><div class="rdv-it-n">Aïda M.</div><div class="rdv-it-s">Vidéo · Nouveau patient</div></div>
+            <div class="rdv-it-a"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+          </div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Accueil</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Patients</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Messages</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Stats</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- VIDEO CALL -->
+  <div class="phone-wrap">
+    <div class="phone-label">Consultation Vidéo (Agora SDK)</div>
+    <div class="phone"><div class="screen">
+      <div class="vid-screen">
+        <div class="sb light" style="padding:12px 16px 4px"><span>9:41</span><span></span></div>
+        <div class="vid-timer"><div class="vid-dot"></div>23:47</div>
+        <div class="vid-remote">
+          <div class="vid-remote-av"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <div class="vid-name">Dr. Aminata Diallo</div>
+        </div>
+        <div class="vid-self"><svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="vid-ctrls">
+          <button class="ctrl n"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg></button>
+          <button class="ctrl a"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+          <button class="ctrl d"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10.68 13.31a16 16 0 003.01 2.99l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92v3a2 2 0 01-2.18 2A19.79 19.79 0 0110 18.81"/><path d="M1 1l22 22"/></svg></button>
+          <button class="ctrl n"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg></button>
+          <button class="ctrl n"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ ADMIN ══ -->
+<div class="screens-grid" id="tab-admin">
+  <div class="phone-wrap">
+    <div class="phone-label">Dashboard Administrateur</div>
+    <div class="phone"><div class="screen">
+      <div class="adhdr">
+        <div class="sb light"><span>9:41</span><span></span></div>
+        <div style="height:18px"></div>
+        <div class="adhdr-t">Administration</div>
+        <div class="adhdr-s">PsyConnect Sénégal · Vue globale</div>
+        <div class="kpis">
+          <div class="kpi k1"><div class="kpi-v">1 284</div><div class="kpi-l">Patients actifs</div></div>
+          <div class="kpi k2"><div class="kpi-v">47</div><div class="kpi-l">Psys vérifiés</div></div>
+          <div class="kpi k3"><div class="kpi-v">3</div><div class="kpi-l">En attente</div></div>
+          <div class="kpi k4"><div class="kpi-v">328</div><div class="kpi-l">Séances / mois</div></div>
+        </div>
+      </div>
+      <div class="body-scroll" style="background:#F0EEE8">
+        <div class="sec-title" style="font-size:.78rem;font-weight:700;font-family:'DM Sans',sans-serif">Validations en attente</div>
+        <div class="val-card">
+          <div class="val-top">
+            <div class="val-av"><svg viewBox="0 0 24 24" fill="none" stroke="#095C52" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+            <div><div class="val-n">Dr. Samba Thiaw</div><div class="val-i">Psychologue · Ziguinchor · 14 mai</div></div>
+          </div>
+          <div class="val-doc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Diplôme UCAD 2019 · Ordre PSY-2024-0892</div>
+          <div class="val-acts"><button class="va ok">Accepter</button><button class="va ko">Refuser</button></div>
+        </div>
+        <div class="val-card">
+          <div class="val-top">
+            <div class="val-av"><svg viewBox="0 0 24 24" fill="none" stroke="#095C52" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+            <div><div class="val-n">Dr. Rokhaya Faye</div><div class="val-i">Thérapeute · Saint-Louis · 15 mai</div></div>
+          </div>
+          <div class="val-doc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Diplôme UGB 2021 · Ordre PSY-2024-1104</div>
+          <div class="val-acts"><button class="va ok">Accepter</button><button class="va ko">Refuser</button></div>
+        </div>
+        <div class="card">
+          <div style="font-size:.72rem;font-weight:600;margin-bottom:8px">Séances par type — Mai 2026</div>
+          <div style="font-size:.68rem;display:flex;flex-direction:column;gap:7px">
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Vidéo</span><span style="color:var(--teal);font-weight:700">58%</span></div><div style="height:6px;background:#F0F0F0;border-radius:3px"><div style="width:58%;height:100%;background:var(--teal);border-radius:3px"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Audio</span><span style="color:var(--gold);font-weight:700">27%</span></div><div style="height:6px;background:#F0F0F0;border-radius:3px"><div style="width:27%;height:100%;background:var(--gold);border-radius:3px"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>Présentiel</span><span style="color:var(--rose);font-weight:700">15%</span></div><div style="height:6px;background:#F0F0F0;border-radius:3px"><div style="width:15%;height:100%;background:var(--rose);border-radius:3px"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="bnav">
+        <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Dashboard</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Utilisateurs</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Validation</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Stats</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>Config</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ SPÉCIAUX ══ -->
+<div class="screens-grid" id="tab-special">
+
+  <!-- JOURNAL -->
+  <div class="phone-wrap">
+    <div class="phone-label">Journal de Bord Patient</div>
+    <div class="phone"><div class="screen">
+      <div class="jhdr">
+        <div class="sb light"><span>9:41</span><span></span></div>
+        <div style="height:18px"></div>
+        <div class="jhdr-t">Mon Journal</div>
+        <div class="jhdr-s"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Espace privé et confidentiel</div>
+      </div>
+      <div class="body-scroll">
+        <div class="graph-card">
+          <div class="graph-t">Mon humeur cette semaine</div>
+          <div class="bars">
+            <div class="bar-w"><div class="bar md" style="height:30px"></div><div class="bar-d">L</div></div>
+            <div class="bar-w"><div class="bar lo" style="height:14px"></div><div class="bar-d">M</div></div>
+            <div class="bar-w"><div class="bar md" style="height:24px"></div><div class="bar-d">Me</div></div>
+            <div class="bar-w"><div class="bar hi" style="height:40px"></div><div class="bar-d">J</div></div>
+            <div class="bar-w"><div class="bar hi" style="height:44px"></div><div class="bar-d">V</div></div>
+            <div class="bar-w"><div class="bar md" style="height:34px"></div><div class="bar-d">S</div></div>
+            <div class="bar-w"><div class="bar hi" style="height:46px"></div><div class="bar-d">D</div></div>
+          </div>
+        </div>
+        <div class="jentry">
+          <div class="jentry-d">16 mai 2026 · 08h34</div>
+          <div class="jentry-mood" style="background:var(--teal-light)"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
+          <div class="jentry-t">Me suis réveillée avec une énergie positive. La séance d'hier m'a vraiment aidée à voir les choses différemment.</div>
+          <div class="jentry-tags"><div class="chip ct">Progrès</div><div class="chip cg">Confiance</div></div>
+        </div>
+        <div class="jentry">
+          <div class="jentry-d">15 mai 2026 · 21h12</div>
+          <div class="jentry-mood" style="background:#FBF3E2"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A853" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
+          <div class="jentry-t">Journée difficile. Anxiété revenue dans l'après-midi mais j'ai utilisé la technique de respiration.</div>
+          <div class="jentry-tags"><div class="chip cr">Anxiété</div><div class="chip ct">Gestion</div></div>
+        </div>
+        <button class="new-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nouvelle entrée</button>
+      </div>
+      <div class="bnav">
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Accueil</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Chercher</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/></svg>RDV</div>
+        <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Journal</div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profil</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- PAIEMENT -->
+  <div class="phone-wrap">
+    <div class="phone-label">Paiement Mobile</div>
+    <div class="phone"><div class="screen">
+      <div class="pay-hdr">
+        <div class="sb light"><span>9:41</span><span></span></div>
+        <div style="height:18px"></div>
+        <div class="pay-lbl">Paiement sécurisé</div>
+        <div class="pay-title">Confirmer le RDV</div>
+      </div>
+      <div class="body-scroll">
+        <div class="card" style="display:flex;align-items:center;gap:10px">
+          <div class="psy-av"><svg viewBox="0 0 24 24" fill="none" stroke="#095C52" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <div><div style="font-weight:600;font-size:.82rem">Dr. Aminata Diallo</div><div style="font-size:.65rem;color:var(--muted)">Vidéo · Demain 11h00 · 1h</div></div>
+        </div>
+        <div class="card">
+          <div style="font-size:.75rem;font-weight:600;margin-bottom:10px">Moyen de paiement</div>
+          <div class="pay-option sel">
+            <div class="pay-icon" style="background:var(--teal-light)"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+            <div><div class="pay-name" style="color:var(--teal)">Wave</div><div class="pay-sub">Paiement instantané</div></div>
+            <div class="pay-check"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="pay-option unsel">
+            <div class="pay-icon" style="background:#FFF3E0"><svg viewBox="0 0 24 24" fill="none" stroke="#E65100" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+            <div><div class="pay-name">Orange Money</div><div class="pay-sub">Paiement mobile</div></div>
+          </div>
+          <div class="pay-option unsel">
+            <div class="pay-icon" style="background:#E8F0FE"><svg viewBox="0 0 24 24" fill="none" stroke="#1A4A7A" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+            <div><div class="pay-name">Carte bancaire</div><div class="pay-sub">Visa / Mastercard</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="total-row"><span style="color:var(--muted)">Séance</span><span>15 000 F</span></div>
+          <div class="total-row"><span style="color:var(--muted)">Frais plateforme</span><span>500 F</span></div>
+          <div class="total-row big"><span>Total</span><span style="color:var(--teal)">15 500 F CFA</span></div>
+        </div>
+        <button class="btn-p">Payer avec Wave</button>
+        <div class="pay-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Paiement sécurisé · Remboursement si annulation 48h avant</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<script>
+function showTab(tab, btn) {
+  document.querySelectorAll('.screens-grid').forEach(g=>g.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

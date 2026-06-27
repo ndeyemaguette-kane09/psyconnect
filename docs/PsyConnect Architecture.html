@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PsyConnect — Architecture Microservices</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'DM Sans',sans-serif; background:#F0EEE8; min-height:100vh; padding:32px 20px; }
+
+.page-title { text-align:center; margin-bottom:36px; }
+.page-title h1 { font-family:'Playfair Display',serif; color:#0A5C52; font-size:1.9rem; }
+.page-title p { color:#7A7A8C; font-size:0.9rem; margin-top:6px; }
+
+.arch-container {
+  max-width:960px; margin:0 auto;
+  display:flex; flex-direction:column; gap:0;
+}
+
+/* LAYERS */
+.layer {
+  display:flex; flex-direction:column; gap:0;
+}
+.layer-label {
+  font-size:0.72rem; font-weight:700; letter-spacing:1.5px;
+  text-transform:uppercase; color:#7A7A8C;
+  padding:6px 0; border-bottom:1px dashed #D0CEC8;
+  margin-bottom:14px;
+}
+
+/* CARDS */
+.services-row {
+  display:flex; flex-wrap:wrap; gap:12px;
+  justify-content:center; margin-bottom:0;
+}
+
+.svc-card {
+  border-radius:14px; padding:14px 16px;
+  display:flex; align-items:center; gap:10px;
+  min-width:160px; flex:1; max-width:220px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.08);
+  position:relative;
+}
+.svc-icon {
+  width:38px; height:38px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.svc-icon svg { width:20px; height:20px; }
+.svc-name { font-size:0.78rem; font-weight:700; }
+.svc-desc { font-size:0.62rem; margin-top:2px; opacity:0.7; }
+.svc-tech {
+  position:absolute; top:8px; right:8px;
+  font-size:0.55rem; font-weight:600; padding:2px 7px;
+  border-radius:20px;
+}
+
+/* COLOR THEMES */
+.c-client { background:white; border:1.5px solid #C2E8E2; }
+.c-client .svc-icon { background:#E6F4F1; }
+.c-client .svc-name { color:#0A5C52; }
+.c-client .svc-tech { background:#E6F4F1; color:#0A5C52; }
+
+.c-gateway { background:linear-gradient(135deg,#0D7B6E,#095C52); border:none; }
+.c-gateway .svc-icon { background:rgba(255,255,255,0.2); }
+.c-gateway .svc-name { color:white; }
+.c-gateway .svc-desc { color:rgba(255,255,255,0.75); }
+.c-gateway .svc-tech { background:rgba(255,255,255,0.2); color:white; }
+
+.c-infra { background:white; border:1.5px solid #D8D5CF; }
+.c-infra .svc-icon { background:#F5F3EF; }
+.c-infra .svc-name { color:#1A1A2E; }
+.c-infra .svc-tech { background:#F0EEE8; color:#555; }
+
+.c-spring { background:white; border:1.5px solid #C2E8E2; }
+.c-spring .svc-icon { background:#E6F4F1; }
+.c-spring .svc-name { color:#095C52; }
+.c-spring .svc-tech { background:#E6F4F1; color:#095C52; }
+
+.c-ml { background:white; border:1.5px solid #FDE8B0; }
+.c-ml .svc-icon { background:#FBF3E2; }
+.c-ml .svc-name { color:#7A4E0A; }
+.c-ml .svc-tech { background:#FBF3E2; color:#7A4E0A; }
+
+.c-ext { background:white; border:1.5px solid #E8D5F5; }
+.c-ext .svc-icon { background:#F5EEFF; }
+.c-ext .svc-name { color:#5A2D91; }
+.c-ext .svc-tech { background:#F5EEFF; color:#5A2D91; }
+
+.c-db { background:white; border:1.5px solid #D0E8FF; }
+.c-db .svc-icon { background:#E8F4FF; }
+.c-db .svc-name { color:#1A4A7A; }
+.c-db .svc-tech { background:#E8F4FF; color:#1A4A7A; }
+
+/* ARROWS */
+.arrow-row {
+  display:flex; justify-content:center;
+  padding:8px 0;
+}
+.arrow-down {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+}
+.arrow-line {
+  width:2px; height:28px;
+  background:linear-gradient(to bottom, #0D7B6E, #C2E8E2);
+}
+.arrow-head {
+  width:0; height:0;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:8px solid #C2E8E2;
+}
+.arrow-label {
+  font-size:0.6rem; color:#7A7A8C; font-weight:600;
+  letter-spacing:0.5px; margin-top:2px;
+}
+
+/* DIVIDER */
+.layer-divider {
+  height:1px; background:linear-gradient(to right, transparent, #C2E8E2, transparent);
+  margin:20px 0;
+}
+
+/* LEGEND */
+.legend {
+  display:flex; flex-wrap:wrap; gap:12px; justify-content:center;
+  margin-top:32px; padding:20px;
+  background:white; border-radius:16px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.06);
+}
+.legend-item { display:flex; align-items:center; gap:7px; }
+.legend-dot { width:12px; height:12px; border-radius:3px; }
+.legend-label { font-size:0.72rem; color:#555; font-weight:500; }
+
+/* FLOW DESCRIPTION */
+.flow-box {
+  background:white; border-radius:16px;
+  padding:20px 24px; margin-top:24px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.06);
+}
+.flow-title {
+  font-size:0.85rem; font-weight:700; color:#0A5C52;
+  margin-bottom:14px; padding-bottom:10px;
+  border-bottom:2px solid #E6F4F1;
+}
+.flow-steps {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+}
+.flow-step {
+  display:flex; gap:10px; align-items:flex-start;
+}
+.flow-num {
+  width:24px; height:24px; border-radius:50%;
+  background:#0D7B6E; color:white;
+  font-size:0.65rem; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; margin-top:1px;
+}
+.flow-text { font-size:0.72rem; color:#444; line-height:1.5; }
+.flow-text strong { color:#0A5C52; }
+
+@media (max-width:700px) {
+  .flow-steps { grid-template-columns:1fr; }
+  .svc-card { max-width:100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>🏗 Architecture Microservices</h1>
+  <p>PsyConnect Sénégal — Vision technique complète · M2 SIR</p>
+</div>
+
+<div class="arch-container">
+
+  <!-- ══ CLIENTS ══ -->
+  <div class="layer-label">Couche Client (Frontend Flutter — Application Multi-Rôle)</div>
+  <div class="services-row">
+    <div class="svc-card c-client" style="max-width:280px">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2">
+          <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Application Flutter</div>
+        <div class="svc-desc">Interface Patient · Psy · Admin<br>Rôle détecté après connexion JWT</div>
+      </div>
+      <span class="svc-tech">Flutter / Dart</span>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-row">
+    <div class="arrow-down">
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+      <div class="arrow-label">HTTPS / REST</div>
+    </div>
+  </div>
+
+  <!-- ══ GATEWAY ══ -->
+  <div class="layer-label">Couche Gateway (Point d'entrée unique)</div>
+  <div class="services-row">
+    <div class="svc-card c-gateway" style="max-width:300px">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">API Gateway</div>
+        <div class="svc-desc">Routage · Rate limiting · CORS · Auth filter</div>
+      </div>
+      <span class="svc-tech">Spring Cloud Gateway</span>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-row">
+    <div class="arrow-down">
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+      <div class="arrow-label">Interne HTTP</div>
+    </div>
+  </div>
+
+  <!-- ══ INFRA ══ -->
+  <div class="layer-label">Couche Infrastructure (Orchestration des services)</div>
+  <div class="services-row">
+    <div class="svc-card c-infra">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2">
+          <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+          <line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Eureka Server</div>
+        <div class="svc-desc">Registre & découverte de services</div>
+      </div>
+      <span class="svc-tech">Spring Cloud</span>
+    </div>
+    <div class="svc-card c-infra">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Config Server</div>
+        <div class="svc-desc">Config centralisée de tous les services</div>
+      </div>
+      <span class="svc-tech">Spring Cloud Config</span>
+    </div>
+  </div>
+
+  <div class="layer-divider"></div>
+
+  <!-- ══ MÉTIER ══ -->
+  <div class="layer-label">Couche Métier (Microservices Spring Boot)</div>
+  <div class="services-row">
+
+    <div class="svc-card c-spring">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Auth Service</div>
+        <div class="svc-desc">Login · JWT · Rôles (Patient/Psy/Admin)</div>
+      </div>
+      <span class="svc-tech">Spring Security</span>
+    </div>
+
+    <div class="svc-card c-spring">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">User Service</div>
+        <div class="svc-desc">Profils Patient & Psy · Documents</div>
+      </div>
+      <span class="svc-tech">Spring Boot</span>
+    </div>
+
+    <div class="svc-card c-spring">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Appointment Service</div>
+        <div class="svc-desc">RDV · Créneaux · Calendrier · Annulations</div>
+      </div>
+      <span class="svc-tech">Spring Boot</span>
+    </div>
+
+    <div class="svc-card c-spring">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2">
+          <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Session Service</div>
+        <div class="svc-desc">Vidéo/Audio via Agora SDK · Simulation</div>
+      </div>
+      <span class="svc-tech">Agora SDK</span>
+    </div>
+
+    <div class="svc-card c-spring">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Payment Service</div>
+        <div class="svc-desc">Wave · Orange Money · Transactions</div>
+      </div>
+      <span class="svc-tech">Spring Boot</span>
+    </div>
+
+    <div class="svc-card c-spring">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0D7B6E" stroke-width="2">
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Notification Service</div>
+        <div class="svc-desc">Push FCM · SMS · Rappels RDV</div>
+      </div>
+      <span class="svc-tech">Firebase FCM</span>
+    </div>
+
+    <div class="svc-card c-ml">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#D4A853" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">ML Service</div>
+        <div class="svc-desc">Recommandation de psy · Content-Based</div>
+      </div>
+      <span class="svc-tech">Python · FastAPI</span>
+    </div>
+
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-row">
+    <div class="arrow-down">
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+      <div class="arrow-label">Lecture / Écriture</div>
+    </div>
+  </div>
+
+  <!-- ══ DONNÉES ══ -->
+  <div class="layer-label">Couche Données (Persistance)</div>
+  <div class="services-row">
+    <div class="svc-card c-db">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1A4A7A" stroke-width="2">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">PostgreSQL</div>
+        <div class="svc-desc">Base principale — données relationnelles</div>
+      </div>
+      <span class="svc-tech">1 BDD / service</span>
+    </div>
+
+    <div class="svc-card c-db">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1A4A7A" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Redis</div>
+        <div class="svc-desc">Cache sessions · tokens · créneaux</div>
+      </div>
+      <span class="svc-tech">In-memory</span>
+    </div>
+  </div>
+
+  <div class="layer-divider"></div>
+
+  <!-- ══ EXTERNES ══ -->
+  <div class="layer-label">Services Externes (APIs tiers)</div>
+  <div class="services-row">
+    <div class="svc-card c-ext">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#5A2D91" stroke-width="2">
+          <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Agora SDK</div>
+        <div class="svc-desc">Vidéo & audio temps réel clé en main</div>
+      </div>
+      <span class="svc-tech">API externe</span>
+    </div>
+    <div class="svc-card c-ext">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#5A2D91" stroke-width="2">
+          <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Wave / Orange Money</div>
+        <div class="svc-desc">Paiement mobile sénégalais</div>
+      </div>
+      <span class="svc-tech">API externe</span>
+    </div>
+    <div class="svc-card c-ext">
+      <div class="svc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#5A2D91" stroke-width="2">
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        </svg>
+      </div>
+      <div>
+        <div class="svc-name">Firebase FCM</div>
+        <div class="svc-desc">Notifications push Android & iOS</div>
+      </div>
+      <span class="svc-tech">API externe</span>
+    </div>
+  </div>
+
+  <!-- LÉGENDE -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#E6F4F1;border:1.5px solid #C2E8E2"></div><div class="legend-label">Spring Boot (Java)</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FBF3E2;border:1.5px solid #FDE8B0"></div><div class="legend-label">Python / FastAPI (ML)</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#F5EEFF;border:1.5px solid #E8D5F5"></div><div class="legend-label">Services externes (APIs)</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:#E8F4FF;border:1.5px solid #D0E8FF"></div><div class="legend-label">Bases de données</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:linear-gradient(135deg,#0D7B6E,#095C52)"></div><div class="legend-label">API Gateway</div></div>
+  </div>
+
+  <!-- FLUX -->
+  <div class="flow-box">
+    <div class="flow-title">🔄 Flux typique — Patient réserve une consultation</div>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-text"><strong>Flutter</strong> envoie les credentials → <strong>API Gateway</strong> route vers <strong>Auth Service</strong> qui retourne un token JWT avec le rôle</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-text"><strong>ML Service</strong> (Python) analyse le profil patient et retourne une liste de psys recommandés via l'<strong>API Gateway</strong></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-text">Patient choisit un créneau → <strong>Appointment Service</strong> crée la réservation en <strong>PostgreSQL</strong></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-text"><strong>Payment Service</strong> contacte l'<strong>API Wave</strong> → confirme le paiement → déclenche le <strong>Notification Service</strong></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-text"><strong>Notification Service</strong> envoie un SMS + push <strong>Firebase FCM</strong> au patient et au psy</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-text">À l'heure du RDV, Flutter lance la session via <strong>Agora SDK</strong> — le <strong>Session Service</strong> enregistre l'historique</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

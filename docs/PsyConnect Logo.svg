@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 160" width="400" height="160">
+  <defs>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D7B6E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#095C52;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F0C060;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D4A853;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D7B6E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#074F46;stop-opacity:1" />
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000022"/>
+    </filter>
+  </defs>
+
+  <!-- Fond arrondi -->
+  <rect width="400" height="160" rx="20" ry="20" fill="url(#bgGrad)"/>
+
+  <!-- Lueur dorée centrale subtile -->
+  <ellipse cx="72" cy="80" rx="44" ry="44" fill="#D4A853" opacity="0.08"/>
+
+  <!-- ════ ICÔNE : deux mains qui se rejoignent ════ -->
+
+  <!-- Main gauche (teal clair) -->
+  <g transform="translate(28, 38)" filter="url(#softShadow)">
+    <!-- Paume gauche -->
+    <path d="
+      M 10 55
+      C 6 55 3 52 3 48
+      L 3 28
+      C 3 25 5 23 8 23
+      C 9 23 10 23.5 11 24
+      L 11 16
+      C 11 13 13 11 16 11
+      C 19 11 21 13 21 16
+      L 21 14
+      C 21 11 23 9 26 9
+      C 29 9 31 11 31 14
+      L 31 15
+      C 31 12 33 10 36 10
+      C 39 10 41 12 41 15
+      L 41 20
+      C 42 19 43 18.5 44 18.5
+      C 47 18.5 49 20.5 49 23.5
+      L 49 42
+      C 49 50 44 57 37 59
+      L 22 59
+      C 16 59 10 55 10 55 Z
+    " fill="url(#tealGrad)" opacity="0.92"/>
+    <!-- Doigts gauche détail -->
+    <line x1="21" y1="16" x2="21" y2="11" stroke="#C2E8E2" stroke-width="1" opacity="0.4"/>
+    <line x1="31" y1="14" x2="31" y2="9" stroke="#C2E8E2" stroke-width="1" opacity="0.4"/>
+    <line x1="41" y1="15" x2="41" y2="10" stroke="#C2E8E2" stroke-width="1" opacity="0.4"/>
+  </g>
+
+  <!-- Main droite (or) — miroir -->
+  <g transform="translate(116, 38) scale(-1,1) translate(-88,0)" filter="url(#softShadow)">
+    <path d="
+      M 10 55
+      C 6 55 3 52 3 48
+      L 3 28
+      C 3 25 5 23 8 23
+      C 9 23 10 23.5 11 24
+      L 11 16
+      C 11 13 13 11 16 11
+      C 19 11 21 13 21 16
+      L 21 14
+      C 21 11 23 9 26 9
+      C 29 9 31 11 31 14
+      L 31 15
+      C 31 12 33 10 36 10
+      C 39 10 41 12 41 15
+      L 41 20
+      C 42 19 43 18.5 44 18.5
+      C 47 18.5 49 20.5 49 23.5
+      L 49 42
+      C 49 50 44 57 37 59
+      L 22 59
+      C 16 59 10 55 10 55 Z
+    " fill="url(#goldGrad)" opacity="0.95"/>
+    <line x1="21" y1="16" x2="21" y2="11" stroke="#FFF8E8" stroke-width="1" opacity="0.4"/>
+    <line x1="31" y1="14" x2="31" y2="9" stroke="#FFF8E8" stroke-width="1" opacity="0.4"/>
+    <line x1="41" y1="15" x2="41" y2="10" stroke="#FFF8E8" stroke-width="1" opacity="0.4"/>
+  </g>
+
+  <!-- Point de jonction doré brillant -->
+  <circle cx="72" cy="91" r="7" fill="url(#goldGrad)" filter="url(#softShadow)"/>
+  <circle cx="72" cy="91" r="4" fill="#FFF8E0" opacity="0.7"/>
+
+  <!-- Petites étincelles / points autour de la jonction -->
+  <circle cx="72" cy="76" r="2" fill="#F0C060" opacity="0.8"/>
+  <circle cx="60" cy="85" r="1.5" fill="#F0C060" opacity="0.5"/>
+  <circle cx="84" cy="85" r="1.5" fill="#F0C060" opacity="0.5"/>
+  <circle cx="64" cy="100" r="1.5" fill="#C2E8E2" opacity="0.5"/>
+  <circle cx="80" cy="100" r="1.5" fill="#C2E8E2" opacity="0.5"/>
+
+  <!-- Petit cœur au-dessus des mains -->
+  <g transform="translate(63, 30)">
+    <path d="M 9 4 C 9 2 11 0 13 0 C 15 0 17 2 17 4 C 17 6 13 10 9 13 C 5 10 1 6 1 4 C 1 2 3 0 5 0 C 7 0 9 2 9 4 Z"
+      fill="url(#goldGrad)" opacity="0.9" filter="url(#softShadow)"/>
+  </g>
+
+  <!-- ════ TEXTE ════ -->
+
+  <!-- PsyConnect -->
+  <text x="155" y="82"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="38"
+    font-weight="700"
+    letter-spacing="-0.5"
+    fill="white">
+    Psy<tspan fill="url(#goldGrad)">Connect</tspan>
+  </text>
+
+  <!-- Sénégal -->
+  <text x="157" y="108"
+    font-family="'Arial', sans-serif"
+    font-size="15"
+    font-weight="400"
+    letter-spacing="5"
+    fill="#C2E8E2"
+    opacity="0.85">
+    SÉNÉGAL
+  </text>
+
+  <!-- Ligne décorative séparatrice -->
+  <line x1="155" y1="116" x2="370" y2="116" stroke="url(#goldGrad)" stroke-width="1" opacity="0.4"/>
+
+  <!-- Slogan -->
+  <text x="157" y="134"
+    font-family="'Arial', sans-serif"
+    font-size="10.5"
+    font-style="italic"
+    letter-spacing="0.5"
+    fill="#A8D8D2"
+    opacity="0.9">
+    Prenez soin de vous, en toute confiance.
+  </text>
+</svg>

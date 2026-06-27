@@ -1,0 +1,151 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-0002-4000-8000-000000000002",
+    "name": "PsyConnect - Création en masse (Psychologues)",
+    "description": "À utiliser avec le Collection Runner + le fichier psyconnect_psychologists_data.csv (même dossier).\n\nDans Postman : Collection Runner > sélectionner cette collection > Data file = psyconnect_psychologists_data.csv > Iterations = nombre de lignes du CSV (10) > Run.\n\nLe Runner exécute les 4 requêtes ci-dessous, dans l'ordre, pour chaque ligne du CSV (= chaque psychologue). Les variables authToken / authUserId / userProfileId sont capturées automatiquement d'une requête à l'autre via les scripts \"Tests\".\n\nLes profils créés apparaissent comme \"en attente\" dans l'onglet Validation de l'admin (verified=false par défaut) — à valider ou refuser manuellement depuis l'app pour tester ce flux avec du volume.\n\nPré-requis : le gateway doit tourner sur {{baseUrl}} (par défaut http://localhost:8080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "authToken", "value": "" },
+    { "key": "authUserId", "value": "" },
+    { "key": "userProfileId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Inscription psychologue",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Inscription OK (200)', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"pseudo\": \"{{pseudo}}\",\n  \"firstName\": \"{{firstName}}\",\n  \"lastName\": \"{{lastName}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register/psy",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "register", "psy"]
+        }
+      }
+    },
+    {
+      "name": "2. Connexion",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Connexion OK (200)', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('authToken', data.token);",
+              "pm.collectionVariables.set('authUserId', data.userId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "3. Création du profil utilisateur",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profil utilisateur créé (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('userProfileId', data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"authUserId\": {{authUserId}},\n  \"firstName\": \"{{firstName}}\",\n  \"lastName\": \"{{lastName}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"gender\": \"{{gender}}\",\n  \"dateOfBirth\": \"{{dateOfBirth}}\",\n  \"address\": \"{{address}}\",\n  \"city\": \"{{city}}\",\n  \"country\": \"{{country}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": ["{{baseUrl}}"],
+          "path": ["users"]
+        }
+      }
+    },
+    {
+      "name": "4. Création du profil psychologue",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profil psychologue créé (201)', function () {",
+              "    pm.response.to.have.status(201);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userProfileId\": {{userProfileId}},\n  \"specialty\": \"{{specialty}}\",\n  \"bio\": \"{{bio}}\",\n  \"yearsOfExperience\": {{yearsOfExperience}},\n  \"consultationPrice\": {{consultationPrice}},\n  \"languages\": \"{{languages}}\",\n  \"city\": \"{{city}}\",\n  \"licenseNumber\": \"{{licenseNumber}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/psychologists",
+          "host": ["{{baseUrl}}"],
+          "path": ["psychologists"]
+        }
+      }
+    }
+  ]
+}

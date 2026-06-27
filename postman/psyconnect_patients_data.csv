@@ -1,0 +1,13 @@
+email,password,pseudo,firstName,lastName,phoneNumber,gender,dateOfBirth,address,city,country,emergencyContactName,emergencyContactPhone,medicalHistory,preferredLanguage,anonymousMode
+aissatou.diop01@test-psyconnect.com,Test1234!,aissatou01,Aïssatou,Diop,+221771234501,F,1996-03-12,Cité Keur Gorgui Villa 12,Dakar,Sénégal,Mariama Diop,+221771234601,Aucun antécédent particulier.,Français,false
+moussa.ndiaye02@test-psyconnect.com,Test1234!,moussa02,Moussa,Ndiaye,+221771234502,M,1990-07-22,Quartier Médina Rue 14,Dakar,Sénégal,Cheikh Ndiaye,+221771234602,Anxiété généralisée diagnostiquée en 2022.,Wolof,false
+fatou.sow03@test-psyconnect.com,Test1234!,fatousow03,Fatou,Sow,+221771234503,F,1988-11-05,Avenue Cheikh Anta Diop,Thiès,Sénégal,Abdou Sow,+221771234603,Suivi pour troubles du sommeil.,Français,true
+ibrahima.fall04@test-psyconnect.com,Test1234!,ibrafall04,Ibrahima,Fall,+221771234504,M,2001-01-18,Rue 10 Sor,Saint-Louis,Sénégal,Khady Fall,+221771234604,Aucun antécédent particulier.,Français,false
+mariama.ba05@test-psyconnect.com,Test1234!,mariamab05,Mariama,Ba,+221771234505,F,1995-09-30,Quartier Grand Standing,Ziguinchor,Sénégal,Ousmane Ba,+221771234605,Episode dépressif léger en 2021.,Français,false
+cheikh.gueye06@test-psyconnect.com,Test1234!,cheikhg06,Cheikh,Gueye,+221771234506,M,1985-04-14,Cité Aliou Sow,Mbour,Sénégal,Awa Gueye,+221771234606,Aucun antécédent particulier.,Wolof,true
+awa.cisse07@test-psyconnect.com,Test1234!,awacisse07,Awa,Cissé,+221771234507,F,1999-12-02,Rue 22 Médina,Kaolack,Sénégal,Modou Cissé,+221771234607,Suivi post-partum.,Français,false
+modou.diouf08@test-psyconnect.com,Test1234!,modoud08,Modou,Diouf,+221771234508,M,1992-06-08,Quartier Ndiarème,Touba,Sénégal,Sokhna Diouf,+221771234608,Aucun antécédent particulier.,Français,false
+khady.sarr09@test-psyconnect.com,Test1234!,khadys09,Khady,Sarr,+221771234509,F,1997-02-27,Cité Soprim,Rufisque,Sénégal,Abdou Sarr,+221771234609,Stress post-traumatique en cours de suivi.,Français,true
+abdou.faye10@test-psyconnect.com,Test1234!,abdouf10,Abdou,Faye,+221771234510,M,1983-08-19,Quartier Diamalaye,Pikine,Sénégal,Mariama Faye,+221771234610,Aucun antécédent particulier.,Wolof,false
+sokhna.diallo11@test-psyconnect.com,Test1234!,sokhnad11,Sokhna,Diallo,+221771234511,F,2000-05-03,Rue 8 Médina Gounass,Guédiawaye,Sénégal,Lamine Diallo,+221771234611,Trouble anxieux léger.,Français,false
+ousmane.mbaye12@test-psyconnect.com,Test1234!,ousmanem12,Ousmane,Mbaye,+221771234512,M,1989-10-25,Quartier Ndoulo,Diourbel,Sénégal,Bineta Mbaye,+221771234612,Aucun antécédent particulier.,Français,false

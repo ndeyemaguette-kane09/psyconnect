@@ -1,0 +1,1735 @@
+{
+  "info": {
+    "name": "PsyConnect Sénégal - API",
+    "description": "Collection de test pour PsyConnect Sénégal, via l'API Gateway (port 8080). Couvre le parcours complet : inscription/connexion, création de profils, prise de rendez-vous, paiement simulé, et journal privé. Les requêtes sont enchaînées avec des variables de collection (tokens, ids) renseignées automatiquement par les scripts de test.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "patientEmail", "value": "", "type": "string" },
+    { "key": "patientPassword", "value": "", "type": "string" },
+    { "key": "patientPseudo", "value": "", "type": "string" },
+    { "key": "patientToken", "value": "", "type": "string" },
+    { "key": "patientAuthUserId", "value": "", "type": "string" },
+    { "key": "patientUserProfileId", "value": "", "type": "string" },
+    { "key": "patientProfileId", "value": "", "type": "string" },
+    { "key": "psyEmail", "value": "", "type": "string" },
+    { "key": "psyPassword", "value": "", "type": "string" },
+    { "key": "psyPseudo", "value": "", "type": "string" },
+    { "key": "psyToken", "value": "", "type": "string" },
+    { "key": "psyAuthUserId", "value": "", "type": "string" },
+    { "key": "psyUserProfileId", "value": "", "type": "string" },
+    { "key": "psyProfileId", "value": "", "type": "string" },
+    { "key": "appointmentStart", "value": "", "type": "string" },
+    { "key": "appointmentEnd", "value": "", "type": "string" },
+    { "key": "appointmentId", "value": "", "type": "string" },
+    { "key": "paymentId", "value": "", "type": "string" },
+    { "key": "sessionId", "value": "", "type": "string" },
+    { "key": "notificationId", "value": "", "type": "string" },
+    { "key": "journalEntryId", "value": "", "type": "string" },
+    { "key": "adminEmail", "value": "admin@psyconnect.sn", "type": "string" },
+    { "key": "adminPassword", "value": "Admin@2026", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Register Patient",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('patientEmail', 'patient.' + ts + '@test.com');",
+                  "pm.collectionVariables.set('patientPassword', 'password123');",
+                  "pm.collectionVariables.set('patientPseudo', 'patient' + ts);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Inscription patient OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patientEmail}}\",\n  \"password\": \"{{patientPassword}}\",\n  \"pseudo\": \"{{patientPseudo}}\",\n  \"firstName\": \"Awa\",\n  \"lastName\": \"Diop\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/patient",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register", "patient"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Connexion patient OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('patientToken', res.token);",
+                  "pm.collectionVariables.set('patientAuthUserId', res.userId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patientEmail}}\",\n  \"password\": \"{{patientPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Psychologue",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('psyEmail', 'psy.' + ts + '@test.com');",
+                  "pm.collectionVariables.set('psyPassword', 'password123');",
+                  "pm.collectionVariables.set('psyPseudo', 'psy' + ts);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Inscription psychologue OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{psyEmail}}\",\n  \"password\": \"{{psyPassword}}\",\n  \"pseudo\": \"{{psyPseudo}}\",\n  \"firstName\": \"Moussa\",\n  \"lastName\": \"Ndiaye\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/psy",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register", "psy"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Psychologue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Connexion psychologue OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('psyToken', res.token);",
+                  "pm.collectionVariables.set('psyAuthUserId', res.userId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{psyEmail}}\",\n  \"password\": \"{{psyPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Me (Patient)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Profils",
+      "item": [
+        {
+          "name": "Créer profil utilisateur (Patient)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profil utilisateur patient créé', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('patientUserProfileId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authUserId\": {{patientAuthUserId}},\n  \"firstName\": \"Awa\",\n  \"lastName\": \"Diop\",\n  \"phoneNumber\": \"+221770000000\",\n  \"gender\": \"F\",\n  \"dateOfBirth\": \"1995-04-12\",\n  \"address\": \"Sacré-Coeur\",\n  \"city\": \"Dakar\",\n  \"country\": \"Sénégal\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer profil patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profil patient créé', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('patientProfileId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userProfileId\": {{patientUserProfileId}},\n  \"emergencyContactName\": \"Fatou Diop\",\n  \"emergencyContactPhone\": \"+221760000000\",\n  \"medicalHistory\": \"Aucun antécédent particulier\",\n  \"preferredLanguage\": \"Français\",\n  \"anonymousMode\": false\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": ["{{baseUrl}}"],
+              "path": ["patients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer profil utilisateur (Psychologue)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profil utilisateur psychologue créé', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('psyUserProfileId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{psyToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authUserId\": {{psyAuthUserId}},\n  \"firstName\": \"Moussa\",\n  \"lastName\": \"Ndiaye\",\n  \"phoneNumber\": \"+221780000000\",\n  \"gender\": \"M\",\n  \"dateOfBirth\": \"1985-09-01\",\n  \"address\": \"Mermoz\",\n  \"city\": \"Dakar\",\n  \"country\": \"Sénégal\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer profil psychologue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profil psychologue créé', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('psyProfileId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{psyToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userProfileId\": {{psyUserProfileId}},\n  \"specialty\": \"Anxiété et stress\",\n  \"bio\": \"Psychologue clinicien, 10 ans d'expérience.\",\n  \"yearsOfExperience\": 10,\n  \"consultationPrice\": 15000,\n  \"languages\": \"Français, Wolof\",\n  \"city\": \"Dakar\",\n  \"licenseNumber\": \"SN-PSY-0001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/psychologists",
+              "host": ["{{baseUrl}}"],
+              "path": ["psychologists"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Rendez-vous",
+      "item": [
+        {
+          "name": "Créer un rendez-vous",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const start = new Date(Date.now() + 24 * 60 * 60 * 1000);",
+                  "const end = new Date(start.getTime() + 60 * 60 * 1000);",
+                  "const toIso = (d) => d.toISOString().slice(0, 19);",
+                  "pm.collectionVariables.set('appointmentStart', toIso(start));",
+                  "pm.collectionVariables.set('appointmentEnd', toIso(end));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rendez-vous créé (201)', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('appointmentId', res.id);",
+                  "pm.test('Statut initial = PENDING', () => pm.expect(res.status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": {{patientProfileId}},\n  \"psychologistId\": {{psyProfileId}},\n  \"startTime\": \"{{appointmentStart}}\",\n  \"endTime\": \"{{appointmentEnd}}\",\n  \"consultationType\": \"VIDEO\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Le psychologue ne peut pas créer un rendez-vous en tant que patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accès refusé (403)', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{psyToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": {{patientProfileId}},\n  \"psychologistId\": {{psyProfileId}},\n  \"startTime\": \"{{appointmentStart}}\",\n  \"endTime\": \"{{appointmentEnd}}\",\n  \"consultationType\": \"VIDEO\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Sans authentification (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refusé sans authentification (401/403)', () => pm.expect([401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Récupérer le rendez-vous (avant paiement)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Toujours PENDING avant paiement', () => pm.expect(pm.response.json().status).to.eql('PENDING'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Paiement (simulé)",
+      "item": [
+        {
+          "name": "Créer un paiement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Paiement créé (201)', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('paymentId', res.id);",
+                  "pm.test('Statut = COMPLETED (simulation réussie)', () => pm.expect(res.status).to.eql('COMPLETED'));",
+                  "pm.test('Référence de transaction présente', () => pm.expect(res.transactionReference).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": {{appointmentId}},\n  \"amount\": 15000,\n  \"method\": \"SIMULATED_WAVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un paiement - montant invalide (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rejeté en validation (400)', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": {{appointmentId}},\n  \"amount\": 0,\n  \"method\": \"SIMULATED_WAVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Le psychologue ne peut pas payer un rendez-vous",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accès refusé (403)', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{psyToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": {{appointmentId}},\n  \"amount\": 15000,\n  \"method\": \"SIMULATED_WAVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Récupérer un paiement par id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "{{paymentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Récupérer les paiements d'un rendez-vous",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Au moins un paiement', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/payments/appointment/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "appointment", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Vérifier que le rendez-vous est CONFIRMED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Statut = CONFIRMED après paiement', () => pm.expect(pm.response.json().status).to.eql('CONFIRMED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Session (simulée)",
+      "item": [
+        {
+          "name": "Démarrer une session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Session démarrée (201)', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('sessionId', res.id);",
+                  "pm.test('Statut = IN_PROGRESS', () => pm.expect(res.status).to.eql('IN_PROGRESS'));",
+                  "pm.test('Jeton de session présent', () => pm.expect(res.meetingToken).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{psyToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": {{appointmentId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "start"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Démarrer une session déjà en cours (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rejeté (400)', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{psyToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": {{appointmentId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "start"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Récupérer une session par id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Sans authentification (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refusé sans authentification (401/403)', () => pm.expect([401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Récupérer les sessions d'un rendez-vous",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Au moins une session', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/appointment/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "appointment", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Terminer la session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Statut = COMPLETED', () => pm.expect(res.status).to.eql('COMPLETED'));",
+                  "pm.test('Durée calculée présente', () => pm.expect(res.durationSeconds).to.not.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{psyToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}", "end"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Vérifier que le rendez-vous est COMPLETED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Statut = COMPLETED après la session', () => pm.expect(pm.response.json().status).to.eql('COMPLETED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Terminer une session déjà terminée (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rejeté (400)', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{psyToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["sessions", "{{sessionId}}", "end"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Notifications",
+      "item": [
+        {
+          "name": "Lister mes notifications (Patient)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Au moins une notification', () => pm.expect(res.length).to.be.above(0));",
+                  "pm.collectionVariables.set('notificationId', res[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/user/{{patientProfileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "user", "{{patientProfileId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Le psychologue ne peut pas lire les notifications du patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accès refusé (403)', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{psyToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/user/{{patientProfileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "user", "{{patientProfileId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Sans authentification (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refusé sans authentification (401/403)', () => pm.expect([401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/user/{{patientProfileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "user", "{{patientProfileId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Le psychologue ne peut pas marquer comme lue la notification du patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accès refusé (403)', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{psyToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Marquer une notification comme lue (Patient)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('isRead = true', () => pm.expect(pm.response.json().isRead).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Journal privé",
+      "item": [
+        {
+          "name": "Créer une entrée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Entrée créée (201)', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('journalEntryId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Première séance aujourd'hui, je me sens un peu nerveuse mais soulagée d'avoir franchi le pas.\",\n  \"moodRating\": 3\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer une entrée - sans token (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refusé sans authentification (401/403)', () => pm.expect([401, 403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Tentative sans authentification\",\n  \"moodRating\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lister mes entrées",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Au moins une entrée', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/journal",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Récupérer une entrée par id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/journal/{{journalEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal", "{{journalEntryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Modifier une entrée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Contenu mis à jour', () => pm.expect(pm.response.json().content).to.include('beaucoup mieux'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Mise à jour : je me sens beaucoup mieux après la séance.\",\n  \"moodRating\": 4\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/journal/{{journalEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal", "{{journalEntryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Le psychologue ne peut pas voir cette entrée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accès refusé (403 ou 404, jamais 200)', () => {",
+                  "  pm.expect(pm.response.code).to.not.eql(200);",
+                  "  pm.expect([403, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{psyToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/journal/{{journalEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal", "{{journalEntryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer une entrée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/journal/{{journalEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal", "{{journalEntryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Vérifier la suppression (404 attendu)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('404 Not Found', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/journal/{{journalEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["journal", "{{journalEntryId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Recommandations (ML)",
+      "description": "Nécessite que le service ML (Python/FastAPI, backend/ml-service) tourne en local sur le port 8000 (uvicorn app.main:app --port 8000), en plus de la stack Spring Boot. Sinon ces requêtes échoueront avec une erreur de la gateway (502/504).",
+      "item": [
+        {
+          "name": "Recommander des psychologues pour le patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('patientId correspond', () => pm.expect(res.patientId).to.eql(Number(pm.collectionVariables.get('patientProfileId'))));",
+                  "pm.test('Liste de recommandations présente', () => pm.expect(res.recommendations).to.be.an('array'));",
+                  "if (res.recommendations.length > 0) {",
+                  "  pm.test('Chaque recommandation a un score et une similarité', () => {",
+                  "    res.recommendations.forEach((r) => {",
+                  "      pm.expect(r).to.have.property('score');",
+                  "      pm.expect(r).to.have.property('contentSimilarity');",
+                  "    });",
+                  "  });",
+                  "  pm.test('Classées par score décroissant', () => {",
+                  "    for (let i = 1; i < res.recommendations.length; i++) {",
+                  "      pm.expect(res.recommendations[i - 1].score).to.be.at.least(res.recommendations[i].score);",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/{{patientProfileId}}?top_n=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "{{patientProfileId}}"],
+              "query": [{ "key": "top_n", "value": "3" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Recommandations pour un patient inexistant (404 attendu)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('404 Not Found', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "999999"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "9. Admin",
+      "description": "Couvre le rôle ADMIN : connexion avec le compte bootstrap (créé automatiquement par auth-service au démarrage), gestion des comptes, validation des profils psychologue, vue globale des rendez-vous/paiements, et statistiques des trois services. Nécessite que les requêtes des sections 1 à 4 aient déjà été exécutées dans cette même run (pour disposer d'un patient, d'un psychologue et d'un rendez-vous/paiement).",
+      "item": [
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Connexion admin OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', res.token);",
+                  "pm.test('Rôle = ADMIN', () => pm.expect(res.role).to.eql('ADMIN'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Un patient ne peut pas accéder aux endpoints admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accès refusé (403)', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lister tous les comptes (auth-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Au moins 3 comptes (admin + patient + psy)', () => pm.expect(pm.response.json().length).to.be.at.least(3));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Désactiver le compte du patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Compte désactivé', () => pm.expect(pm.response.json().enabled).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{patientAuthUserId}}/enabled?enabled=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "{{patientAuthUserId}}", "enabled"],
+              "query": [{ "key": "enabled", "value": "false" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Le patient désactivé ne peut plus se connecter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rejeté (400)', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patientEmail}}\",\n  \"password\": \"{{patientPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Réactiver le compte du patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Compte réactivé', () => pm.expect(pm.response.json().enabled).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{patientAuthUserId}}/enabled?enabled=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "{{patientAuthUserId}}", "enabled"],
+              "query": [{ "key": "enabled", "value": "true" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "(Négatif) Impossible de désactiver son propre compte admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rejeté (400)', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/1/enabled?enabled=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "1", "enabled"],
+              "query": [{ "key": "enabled", "value": "false" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Statistiques comptes (auth-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('totalUsers cohérent', () => pm.expect(res.totalUsers).to.be.at.least(3));",
+                  "pm.test('totalAdmins >= 1', () => pm.expect(res.totalAdmins).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lister tous les profils psychologues (user-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Profil psychologue de test présent', () => pm.expect(pm.response.json().some(p => p.id === Number(pm.collectionVariables.get('psyProfileId')))).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/psychologists",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "psychologists"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Valider le profil du psychologue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('profileVerified = true', () => pm.expect(pm.response.json().profileVerified).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/psychologists/{{psyProfileId}}/verify?verified=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "psychologists", "{{psyProfileId}}", "verify"],
+              "query": [{ "key": "verified", "value": "true" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lister uniquement les psychologues validés (public, verifiedOnly=true)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tous les résultats sont vérifiés', () => pm.expect(pm.response.json().every(p => p.profileVerified === true)).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/psychologists?verifiedOnly=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["psychologists"],
+              "query": [{ "key": "verifiedOnly", "value": "true" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lister tous les profils patients (user-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Profil patient de test présent', () => pm.expect(pm.response.json().some(p => p.id === Number(pm.collectionVariables.get('patientProfileId')))).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/patients",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "patients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Statistiques profils (user-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('verifiedPsychologists >= 1', () => pm.expect(res.verifiedPsychologists).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lister tous les rendez-vous (appointment-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Rendez-vous de test présent', () => pm.expect(pm.response.json().some(a => a.id === Number(pm.collectionVariables.get('appointmentId')))).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "appointments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrer les rendez-vous par statut (CONFIRMED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Tous au statut CONFIRMED', () => pm.expect(pm.response.json().every(a => a.status === 'CONFIRMED')).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/appointments?status=CONFIRMED",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "appointments"],
+              "query": [{ "key": "status", "value": "CONFIRMED" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lister tous les paiements (appointment-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Paiement de test présent', () => pm.expect(pm.response.json().some(p => p.id === Number(pm.collectionVariables.get('paymentId')))).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "payments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Statistiques rendez-vous/paiements (appointment-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('totalAppointments >= 1', () => pm.expect(res.totalAppointments).to.be.at.least(1));",
+                  "pm.test('totalRevenue >= 15000', () => pm.expect(Number(res.totalRevenue)).to.be.at.least(15000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
