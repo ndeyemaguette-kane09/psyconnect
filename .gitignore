@@ -1,0 +1,60 @@
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+
+### IDE ###
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+
+### Java / Gradle (backend) ###
+**/build/
+**/.gradle/
+**/out/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+.gradletasknamecache
+
+### Flutter / Dart (frontend) ###
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.flutter-versions
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/macos/Flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/windows/flutter/ephemeral/
+*.g.dart.bak
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+**/android/app/*.jks
+**/android/app/*.keystore
+**/*.env
+**/Flutter/ephemeral/*.env
+
+### Secrets / config locale ###
+.env
+*.env.local
+application-local.properties
+application-local.yml
+
+### Logs ###
+*.log
+logs/
+
+### Postman (exports volumineux, optionnel) ###
+# postman/*.json
