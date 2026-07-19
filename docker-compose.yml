@@ -1,18 +1,260 @@
-# Lance uniquement le collecteur de traces distribuées (Zipkin).
+# PsyConnect — stack complète Docker Compose
 #
-# Les 6 services Spring Boot (api-gateway, auth-service, user-service,
-# appointment-service, notification-service, eureka-server) sont configurés
-# pour exporter leurs spans vers http://localhost:9411/api/v2/spans
-# (voir management.zipkin.tracing.endpoint dans chaque application.properties).
-# PostgreSQL et les services applicatifs eux-mêmes restent lancés comme
-# avant (gradlew bootRun / IDE) : ce compose ne couvre que Zipkin.
+# Démarrage :
+#   docker compose up --build        # premier lancement (build des images)
+#   docker compose up -d             # relance rapide (images déjà construites)
 #
-# Démarrage : docker compose up -d
-# UI Zipkin : http://localhost:9411
+# Pré-requis :
+#   - Docker Desktop installé et démarré
+#   - Ollama en cours d'exécution sur le Mac (`ollama serve`)
+#     avec le modèle qwen2.5:3b téléchargé (`ollama pull qwen2.5:3b`)
+#     → ai-companion-service le contacte via host.docker.internal:11434
+#
+# Points d'entrée :
+#   API Gateway  → http://localhost:8080
+#   Eureka UI    → http://localhost:8761
+#   Zipkin UI    → http://localhost:9411
+#
+# Ordre de démarrage géré par les healthchecks :
+#   postgres (healthy) → eureka (healthy) → tous les services applicatifs
+#
+
 services:
+
+  # ─── Infrastructure ───────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: psyconnect-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres          # base par défaut ; les 6 bases métier sont
+                                     # créées par le script init-databases.sql
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5434:5432"                  # exposé sur 5434 (5433 utilisé par l'ancien container)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   zipkin:
     image: openzipkin/zipkin:latest
     container_name: psyconnect-zipkin
     ports:
       - "9411:9411"
     restart: unless-stopped
+
+  # ─── Service Discovery ────────────────────────────────────────────────────
+
+  eureka-server:
+    build:
+      context: backend/eureka-server
+    container_name: psyconnect-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    healthcheck:
+      # wget est disponible dans eclipse-temurin:17-jre-alpine
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 90s              # Spring Boot met ~60 s à démarrer
+    depends_on:
+      zipkin:
+        condition: service_started
+    restart: unless-stopped
+
+  # ─── Microservices applicatifs ────────────────────────────────────────────
+  # Tous dépendent de : postgres (healthy) + eureka-server (healthy)
+
+  auth-service:
+    build:
+      context: backend/auth-service
+    container_name: psyconnect-auth
+    ports:
+      - "8081:8081"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_auth
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: backend/user-service
+    container_name: psyconnect-user
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_user
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      # les justificatifs psy sont stockés dans ce volume persistant
+      LICENSE_DOCS_DIR: uploads/license-documents
+      # URL explicite avec port — sans ça, HTTP utilise le port 80 par défaut
+      # et les appels vers notification-service (port 8086) tombent dans le vide
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
+    volumes:
+      - user_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  appointment-service:
+    build:
+      context: backend/appointment-service
+    container_name: psyconnect-appointment
+    ports:
+      - "8083:8083"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_appointment
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: backend/payment-service
+    container_name: psyconnect-payment
+    ports:
+      - "8085:8085"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_payment
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: backend/notification-service
+    container_name: psyconnect-notification
+    ports:
+      - "8086:8086"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_notification
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      # notification-service appelle user-service directement (hors Eureka)
+      USER_SERVICE_URL: http://user-service:8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ai-companion-service:
+    build:
+      context: backend/ai-companion-service
+    container_name: psyconnect-ai-companion
+    ports:
+      - "8087:8087"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      # Ollama tourne nativement sur le Mac (accélération Metal).
+      # Docker Desktop sur macOS résout host.docker.internal vers l'hôte automatiquement.
+      # Sur Linux : ajouter `extra_hosts: ["host.docker.internal:host-gateway"]`
+      OLLAMA_URL: http://host.docker.internal:11434
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  session-service:
+    build:
+      context: backend/session-service
+    container_name: psyconnect-session
+    ports:
+      - "8089:8089"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_session
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: backend/api-gateway
+    container_name: psyconnect-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ml-service:
+    build:
+      context: backend/ml-service
+    container_name: psyconnect-ml
+    ports:
+      - "8000:8000"
+    environment:
+      # passe par la gateway qui load-balance via Eureka
+      GATEWAY_URL: http://api-gateway:8080
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+# ─── Volumes persistants ────────────────────────────────────────────────────
+
+volumes:
+  postgres_data:    # données PostgreSQL (survit aux `docker compose down`)
+  user_uploads:     # justificatifs psy uploadés (user-service)

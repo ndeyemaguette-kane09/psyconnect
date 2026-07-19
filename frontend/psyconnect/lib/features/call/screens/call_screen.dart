@@ -1,20 +1,21 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/session_models.dart';
 import '../services/session_service.dart';
 
-/// Écran d'appel simulé : aucune intégration SDK réelle (Agora/WebRTC), cf.
-/// commentaire de [SessionServiceImpl] côté backend ("pas d'intégration
-/// réelle ... on génère un jeton de session simulé"). Reprend ce contrat tel
-/// quel côté Flutter : on démarre/termine une [CallSession] via /sessions,
-/// et on affiche une interface d'appel factice (avatar statique, minuteur,
-/// boutons micro/caméra sans effet réel) pendant qu'elle est IN_PROGRESS.
-///
-/// Pas dans la maquette v2 — design libre (cf. mémoire projet).
+// etats internes de l'ecran d'appel
+enum _CallPhase { loading, preCall, joining, ended }
+
+// ecran d'appel Jitsi Meet — remplace la simulation Agora
+// flux : preCall → startSession (backend) → jitsi.join() → conferenceTerminated
+//         → endSession (backend) → ended
+// les deux participants (patient ET psy) ouvrent le meme room Jitsi via le
+// meetingToken retourne par le backend (psyconnect-{rdvId}-{uuid8})
 class CallScreen extends StatefulWidget {
   const CallScreen({
     super.key,
@@ -33,15 +34,11 @@ class CallScreen extends StatefulWidget {
 
 class _CallScreenState extends State<CallScreen> {
   final _sessionService = SessionService();
+  final _jitsi = JitsiMeet();
 
-  bool _loading = true;
+  _CallPhase _phase = _CallPhase.loading;
   String? _error;
   CallSession? _session;
-  Timer? _ticker;
-  Duration _elapsed = Duration.zero;
-
-  bool _micMuted = false;
-  bool _cameraOff = false;
 
   @override
   void initState() {
@@ -49,120 +46,169 @@ class _CallScreenState extends State<CallScreen> {
     _init();
   }
 
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
+  // verifie si une session IN_PROGRESS existe deja pour ce RDV
+  // (l'autre participant a peut-etre deja demarre l'appel)
   Future<void> _init() async {
     setState(() {
-      _loading = true;
+      _phase = _CallPhase.loading;
       _error = null;
     });
     try {
-      // On vérifie d'abord s'il existe déjà une session IN_PROGRESS pour ce
-      // RDV (l'utilisateur a peut-être quitté l'écran sans raccrocher).
       final sessions =
           await _sessionService.getSessionsByAppointment(widget.appointmentId);
-      final inProgress = sessions
-          .where((s) => s.status == SessionStatus.inProgress)
-          .toList();
+      final inProgress =
+          sessions.where((s) => s.status == SessionStatus.inProgress).toList();
       if (!mounted) return;
       setState(() {
         _session = inProgress.isNotEmpty ? inProgress.first : null;
-        _loading = false;
+        _phase = _CallPhase.preCall;
       });
-      if (_session != null) _startTicker();
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _loading = false;
-        _error = e is ApiException ? e.message : 'Impossible de charger la session.';
+        _phase = _CallPhase.preCall;
+        _error = e is ApiException
+            ? e.message
+            : 'Impossible de charger la session.';
       });
     }
-  }
-
-  void _startTicker() {
-    final startedAt = _session?.startedAt ?? DateTime.now();
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _elapsed = DateTime.now().difference(startedAt));
-    });
   }
 
   Future<void> _startCall() async {
     setState(() {
-      _loading = true;
+      _phase = _CallPhase.loading;
       _error = null;
     });
     try {
-      final session = await _sessionService.startSession(widget.appointmentId);
+      // si l'autre participant a deja demarre, on rejoint sans appeler startSession
+      final session = _session?.status == SessionStatus.inProgress
+          ? _session!
+          : await _sessionService.startSession(widget.appointmentId);
+
       if (!mounted) return;
       setState(() {
         _session = session;
-        _loading = false;
+        _phase = _CallPhase.joining;
       });
-      _startTicker();
+
+      // lance l'interface Jitsi native (retourne immediatement, l'evenement
+      // conferenceTerminated arrive quand l'utilisateur raccroche)
+      await _launchJitsi(session.meetingToken);
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _loading = false;
-        _error = e is ApiException ? e.message : "Impossible de démarrer l'appel.";
+        _phase = _CallPhase.preCall;
+        _error = e is ApiException
+            ? e.message
+            : "Impossible de démarrer l'appel.";
       });
     }
   }
 
-  Future<void> _endCall() async {
+  Future<void> _launchJitsi(String roomName) async {
+    // nom affiché pour l'utilisateur courant dans la conference Jitsi
+    final userName =
+        context.read<AuthProvider>().session?.pseudo ?? 'Utilisateur';
+
+    final options = JitsiMeetConferenceOptions(
+      // meet.jit.si impose un lobby obligatoire pour les utilisateurs anonymes
+      // (politique côté serveur, non modifiable côté client).
+      // meet.ffmuc.net est un serveur Jitsi public sans cette contrainte.
+      serverURL: 'https://meet.ffmuc.net',
+      room: roomName,
+      configOverrides: {
+        'startWithAudioMuted': false,
+        'startWithVideoMuted': !widget.isVideo,
+        'subject': 'PsyConnect',
+        'enableWelcomePage': false,
+        'disableInviteFunctions': true,
+        'disableReactions': true,
+        'prejoinPageEnabled': false,
+        // désactiver la salle d'attente (lobby) : sans ça, Jitsi bloque
+        // les participants jusqu'à ce qu'un "hôte" les admette
+        'lobby.enabled': false,
+        'enableLobbyChat': false,
+        'disableLobbyPassword': true,
+      },
+      featureFlags: {
+        'add-people.enabled': false,
+        'calendar.enabled': false,
+        'call-integration.enabled': false,
+        'car-mode.enabled': false,
+        'close-captions.enabled': false,
+        'invite.enabled': false,
+        'live-streaming.enabled': false,
+        'meeting-name.enabled': false,
+        'meeting-password.enabled': false,
+        'pip.enabled': true,
+        'raise-hand.enabled': false,
+        'recording.enabled': false,
+        'server-url-change.enabled': false,
+        'tile-view.enabled': true,
+        'toolbox.alwaysVisible': false,
+        'welcomepage.enabled': false,
+        'chat.enabled': false,
+        'lobby-enabled': false,  // featureFlag pour désactiver le lobby
+      },
+      userInfo: JitsiMeetUserInfo(
+        displayName: userName,
+        email: '',
+      ),
+    );
+
+    final listener = JitsiMeetEventListener(
+      conferenceTerminated: (url, error) async {
+        await _onConferenceTerminated();
+      },
+      conferenceWillJoin: (url) {},
+      participantLeft: (participantId) {},
+    );
+
+    await _jitsi.join(options, listener);
+  }
+
+  // appele par Jitsi quand l'utilisateur raccroche (bouton rouge natif)
+  Future<void> _onConferenceTerminated() async {
+    if (!mounted || _phase == _CallPhase.ended) return;
+
     final session = _session;
-    if (session == null) return;
-    _ticker?.cancel();
-    setState(() => _loading = true);
-    try {
-      final ended = await _sessionService.endSession(session.id);
-      if (!mounted) return;
-      setState(() {
-        _session = ended;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e is ApiException ? e.message : "Impossible de terminer l'appel.";
-      });
+    if (session != null && session.status == SessionStatus.inProgress) {
+      try {
+        final ended = await _sessionService.endSession(session.id);
+        if (!mounted) return;
+        setState(() {
+          _session = ended;
+          _phase = _CallPhase.ended;
+        });
+      } catch (_) {
+        // l'autre participant a peut-etre deja appele endSession, c'est ok
+        if (!mounted) return;
+        setState(() => _phase = _CallPhase.ended);
+      }
+    } else {
+      if (mounted) setState(() => _phase = _CallPhase.ended);
     }
-  }
-
-  String _formatElapsed(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
   }
 
   @override
   Widget build(BuildContext context) {
-    final inCall = _session?.status == SessionStatus.inProgress;
-    final ended = _session?.status == SessionStatus.completed;
-
     return Scaffold(
       backgroundColor: AppColors.tealDark,
       body: SafeArea(
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              )
-            : ended
-                ? _buildEndedView()
-                : inCall
-                    ? _buildInCallView()
-                    : _buildPreCallView(),
+        child: switch (_phase) {
+          _CallPhase.loading || _CallPhase.joining => const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          _CallPhase.ended => _buildEndedView(),
+          _CallPhase.preCall => _buildPreCallView(),
+        },
       ),
     );
   }
 
   Widget _buildPreCallView() {
+    final sessionAlreadyOpen = _session?.status == SessionStatus.inProgress;
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -172,33 +218,56 @@ class _CallScreenState extends State<CallScreen> {
             radius: 56,
             backgroundColor: Colors.white24,
             child: Text(
-              widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
+              widget.peerName.isNotEmpty
+                  ? widget.peerName[0].toUpperCase()
+                  : '?',
               style: const TextStyle(
-                  color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700),
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 16),
-          Text(widget.peerName,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+          Text(
+            widget.peerName,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 6),
           Text(
-            widget.isVideo ? 'Appel vidéo (simulé)' : 'Appel audio (simulé)',
+            widget.isVideo ? 'Appel vidéo' : 'Appel audio',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
+          if (sessionAlreadyOpen) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'Session en cours — rejoindre',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 32),
           if (_error != null) ...[
-            Text(_error!, style: const TextStyle(color: AppColors.rose)),
+            Text(
+              _error!,
+              style: const TextStyle(color: AppColors.rose),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
           ],
           ElevatedButton.icon(
             onPressed: _startCall,
-            icon: const Icon(Icons.call),
-            label: const Text("Démarrer l'appel"),
+            icon: Icon(
+                sessionAlreadyOpen ? Icons.video_call : Icons.call),
+            label: Text(
+              sessionAlreadyOpen
+                  ? 'Rejoindre l\'appel en cours'
+                  : "Démarrer l'appel",
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.teal,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30)),
             ),
@@ -206,77 +275,19 @@ class _CallScreenState extends State<CallScreen> {
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annuler', style: TextStyle(color: Colors.white70)),
+            child: const Text('Annuler',
+                style: TextStyle(color: Colors.white70)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInCallView() {
-    return Column(
-      children: [
-        const SizedBox(height: 12),
-        Text(_formatElapsed(_elapsed),
-            style: const TextStyle(
-                color: Colors.white70, fontSize: 14, letterSpacing: 1)),
-        const Spacer(),
-        CircleAvatar(
-          radius: 64,
-          backgroundColor: Colors.white24,
-          child: Text(
-            widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 42, fontWeight: FontWeight.w700),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(widget.peerName,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        const Text('Session simulée en cours',
-            style: TextStyle(color: Colors.white60, fontSize: 12)),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: AppColors.rose)),
-        ],
-        const Spacer(),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 36),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _CallIconButton(
-                icon: _micMuted ? Icons.mic_off : Icons.mic,
-                background: Colors.white24,
-                onTap: () => setState(() => _micMuted = !_micMuted),
-              ),
-              const SizedBox(width: 20),
-              _CallIconButton(
-                icon: Icons.call_end,
-                background: AppColors.rose,
-                onTap: _endCall,
-                large: true,
-              ),
-              const SizedBox(width: 20),
-              if (widget.isVideo)
-                _CallIconButton(
-                  icon: _cameraOff ? Icons.videocam_off : Icons.videocam,
-                  background: Colors.white24,
-                  onTap: () => setState(() => _cameraOff = !_cameraOff),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildEndedView() {
     final duration = _session?.durationSeconds != null
         ? Duration(seconds: _session!.durationSeconds!)
-        : _elapsed;
+        : Duration.zero;
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -284,19 +295,26 @@ class _CallScreenState extends State<CallScreen> {
         children: [
           const Icon(Icons.call_end, color: Colors.white70, size: 48),
           const SizedBox(height: 16),
-          const Text('Appel terminé',
-              style: TextStyle(
-                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text('Durée : ${_formatElapsed(duration)}',
-              style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          const Text(
+            'Appel terminé',
+            style: TextStyle(
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+          ),
+          if (duration.inSeconds > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Durée : ${_formatDuration(duration)}',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.teal,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30)),
             ),
@@ -306,32 +324,10 @@ class _CallScreenState extends State<CallScreen> {
       ),
     );
   }
-}
 
-class _CallIconButton extends StatelessWidget {
-  const _CallIconButton({
-    required this.icon,
-    required this.background,
-    required this.onTap,
-    this.large = false,
-  });
-
-  final IconData icon;
-  final Color background;
-  final VoidCallback onTap;
-  final bool large;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = large ? 64.0 : 52.0;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: background, shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.white, size: large ? 30 : 24),
-      ),
-    );
+  String _formatDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 }

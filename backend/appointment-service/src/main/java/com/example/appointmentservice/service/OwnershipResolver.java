@@ -21,42 +21,8 @@ import io.github.resilience4j.retry.annotation.Retry;
 
 import java.util.Map;
 
-/**
- * Résout l'identité métier (PatientProfile.id / PsychologistProfile.id) de
- * l'utilisateur courant à partir de son authUserId (claim du JWT), en
- * appelant user-service. Nécessaire car appointment-service ne stocke que
- * des identifiants de profil (patientId/psychologistId), distincts de
- * l'authUserId porté par le jeton — voir user-service:
- * GET /patients/by-auth-user/{authUserId} et GET /psychologists/by-auth-user/{authUserId}.
- *
- * Le jeton JWT de l'appelant est relayé tel quel vers user-service (ces deux
- * routes y exigent une authentification et vérifient elles-mêmes que
- * authUserId correspond à l'appelant).
- *
- * Cet appel HTTP synchrone est exécuté à chaque contrôle de propriété ; c'est
- * le point de couplage le plus sensible aux pannes/latences de user-service
- * dans tout appointment-service. Il est donc protégé par Resilience4j :
- * - {@code @Retry} : ré-essaie automatiquement un échec transitoire (config
- *   "userService" dans application.properties) ;
- * - {@code @CircuitBreaker} : si le taux d'échec récent dépasse le seuil
- *   configuré, le circuit s'ouvre et les appels suivants échouent
- *   immédiatement (sans solliciter davantage un user-service déjà en
- *   difficulté) jusqu'à la prochaine fenêtre de test (half-open).
- * Dans les deux cas d'échec final, {@link #fallbackResolvePatientId} /
- * {@link #fallbackResolvePsychologistId} traduisent l'échec technique en
- * {@link ServiceUnavailableException} (HTTP 503), distincte d'un 404/403
- * métier.
- *
- * Le fallbackMethod est attaché à {@code @Retry} (l'aspect le plus EXTERNE :
- * l'ordre par défaut de Resilience4j est Retry(CircuitBreaker(...))), pas à
- * {@code @CircuitBreaker}. Si on l'attachait à {@code @CircuitBreaker}, son
- * exécution (même si elle relance l'exception ici) interviendrait à
- * l'intérieur de chaque tentative de retry plutôt qu'une seule fois après
- * épuisement réel des tentatives — voir {@link
- * com.example.appointmentservice.client.NotificationClient}, où la même
- * erreur (fallback sur @CircuitBreaker qui n'aurait pas relancé l'exception)
- * empêchait silencieusement tout réessai.
- */
+// va chercher l'id patient/psy via l'id du JWT, appelle user-service
+// retry + circuit breaker car appelé tout le temps
 @Component
 public class OwnershipResolver {
 
@@ -122,12 +88,7 @@ public class OwnershipResolver {
                     "Accès refusé lors de la résolution du profil " + profileLabel
             );
         } catch (RestClientException ex) {
-            // Échec d'infrastructure (timeout, connexion refusée, 5xx...) :
-            // c'est cette exception-là que Retry/CircuitBreaker comptabilisent
-            // comme un échec (voir resilience4j.retry/circuitbreaker.instances
-            // .userService.ignore-exceptions, qui exclut volontairement
-            // ResourceNotFoundException et ForbiddenOperationException
-            // ci-dessus : un 404/403 n'est pas une panne de user-service).
+            // Panne réseau — le retry se chargera de réessayer
             throw new ServiceUnavailableException(
                     "user-service indisponible pour la vérification de propriété (" + profileLabel + ")",
                     ex
@@ -143,15 +104,7 @@ public class OwnershipResolver {
         return handleFallback("psychologue", t);
     }
 
-    /**
-     * Invoqué par Resilience4j quand les tentatives de retry sont épuisées
-     * (échecs successifs de user-service) ou quand le circuit breaker est
-     * ouvert (CallNotPermittedException : on n'a même pas tenté l'appel).
-     * Les exceptions métier (404/403) ne devraient jamais arriver ici
-     * puisqu'elles sont exclues du périmètre retry/circuit breaker côté
-     * configuration ; le test défensif ci-dessous les laisse simplement
-     * remonter telles quelles si jamais la configuration changeait.
-     */
+    // appelé quand le retry a echoué ou le circuit est ouvert
     private Long handleFallback(String profileLabel, Throwable t) {
 
         if (t instanceof ResourceNotFoundException || t instanceof ForbiddenOperationException) {

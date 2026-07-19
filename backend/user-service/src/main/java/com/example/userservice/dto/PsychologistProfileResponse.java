@@ -29,6 +29,9 @@ public class PsychologistProfileResponse {
 
     private String city;
 
+    // adresse precise du cabinet, affichee au patient pour s'y rendre
+    private String address;
+
     private Double rating;
 
     private Integer totalReviews;
@@ -45,8 +48,10 @@ public class PsychologistProfileResponse {
 
     private LocalDateTime createdAt;
 
-    // On n'expose jamais le chemin de fichier brut (détail d'implémentation
-    // serveur) : juste un booléen pour savoir si un justificatif existe, le
-    // contenu se récupère via GET /psychologists/{id}/license-document.
+    // pas le chemin du fichier, juste un booléen si y'a un justificatif
     private Boolean hasLicenseDocument;
+
+    // mode urgence : visible de tous pour l'écran SOS patient
+    private Boolean availableForEmergency;
+    private Boolean offersFreeSessions;
 }

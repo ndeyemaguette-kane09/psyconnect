@@ -1,4 +1,4 @@
-/// Reflète l'enum `SessionStatus` de appointment-service.
+// reflete l'enum SessionStatus cote appointment-service
 enum SessionStatus { inProgress, completed, cancelled }
 
 extension SessionStatusX on SessionStatus {
@@ -16,32 +16,34 @@ extension SessionStatusX on SessionStatus {
   }
 }
 
-/// Correspond à SessionResponse côté appointment-service. La session est
-/// entièrement simulée côté backend (pas de SDK Agora/WebRTC réel) :
-/// [meetingToken] est une chaîne `SIM-AGORA-<uuid>` générée au démarrage,
-/// jamais utilisée par un vrai service de visio.
+// session simulee cote backend (pas de vrai SDK Agora/WebRTC) :
+// meetingToken c'est juste un texte SIM-AGORA-<uuid> genere au demarrage,
+// jamais utilise par un vrai service de visio
 class CallSession {
   final int id;
-  final int appointmentId;
+  // null pour les sessions d'urgence (pas de RDV associé)
+  final int? appointmentId;
   final SessionStatus status;
   final String meetingToken;
   final DateTime? startedAt;
   final DateTime? endedAt;
   final int? durationSeconds;
+  final bool emergencyMode;
 
   CallSession({
     required this.id,
-    required this.appointmentId,
+    this.appointmentId,
     required this.status,
     required this.meetingToken,
     this.startedAt,
     this.endedAt,
     this.durationSeconds,
+    this.emergencyMode = false,
   });
 
   factory CallSession.fromJson(Map<String, dynamic> json) => CallSession(
         id: (json['id'] as num).toInt(),
-        appointmentId: (json['appointmentId'] as num).toInt(),
+        appointmentId: (json['appointmentId'] as num?)?.toInt(),
         status: SessionStatusX.fromApiValue(json['status'] as String),
         meetingToken: json['meetingToken'] as String,
         startedAt: json['startedAt'] != null
@@ -51,5 +53,6 @@ class CallSession {
             ? DateTime.parse(json['endedAt'] as String)
             : null,
         durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+        emergencyMode: json['emergencyMode'] as bool? ?? false,
       );
 }

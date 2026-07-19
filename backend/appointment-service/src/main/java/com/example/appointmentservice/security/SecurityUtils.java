@@ -8,11 +8,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.example.appointmentservice.exception.ForbiddenOperationException;
 
-/**
- * Accès, depuis la couche service, aux informations extraites du JWT par
- * {@link JwtAuthenticationFilter} pour la requête HTTP en cours (authUserId,
- * rôle, en-tête Authorization brut à relayer vers un autre service).
- */
+// pour recuperer les infos du JWT (id, role, header) depuis les services
 public final class SecurityUtils {
 
     private SecurityUtils() {

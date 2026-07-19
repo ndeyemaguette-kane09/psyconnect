@@ -16,16 +16,8 @@ import com.example.userservice.security.SecurityUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
-/**
- * Point d'entrée vers auth-service depuis user-service — sur le même
- * modèle que {@link NotificationClient}. Utilisé pour récupérer le pseudo
- * d'un patient (donnée qui n'existe que dans auth-service) quand on doit
- * afficher un pseudonyme à la place du nom réel : mode anonyme d'un patient,
- * vu par un psychologue (cf. PatientProfileServiceImpl).
- *
- * "Best effort" : si auth-service ne répond pas, on retombe sur un libellé
- * générique plutôt que de faire échouer l'affichage de la fiche patient.
- */
+// va chercher le pseudo du patient pour le mode anonyme
+// Si ça ne répond pas, on affiche un label générique
 @Component
 public class AuthServiceClient {
 

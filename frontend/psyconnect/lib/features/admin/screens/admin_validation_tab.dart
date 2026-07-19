@@ -9,10 +9,8 @@ import '../../patient/models/psychologist_models.dart';
 import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
 
-/// Onglet "Validation" — file complète des psychologues à valider/déjà
-/// validés (le Dashboard n'en montre qu'un aperçu de 3). Données :
-/// GET /admin/psychologists (user-service), action via
-/// PATCH /admin/psychologists/{id}/verify.
+// Onglet "Validation" : liste complète des psychologues à valider ou déjà traités
+// (le tableau de bord n'en affiche que 3 en aperçu).
 class AdminValidationTab extends StatefulWidget {
   const AdminValidationTab({super.key});
 
@@ -30,8 +28,8 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
   List<PsychologistProfile> _psychologists = [];
   String? _busyId;
 
-  // Pagination indépendante par section : changer de page sur "En attente"
-  // ne doit pas affecter "Refusés"/"Vérifiés".
+  // Pagination indépendante par section pour éviter qu'un changement de page
+  // dans "En attente" ne déplace aussi "Refusés" ou "Vérifiés".
   int _pendingPage = 0;
   int _rejectedPage = 0;
   int _verifiedPage = 0;
@@ -87,11 +85,9 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     }
   }
 
-  /// Distinct de [_setVerified] : "Refuser" doit faire sortir le profil de
-  /// "En attente" vers une section "Refusés", ce que
-  /// `verify?verified=false` ne fait pas (déjà false pour un profil en
-  /// attente — c'était le bug remonté : cliquer sur "Refuser" ne bougeait
-  /// rien). Voir AdminController#setPsychologistRejected.
+  // Distinct de _setVerified : "refuser" déplace le profil de "En attente"
+  // vers "Refusés". Passer verified=false n'a aucun effet sur un profil en attente
+  // (il est déjà à false), d'où l'usage de l'endpoint rejected dédié.
   Future<void> _setRejected(PsychologistProfile psy, bool rejected) async {
     setState(() => _busyId = '${psy.id}');
     try {
@@ -276,9 +272,8 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     );
   }
 
-  /// Construit les cartes paginées d'une section (En attente / Refusés /
-  /// Vérifiés) + la barre "Page X / Y" sous la liste, avec les actions
-  /// spécifiques à la section fournies par [actionsFor].
+  // Construit les cartes paginées d'une section et la barre de navigation,
+  // avec les boutons d'action spécifiques à chaque section (actionsFor).
   List<Widget> _buildPaginatedSection({
     required List<PsychologistProfile> items,
     required int page,
@@ -301,10 +296,8 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     ];
   }
 
-  /// Détail "concret" d'une demande de validation (cf. demande utilisatrice
-  /// de voir les infos du psychologue plus en détail avant de
-  /// trancher) : tous les champs déjà stockés mais pas montrés sur la carte,
-  /// + le justificatif s'il a été fourni à l'inscription.
+  // Ouvre la fiche détail avant de prendre une décision : tous les champs
+  // du profil et le justificatif si fourni.
   void _showDetail(PsychologistProfile psy) {
     showModalBottomSheet(
       context: context,
@@ -397,10 +390,8 @@ class _PsychologistCard extends StatelessWidget {
   }
 }
 
-/// Bottom sheet de détail affiché au clic sur une carte de
-/// [AdminValidationTab] : tous les champs déjà stockés en base mais pas
-/// montrés sur la carte (bio, langues, n° de licence, prix, date
-/// d'inscription) + le justificatif (diplôme/carte pro), s'il a été fourni.
+// Feuille de détail d'un psychologue : bio, langues, licence, tarif,
+// date d'inscription et justificatif si disponible.
 class _PsychologistDetailSheet extends StatefulWidget {
   const _PsychologistDetailSheet({
     required this.psychologist,

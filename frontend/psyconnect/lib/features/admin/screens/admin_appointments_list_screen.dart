@@ -9,13 +9,12 @@ import '../../patient/services/psychologist_service.dart';
 import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
 
-/// Écran de "drill-down" ouvert depuis l'onglet Stats (tap sur une ligne de
-/// "Répartition des rendez-vous") — pas dans la maquette v2. Liste complète
-/// des RDV, filtrable par statut (filtre géré côté backend via
-/// GET /admin/appointments?status=, cf. AdminController#listAppointments).
-///
-/// [initialStatus] pré-sélectionne le filtre correspondant à la ligne sur
-/// laquelle l'admin a tapé, mais reste modifiable depuis l'écran.
+// ecran ouvert depuis l'onglet Stats (clic sur une ligne de
+// "Repartition des rendez-vous") — pas dans la maquette v2. liste complete
+// des RDV, le filtre est gere par le backend (GET /admin/appointments?status=).
+//
+// initialStatus pre-selectionne le filtre selon la ligne cliquee, mais on
+// peut le changer depuis l'ecran
 class AdminAppointmentsListScreen extends StatefulWidget {
   const AdminAppointmentsListScreen({super.key, this.initialStatus});
 
@@ -87,9 +86,8 @@ class _AdminAppointmentsListScreenState
     }
   }
 
-  /// Best-effort : un profil introuvable/erreur réseau ne doit pas faire
-  /// échouer tout le chargement (même logique que
-  /// `psychologist_home_tab.dart`).
+  // si un profil est introuvable ou erreur reseau, on ignore plutot que de
+  // faire planter tout l'ecran (pareil que dans psychologist_home_tab)
   Future<PatientProfile?> _safeGetPatient(int id) async {
     try {
       return await _profileService.getPatientProfileById(id);

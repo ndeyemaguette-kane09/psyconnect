@@ -1,5 +1,5 @@
-/// Correspond à CreateUserProfileRequest côté user-service (POST /users).
-/// `authUserId` doit être l'id renvoyé par /auth/login (AuthSession.userId).
+// correspond a CreateUserProfileRequest cote user-service (POST /users).
+// authUserId doit etre l'id renvoye par /auth/login (AuthSession.userId)
 class CreateUserProfileRequest {
   final int authUserId;
   final String firstName;
@@ -38,10 +38,8 @@ class CreateUserProfileRequest {
       };
 }
 
-/// Correspond à UpdateUserProfileRequest côté user-service (PUT /users/{id}).
-/// On envoie systématiquement toutes les valeurs connues (pas seulement les
-/// champs modifiés) : le endpoint réutilise un DTO de type "create" côté
-/// backend et son comportement en cas de champ omis n'est pas garanti.
+// correspond a UpdateUserProfileRequest (PUT /users/{id}). on envoie toutes
+// les valeurs connues, pas juste celles qui ont changé
 class UpdateUserProfileRequest {
   final String firstName;
   final String lastName;
@@ -72,7 +70,7 @@ class UpdateUserProfileRequest {
       };
 }
 
-/// Correspond à UserProfileResponse côté user-service.
+// correspond a UserProfileResponse cote user-service
 class UserProfile {
   final int id;
   final String firstName;
@@ -106,7 +104,7 @@ class UserProfile {
       );
 }
 
-/// Correspond à CreatePatientProfileRequest côté user-service (POST /patients).
+// correspond a CreatePatientProfileRequest cote user-service (POST /patients)
 class CreatePatientProfileRequest {
   final int userProfileId;
   final String? emergencyContactName;
@@ -136,7 +134,7 @@ class CreatePatientProfileRequest {
       };
 }
 
-/// Correspond à PatientProfileResponse côté user-service (GET /patients/{id}).
+// correspond a PatientProfileResponse cote user-service (GET /patients/{id})
 class PatientProfile {
   final int id;
   final String firstName;
@@ -173,8 +171,7 @@ class PatientProfile {
       );
 }
 
-/// Correspond à CreatePsychologistProfileRequest côté user-service
-/// (POST /psychologists).
+// correspond a CreatePsychologistProfileRequest cote user-service (POST /psychologists)
 class CreatePsychologistProfileRequest {
   final int userProfileId;
   final String specialty;
@@ -183,6 +180,8 @@ class CreatePsychologistProfileRequest {
   final int? consultationPrice;
   final String? languages;
   final String? city;
+  // adresse precise du cabinet, pour la consultation en presentiel
+  final String? address;
   final String? licenseNumber;
 
   CreatePsychologistProfileRequest({
@@ -193,6 +192,7 @@ class CreatePsychologistProfileRequest {
     this.consultationPrice,
     this.languages,
     this.city,
+    this.address,
     this.licenseNumber,
   });
 
@@ -204,6 +204,7 @@ class CreatePsychologistProfileRequest {
         if (consultationPrice != null) 'consultationPrice': consultationPrice,
         if (languages != null) 'languages': languages,
         if (city != null) 'city': city,
+        if (address != null) 'address': address,
         if (licenseNumber != null) 'licenseNumber': licenseNumber,
       };
 }

@@ -24,11 +24,7 @@ public class AdminServiceImpl implements AdminService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /**
-     * Garde-fous communs aux actions destructrices/sensibles sur un compte
-     * (désactivation, suppression, reset mot de passe) : un admin ne peut
-     * agir ni sur un autre compte admin, ni sur son propre compte.
-     */
+    // Un administrateur ne peut pas agir sur un autre admin ni sur son propre compte
     private void checkActionableTarget(User target, String callerEmail) {
 
         if (target.getRole() == Role.ADMIN) {
@@ -106,7 +102,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public AdminStatsResponse getStats() {
-
+        // Plusieurs requêtes, acceptable pour un tableau de bord
         AdminStatsResponse stats = new AdminStatsResponse();
 
         stats.setTotalUsers(userRepository.count());

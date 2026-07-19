@@ -1,7 +1,6 @@
 import 'payment_models.dart';
 
-// Reflète WalletResponse côté user-service (GET/POST /patients/{id}/wallet*) :
-// solde courant du patient.
+// solde actuel du patient (cf WalletResponse cote user-service)
 class Wallet {
   final int patientId;
   final double balance;
@@ -14,10 +13,9 @@ class Wallet {
       );
 }
 
-/// Corps de requête pour /wallet/deposit et /wallet/withdraw — reflète
-/// WalletAmountRequest côté user-service. `method` reste un des 3 moyens
-/// mobile money simulés (Wave/Orange Money/Carte), jamais [PaymentMethod.wallet]
-/// lui-même puisque c'est précisément l'opération qu'on décrit.
+// corps pour /wallet/deposit et /wallet/withdraw. method = un des 3 moyens
+// simulés (Wave/Orange Money/Carte), jamais wallet vu que c'est
+// justement ça qu'on est en train de faire
 class WalletAmountRequest {
   final double amount;
   final PaymentMethod method;
@@ -30,11 +28,11 @@ class WalletAmountRequest {
       };
 }
 
-/// Reflète l'enum `WalletTransactionType` côté user-service.
+// reflete l'enum WalletTransactionType cote user-service
 enum WalletTransactionType { deposit, withdrawal, debit, credit }
 
 extension WalletTransactionTypeX on WalletTransactionType {
-  /// true si ce mouvement a augmenté le solde (dépôt, remboursement).
+  // true si le mouvement a fait monter le solde (depot, remboursement)
   bool get isCredit =>
       this == WalletTransactionType.deposit || this == WalletTransactionType.credit;
 
@@ -67,8 +65,7 @@ extension WalletTransactionTypeX on WalletTransactionType {
   }
 }
 
-// Reflète WalletTransactionResponse côté user-service
-// (GET /patients/{id}/wallet/transactions) : une ligne du relevé du solde.
+// une ligne du relevé du solde (GET /patients/{id}/wallet/transactions)
 class WalletTransaction {
   final int id;
   final WalletTransactionType type;

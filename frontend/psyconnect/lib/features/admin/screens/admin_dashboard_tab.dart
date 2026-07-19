@@ -8,13 +8,9 @@ import '../../patient/models/psychologist_models.dart';
 import '../models/admin_models.dart';
 import '../services/admin_service.dart';
 
-/// Onglet "Dashboard" — le seul des 5 onglets admin réellement dessiné dans
-/// la maquette v2 (KPIs, validations en attente, répartition des séances).
-/// Données : GET /admin/stats/profiles (user-service) pour les KPIs
-/// patients/psys, GET /admin/psychologists pour la file d'attente de
-/// validation, GET /admin/appointments pour les RDV du mois et la
-/// répartition par type de consultation (aucun endpoint n'agrège ces deux
-/// derniers points côté backend, donc calculés ici à partir de la liste).
+// Onglet tableau de bord administrateur : KPIs, validations en attente et
+// répartition des séances par type. Ces données sont calculées côté client
+// depuis la liste des RDV, aucun endpoint dédié n'existe pour l'instant.
 class AdminDashboardTab extends StatefulWidget {
   const AdminDashboardTab({super.key, required this.onSeeAllValidations});
 
@@ -90,9 +86,9 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
     }
   }
 
-  /// Distinct de [_setVerified] : "Refuser" doit retirer la demande de la
-  /// file d'attente, ce que `verify?verified=false` ne fait pas (déjà false
-  /// pour un profil en attente). Voir AdminController#setPsychologistRejected.
+  // Distinct de _setVerified : passer verified=false ne retire pas la demande
+  // de la liste (un profil en attente a déjà verified=false). Il faut passer
+  // par l'endpoint rejected pour marquer explicitement le refus.
   Future<void> _reject(PsychologistProfile psy) async {
     setState(() => _busyPsychologistAction = '${psy.id}');
     try {
@@ -120,8 +116,7 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
         .length;
   }
 
-  /// % par type de consultation, calculé sur l'ensemble des RDV (toutes
-  /// périodes) — aucun endpoint n'expose cette répartition côté backend.
+  // Répartition en pourcentage par type de consultation, calculée côté client.
   Map<ConsultationType, double> get _typeBreakdown {
     if (_appointments.isEmpty) return {};
     final counts = <ConsultationType, int>{};

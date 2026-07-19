@@ -33,15 +33,8 @@ public class UserController {
         );
     }
 
-    /**
-     * Expose le pseudo d'un utilisateur à partir de son id "auth" — utilisé
-     * par user-service (cf. AuthServiceClient) pour afficher le pseudonyme
-     * d'un patient en mode anonyme côté psychologue : le pseudo n'existe que
-     * dans cette entité {@link User}, nulle part dans user-service. Route
-     * authentifiée comme le reste de "/users/**" (cf. SecurityConfig), pas
-     * de contrôle de rôle supplémentaire nécessaire (juste un pseudo, pas
-     * une donnée sensible).
-     */
+    // utilisé par user-service pour afficher le pseudo du patient
+    // (le pseudo est stocké ici, pas dans user-service)
     @GetMapping("/{id}/pseudo")
     public ResponseEntity<Map<String, String>> getPseudo(
             @PathVariable Long id

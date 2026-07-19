@@ -12,17 +12,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
 
-/**
- * Stockage minimal sur disque des justificatifs (diplôme / carte
- * professionnelle) envoyés par les psychologues à l'inscription. Pas de
- * dépendance externe (S3, etc.) : un simple dossier local, configurable via
- * app.uploads.license-documents-dir, suffit pour le besoin actuel.
- *
- * On ne garde que le NOM de fichier généré (pas le chemin absolu) dans
- * l'entité : le chemin absolu dépend de la machine qui fait tourner le
- * service, donc le stocker en base le rendrait invalide dès qu'on change de
- * machine ou de conteneur.
- */
+// stockage simple sur disque des justificatifs psy
+// on garde que le nom du fichier, pas le chemin
 @Component
 public class FileStorageService {
 
@@ -41,10 +32,7 @@ public class FileStorageService {
         }
     }
 
-    /**
-     * Sauvegarde le fichier sous un nom généré (UUID) en conservant
-     * l'extension d'origine, et renvoie ce nom (à stocker en base).
-     */
+    // Sauvegarde avec un nom généré (UUID + extension), renvoie ce nom
     public String store(MultipartFile file) {
         String original = StringUtils.cleanPath(
                 file.getOriginalFilename() == null ? "" : file.getOriginalFilename());
@@ -57,9 +45,7 @@ public class FileStorageService {
         Path target = root.resolve(generatedName).normalize();
 
         if (!target.getParent().equals(root)) {
-            // Protection basique contre un nom de fichier malicieux
-            // (path traversal) — ne devrait jamais arriver puisque le nom
-            // est généré par nous, mais coûte rien à vérifier.
+            // protection basique contre path traversal, au cas où
             throw new IllegalArgumentException("Nom de fichier invalide.");
         }
 
@@ -85,9 +71,7 @@ public class FileStorageService {
         try {
             Files.deleteIfExists(root.resolve(storedFileName).normalize());
         } catch (IOException ignored) {
-            // Best-effort : un fichier orphelin sur disque n'est pas
-            // bloquant, on ne veut pas faire échouer l'opération métier
-            // (remplacement/suppression du profil) pour ça.
+            // best-effort, un fichier orphelin c'est pas bloquant
         }
     }
 }

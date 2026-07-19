@@ -2,9 +2,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../models/journal_models.dart';
 
-/// Appelle les endpoints /journal de user-service (via l'API Gateway).
-/// L'identité du patient est résolue côté backend depuis le JWT : on
-/// n'envoie/ne filtre jamais par patientId côté client.
+// appels /journal de user-service. l'identité du patient vient
+// du token côté backend, on n'envoie jamais de patientId ici
 class JournalService {
   JournalService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 

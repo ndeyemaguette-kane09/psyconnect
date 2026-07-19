@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../constants/api_constants.dart';
 import '../storage/token_storage.dart';
 import 'api_exception.dart';
 
-/// Résultat d'un téléchargement binaire (cf. [ApiClient.getFile]) : les
-/// octets bruts + le content-type renvoyé par le serveur, nécessaire pour
-/// savoir comment ouvrir/afficher le fichier côté UI (image vs PDF).
+// Résultat d'un fichier téléchargé : octets bruts et type MIME associé
+// (permet de distinguer image et PDF avant d'ouvrir le fichier).
 class DownloadedFile {
   const DownloadedFile({required this.bytes, required this.contentType});
 
@@ -18,13 +18,8 @@ class DownloadedFile {
   final String contentType;
 }
 
-/// Petit wrapper autour de `http` qui :
-/// - préfixe toutes les requêtes avec [ApiConstants.baseUrl] (l'API Gateway),
-/// - ajoute automatiquement le header `Authorization: Bearer <token>` si une
-///   session est active,
-/// - décode le JSON et remonte une [ApiException] cohérente en cas d'erreur,
-///   qu'elle vienne du réseau ou du backend (cf. GlobalExceptionHandler côté
-///   Spring Boot : { "champ": "message" } ou { "message": "..." }).
+// Client HTTP centralisé : construit les URL, injecte le token d'authentification,
+// décode le JSON et convertit les erreurs réseau ou backend en ApiException.
 class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
@@ -53,6 +48,7 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool withAuth = true,
+    Duration? timeout,
   }) async {
     return _send(() async => _client
         .post(
@@ -60,7 +56,7 @@ class ApiClient {
           headers: await _headers(withAuth: withAuth),
           body: body == null ? null : jsonEncode(body),
         )
-        .timeout(ApiConstants.timeout));
+        .timeout(timeout ?? ApiConstants.timeout));
   }
 
   Future<dynamic> put(
@@ -77,9 +73,6 @@ class ApiClient {
         .timeout(ApiConstants.timeout));
   }
 
-  /// Utilisé par les endpoints admin (PATCH /admin/users/{id}/enabled,
-  /// PATCH /admin/psychologists/{id}/verify), qui passent leur paramètre en
-  /// query string (?enabled=, ?verified=) plutôt qu'en corps JSON.
   Future<dynamic> patch(
     String path, {
     Map<String, dynamic>? body,
@@ -94,30 +87,64 @@ class ApiClient {
         .timeout(ApiConstants.timeout));
   }
 
-  /// Utilisé par DELETE /admin/users/{id} (suppression définitive de compte).
   Future<dynamic> delete(String path, {bool withAuth = true}) async {
     return _send(() async => _client
         .delete(_uri(path), headers: await _headers(withAuth: withAuth))
         .timeout(ApiConstants.timeout));
   }
 
-  /// Envoie un fichier en multipart/form-data — utilisé pour le justificatif
-  /// psychologue (POST /psychologists/{id}/license-document, champ "file").
-  /// Réutilise [_send] (donc la même gestion d'erreurs que les autres
-  /// méthodes) en convertissant la réponse streamée en [http.Response].
+  // Requête multipart avec champs texte et fichier optionnel (ex : signalement
+  // patient). Spring exige MULTIPART_FORM_DATA_VALUE même sans pièce jointe,
+  // d'où le multipart systématique même si filePath est null.
+  Future<dynamic> postMultipartFields(
+    String path, {
+    Map<String, String> fields = const {},
+    String? filePath,
+    String? fileFieldName,
+    String? fileNameOverride,
+    bool withAuth = true,
+    Duration? timeout,
+  }) async {
+    return _send(() async {
+      final request = http.MultipartRequest('POST', _uri(path));
+
+      final headers = await _headers(withAuth: withAuth);
+      headers.remove('Content-Type');
+      request.headers.addAll(headers);
+
+      request.fields.addAll(fields);
+
+      if (filePath != null && fileFieldName != null) {
+        request.files.add(await http.MultipartFile.fromPath(
+          fileFieldName,
+          filePath,
+          filename: fileNameOverride,
+          contentType: _guessMediaType(fileNameOverride ?? filePath),
+        ));
+      }
+
+      final streamedResponse = await _client
+          .send(request)
+          .timeout(timeout ?? ApiConstants.timeout);
+      return http.Response.fromStream(streamedResponse);
+    });
+  }
+
+  // Envoie un fichier en multipart/form-data (justificatif du psychologue).
+  // Le timeout est délibérément plus long : un fichier de plusieurs Mo peut
+  // dépasser 15 s sur un réseau mobile.
   Future<dynamic> postMultipart(
     String path, {
     required String fieldName,
     required String filePath,
     String? fileNameOverride,
     bool withAuth = true,
+    Duration? timeout,
   }) async {
     return _send(() async {
       final request = http.MultipartRequest('POST', _uri(path));
 
-      // Pas de Content-Type ici : MultipartRequest fixe le sien
-      // (multipart/form-data; boundary=...), un header JSON resterait sinon
-      // et casserait le parsing côté serveur.
+      // MultipartRequest définit lui-même son Content-Type boundary.
       final headers = await _headers(withAuth: withAuth);
       headers.remove('Content-Type');
       request.headers.addAll(headers);
@@ -126,17 +153,37 @@ class ApiClient {
         fieldName,
         filePath,
         filename: fileNameOverride,
+        // Sans ce forçage, http déduirait le Content-Type depuis l'extension
+        // de filePath — le chemin temporaire renvoyé par file_picker. Sur iOS,
+        // ce chemin n'a souvent aucune extension (cache du picker), ce qui
+        // produit "application/octet-stream" et provoque un rejet backend.
+        // On préfère déduire le type depuis le nom original du fichier
+        // (fileNameOverride), dont l'extension est fiable.
+        contentType: _guessMediaType(fileNameOverride ?? filePath),
       ));
 
-      final streamedResponse =
-          await _client.send(request).timeout(ApiConstants.timeout);
+      final streamedResponse = await _client
+          .send(request)
+          .timeout(timeout ?? ApiConstants.timeout);
       return http.Response.fromStream(streamedResponse);
     });
   }
 
-  /// Télécharge un binaire (pas du JSON) avec son content-type — utilisé
-  /// pour le justificatif psychologue (GET .../license-document). Ne passe
-  /// pas par [_send] car celui-ci décode systématiquement le corps en JSON.
+  // Déduit le Content-Type depuis l'extension (PDF/PNG/JPEG : les seuls
+  // formats acceptés par user-service pour le justificatif). Retourne null
+  // si l'extension est inconnue, laissant http choisir lui-même.
+  MediaType? _guessMediaType(String nameOrPath) {
+    final lower = nameOrPath.toLowerCase();
+    if (lower.endsWith('.pdf')) return MediaType('application', 'pdf');
+    if (lower.endsWith('.png')) return MediaType('image', 'png');
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+      return MediaType('image', 'jpeg');
+    }
+    return null;
+  }
+
+  // Télécharge un fichier binaire (ex : justificatif psy) sans passer par
+  // _send, qui tenterait de le décoder en JSON.
   Future<DownloadedFile> getFile(String path, {bool withAuth = true}) async {
     http.Response response;
     try {
@@ -174,8 +221,6 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException.timeout();
     } on http.ClientException {
-      // Couvre les erreurs réseau cross-plateforme (DNS, connexion refusée,
-      // etc.) sans dépendre de dart:io, qui n'est pas disponible sur le web.
       throw ApiException.network();
     } catch (e) {
       if (e is ApiException) rethrow;
@@ -201,28 +246,21 @@ class ApiClient {
 
   ApiException _toApiException(int statusCode, dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
-      // Erreur métier auth-service : { "message": "..." } (1 seule clé).
-      // Erreur métier user-service (GlobalExceptionHandler.buildResponse) :
-      // { "timestamp", "status", "error", "message" } (4 clés) — il faut
-      // donc tester la présence de "message", pas la taille de la map,
-      // sinon on tombe par erreur dans la branche "champ -> message"
-      // ci-dessous et on affiche la valeur de "error" (ex. "Bad Request")
-      // au lieu du vrai message métier.
+      // Erreur métier : { "message": "…" }, éventuellement accompagnée de
+      // timestamp/status. On vérifie la présence de la clé "message" plutôt
+      // que la taille de la map pour distinguer ce format des autres.
       if (decoded.containsKey('message')) {
+        final errorCode = decoded['errorCode']?.toString();
         return ApiException(
           statusCode: statusCode,
           message: decoded['message']?.toString() ?? 'Erreur inconnue',
+          errorCode: errorCode,
         );
       }
 
-      // Page d'erreur PAR DÉFAUT de Spring Boot/WebFlux (pas de handler
-      // custom n'a intercepté l'exception — ex: service indisponible côté
-      // gateway, 5xx non géré, filtre de sécurité qui lève avant d'atteindre
-      // le contrôleur) : { "timestamp", "status", "error", "path" }, sans
-      // "message" ni "fields". Reconnaissable par la présence de "timestamp"
-      // + "status" + "path" ensemble. Il ne faut PAS traiter ça comme une
-      // map de validation par champ, sinon on affiche le timestamp brut à
-      // la place d'un message (bug réel observé : "2026-06-23T22:48:...").
+      // Page d'erreur par défaut de Spring Boot sans handler personnalisé :
+      // {timestamp, status, error, path} sans clé "message". On ne la traite
+      // pas comme une erreur de validation pour éviter d'afficher un timestamp brut.
       if (decoded.containsKey('timestamp') &&
           decoded.containsKey('status') &&
           decoded.containsKey('path')) {
@@ -236,10 +274,7 @@ class ApiClient {
       }
 
       // Erreur de validation @Valid, deux formats possibles :
-      // - user-service (handleValidationException) : { "timestamp",
-      //   "status", "error", "fields": { "champ": "message", ... } }
-      // - auth-service (handleValidationExceptions) : { "champ": "message", ... }
-      //   directement à plat.
+      // {fields: {champ: message}} ou directement {champ: message} à plat.
       final rawFields = decoded['fields'];
       final fieldErrors = (rawFields is Map)
           ? rawFields.map(

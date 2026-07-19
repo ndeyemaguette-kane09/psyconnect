@@ -10,14 +10,9 @@ import '../services/profile_service.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
-/// Centralise tout le flux d'authentification / onboarding pour l'app :
-/// 1) register (auth-service)            -> compte créé, pas encore connecté
-/// 2) login (auth-service)                -> JWT + userId + role + pseudo
-/// 3) createUserProfile (user-service)    -> profil "civil" (nom, tel, etc.)
-/// 4) createPatientProfile / createPsychologistProfile (user-service)
-///
-/// Exposé via Provider pour que les écrans réagissent à isLoading/error/
-/// session sans avoir à gérer eux-mêmes les appels réseau.
+// Gère tout le flux d'inscription et de connexion : register → login →
+// createUserProfile → createPatientProfile / createPsychologistProfile.
+// Utilise Provider pour que les écrans réagissent aux changements d'état.
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
     AuthService? authService,
@@ -32,20 +27,19 @@ class AuthProvider extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
   Map<String, String> fieldErrors = {};
+  // true quand la dernière erreur de connexion vient d'un compte banni (ACCOUNT_BANNED).
+  // Utilisé par LoginScreen pour afficher une carte dédiée avec les coordonnées admin.
+  bool isBannedAccount = false;
+  // Passe à true si l'envoi du justificatif échoue pendant l'inscription.
+  // Le profil est créé malgré tout ; l'écran d'inscription informe alors
+  // l'utilisateur de renvoyer le document depuis ses paramètres.
+  bool licenseUploadWarning = false;
 
   AuthSession? session;
 
-  /// À appeler au démarrage de l'app pour restaurer une session existante.
-  /// Toute erreur de lecture du stockage sécurisé (plateforme indisponible,
-  /// keychain verrouillé, etc.) est traitée comme "pas de session" plutôt
-  /// que de faire planter le démarrage de l'app.
-  ///
-  /// Le `.timeout(...)` est une protection : sur iOS, une lecture Keychain
-  /// peut rester bloquée (ex. après un changement de Team/Bundle ID en
-  /// signing) et `await` ne reviendrait alors jamais, ce qui laisserait
-  /// l'app coincée indéfiniment sur l'écran de chargement initial (`_Root`
-  /// dans app.dart) tant que `status` reste `AuthStatus.unknown` — perçu par
-  /// l'utilisateur comme un écran blanc figé.
+  // À appeler au démarrage pour reprendre une session existante. Si la
+  // lecture du stockage échoue, la session est considérée absente. Le
+  // timeout évite un blocage de l'écran de chargement sur iOS.
   Future<void> restoreSession() async {
     try {
       final token = await TokenStorage.readToken()
@@ -89,9 +83,11 @@ class AuthProvider extends ChangeNotifier {
     if (error is ApiException) {
       errorMessage = error.message;
       fieldErrors = error.fieldErrors;
+      isBannedAccount = error.errorCode == 'ACCOUNT_BANNED';
     } else {
       errorMessage = error.toString();
       fieldErrors = {};
+      isBannedAccount = false;
     }
     notifyListeners();
   }
@@ -99,10 +95,11 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     errorMessage = null;
     fieldErrors = {};
+    isBannedAccount = false;
     notifyListeners();
   }
 
-  /// Étape 1 : crée le compte. Ne connecte pas automatiquement.
+  // Étape 1 : crée le compte sans ouvrir de session automatiquement.
   Future<bool> register({
     required UserRole role,
     required RegisterAccountRequest account,
@@ -120,19 +117,9 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Étape 2 : login simple, utilisé par l'écran de connexion.
-  ///
-  /// login() (auth-service) ne renvoie que l'authUserId, jamais le
-  /// UserProfile.id ni le PatientProfile.id/PsychologistProfile.id dont a
-  /// besoin la suite (appointment-service attend patientId/psychologistId,
-  /// pas authUserId ; l'onglet Profil attend userProfileId pour
-  /// éditer/afficher les infos civiles). Pour un compte déjà onboardé, on
-  /// les résout donc ici via GET /users/by-auth-user/{authUserId} et
-  /// GET /patients/by-auth-user/{authUserId} ou
-  /// GET /psychologists/by-auth-user/{authUserId} selon le rôle. Best-effort :
-  /// si ça échoue (pas encore de profil, service indisponible...), on
-  /// n'empêche pas la connexion — `userProfileId`/`profileId` resteront
-  /// juste null jusqu'à ce qu'ils soient nécessaires.
+  // Étape 2 : connexion depuis l'écran de login. La méthode login() ne
+  // renvoie que l'authUserId ; on récupère userProfileId et profileId
+  // séparément. Un échec sur ces récupérations ne bloque pas la connexion.
   Future<bool> login({required String email, required String password}) async {
     clearError();
     _setLoading(true);
@@ -177,11 +164,10 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Flux complet d'inscription patient : login juste après le register
-  /// (pour récupérer le JWT + userId), puis création du UserProfile et du
-  /// PatientProfile. Si une étape échoue, errorMessage est renseigné et on
-  /// s'arrête : l'utilisateur reste sur l'écran pour réessayer (le compte
-  /// auth existe déjà, donc on rejoue juste login + profils).
+  // Inscription patient complète : connexion juste après le register, puis
+  // création du UserProfile et du PatientProfile. En cas d'erreur,
+  // errorMessage est renseigné ; le compte existe déjà et la connexion
+  // peut être relancée séparément.
   Future<bool> completePatientOnboarding({
     required String email,
     required String password,
@@ -199,10 +185,7 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
 
-      // Le token doit être persisté AVANT les appels suivants : ApiClient lit
-      // le token depuis TokenStorage (pas depuis `session` en mémoire), donc
-      // sans ça les requêtes createUserProfile/createPatientProfile partent
-      // sans header Authorization -> 403 côté backend.
+      // Token persisté avant les appels suivants, sinon erreur 403.
       await _persistSession(newSession);
 
       final userProfile = await _profileService.createUserProfile(
@@ -220,8 +203,7 @@ class AuthProvider extends ChangeNotifier {
         CreatePatientProfileRequest(userProfileId: userProfile.id),
       );
 
-      // Nécessaire pour la prise de RDV plus tard (POST /appointments
-      // attend le PatientProfile.id, pas l'authUserId du JWT).
+      // Nécessaire pour réserver un RDV : l'API attend le PatientProfile.id, pas l'authUserId.
       await _persistProfileIds(
         userProfileId: userProfile.id,
         profileId: patientProfileId,
@@ -236,9 +218,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Même principe pour un psychologue, avec les champs spécifiques au
-  /// PsychologistProfile (spécialité obligatoire côté backend pour que le
-  /// profil ait un sens, même si le DTO ne l'impose pas explicitement).
+  // Même flux que le patient, avec les champs supplémentaires du psychologue.
   Future<bool> completePsychologistOnboarding({
     required String email,
     required String password,
@@ -248,23 +228,28 @@ class AuthProvider extends ChangeNotifier {
     required String specialty,
     String? city,
     String? country,
+    String? address,
     int? yearsOfExperience,
     int? consultationPrice,
     String? licenseNumber,
-    // Chemin local (device) du justificatif choisi avec file_picker — envoyé
-    // après la création du profil, cf. note "best-effort" plus bas.
+    // chemin local du justificatif (file_picker), envoye apres creation du profil
     String? licenseDocumentPath,
+    // nom ORIGINAL du fichier choisi (picked.name) : indispensable pour que
+    // le bon Content-Type soit envoye (cf. ApiClient._guessMediaType),
+    // licenseDocumentPath seul peut etre un chemin temporaire iOS sans
+    // extension fiable
+    String? licenseDocumentName,
   }) async {
     clearError();
     _setLoading(true);
+    licenseUploadWarning = false;
     try {
       final newSession = await _authService.login(
         email: email,
         password: password,
       );
 
-      // Cf. completePatientOnboarding : le token doit être persisté avant
-      // tout appel authentifié, sinon ApiClient part sans Authorization -> 403.
+      // Token persisté avant tout appel authentifié, sinon erreur 403.
       await _persistSession(newSession);
 
       final userProfile = await _profileService.createUserProfile(
@@ -284,6 +269,7 @@ class AuthProvider extends ChangeNotifier {
           userProfileId: userProfile.id,
           specialty: specialty,
           city: city,
+          address: address,
           yearsOfExperience: yearsOfExperience,
           consultationPrice: consultationPrice,
           licenseNumber: licenseNumber,
@@ -295,17 +281,20 @@ class AuthProvider extends ChangeNotifier {
         profileId: psychologistProfileId,
       );
 
-      // Best-effort : le profil existe déjà à ce stade, donc on ne fait pas
-      // échouer tout l'onboarding si seul l'envoi du justificatif rate
-      // (réseau, fichier trop gros…) — le psychologue pourra le renvoyer
-      // plus tard depuis son profil.
+      // Le document est obligatoire à la saisie (register_screen bloque
+      // si absent), mais l'envoi réseau peut quand même échouer. On ne fait
+      // pas échouer toute l'inscription pour autant : le profil est déjà
+      // créé, et le psy peut renvoyer le justificatif depuis son profil.
       if (licenseDocumentPath != null) {
         try {
           await _profileService.uploadPsychologistLicenseDocument(
             psychologistProfileId,
             licenseDocumentPath,
+            fileName: licenseDocumentName,
           );
-        } catch (_) {}
+        } catch (_) {
+          licenseUploadWarning = true;
+        }
       }
 
       return true;
@@ -329,13 +318,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// TokenStorage.saveProfileIds() écrase/efface la valeur stockée pour tout
-  /// paramètre null (pas de sémantique "patch" côté disque, contrairement à
-  /// copyWith côté session en mémoire). Pour éviter d'effacer un id déjà
-  /// connu suite à un échec transitoire d'une seule résolution
-  /// (ex. getUserProfileIdByAuthUserId échoue mais getPatientProfileIdByAuthUserId
-  /// réussit), on retombe ici aussi sur la valeur déjà en session avant
-  /// d'écrire sur le disque.
+  // saveProfileIds() efface la valeur stockée si on lui passe null ; on
+  // conserve donc la valeur déjà en session pour ne pas perdre un id existant.
   Future<void> _persistProfileIds({int? userProfileId, int? profileId}) async {
     final resolvedUserProfileId = userProfileId ?? session?.userProfileId;
     final resolvedProfileId = profileId ?? session?.profileId;
@@ -351,6 +335,45 @@ class AuthProvider extends ChangeNotifier {
       profileId: resolvedProfileId,
     );
     notifyListeners();
+  }
+
+  // Mot de passe oublié : renvoie le code en mode développement (pas encore
+  // d'envoi d'e-mail réel) pour le pré-remplir à l'écran, null sinon.
+  // Le message générique est intentionnel côté backend : on ne révèle pas
+  // si l'adresse e-mail est connue du système.
+  Future<String?> forgotPassword({required String email}) async {
+    clearError();
+    _setLoading(true);
+    try {
+      return await _authService.forgotPassword(email: email);
+    } catch (e) {
+      _setError(e);
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    clearError();
+    _setLoading(true);
+    try {
+      await _authService.resetPassword(
+        email: email,
+        code: code,
+        newPassword: newPassword,
+      );
+      return true;
+    } catch (e) {
+      _setError(e);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> logout() async {

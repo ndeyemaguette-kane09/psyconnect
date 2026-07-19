@@ -1,26 +1,10 @@
-/// Adresses de l'API Gateway (Spring Cloud Gateway, cf. backend/api-gateway).
-///
-/// L'app passe TOUJOURS par le gateway (port 8080), jamais directement par
-/// un microservice : c'est lui qui route /auth, /users, /patients,
-/// /psychologists, /appointments, /payments, /journal, /notifications
-/// vers le bon service via Eureka.
-///
-/// La bonne valeur de [baseUrl] dépend de l'endroit où tourne l'app :
-/// - Web / Flutter desktop (macOS, etc.) : http://localhost:8080
-/// - Émulateur Android : http://10.0.2.2:8080 (10.0.2.2 = host machine)
-/// - Simulateur iOS : http://localhost:8080
-/// - Appareil physique : le nom mDNS/Bonjour de la machine de dev
-///   (`MacBook-Pro-de-ndeye.local`, obtenu via `scutil --get LocalHostName`)
-///   plutôt que son IP locale, qui change à chaque reconnexion Wi-Fi.
-///   C'est la valeur par défaut ci-dessous : `flutter run` seul (sans flag)
-///   fonctionne donc directement sur device physique, tant que le téléphone
-///   et le Mac sont sur le même réseau et que le nom de la machine ne change
-///   pas (renommage via Réglages Système > Général > Partage si besoin).
-///
-/// On peut quand même surcharger cette valeur au lancement, par exemple
-/// pour un émulateur Android ou si le mDNS ne résout pas sur un réseau
-/// particulier (Wi-Fi d'entreprise/invité) :
-///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
+// adresses du gateway (port 8080), on passe toujours par lui
+//
+// baseUrl change selon ou l'app tourne :
+// - web/desktop/simu iOS : localhost:8080
+// - emulateur android : 10.0.2.2:8080
+// - telephone physique : nom du mac (plus stable que l'ip wifi)
+// possible de changer avec : flutter run --dart-define=API_BASE_URL=...
 class ApiConstants {
   ApiConstants._();
 
@@ -34,6 +18,8 @@ class ApiConstants {
   static const String registerPsychologist = '/auth/register/psy';
   static const String login = '/auth/login';
   static const String me = '/auth/me';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String resetPassword = '/auth/reset-password';
 
   // --- user-service (routé via /users/**, /patients/**, /psychologists/**) ---
   static const String userProfiles = '/users';
@@ -49,15 +35,11 @@ class ApiConstants {
   static String psychologistProfileByAuthUser(int authUserId) =>
       '/psychologists/by-auth-user/$authUserId';
 
-  /// POST (multipart, champ "file") pour envoyer/remplacer le justificatif,
-  /// GET pour le télécharger (réservé au propriétaire ou à un ADMIN — cf.
-  /// SecurityConfig côté user-service).
+  // POST pour envoyer/remplacer le justificatif, GET pour le telecharger
   static String psychologistLicenseDocument(int psychologistId) =>
       '/psychologists/$psychologistId/license-document';
 
-  // Solde PsyConnect : GET pour lire le solde, POST deposit/withdraw pour
-  // recharger/retirer (corps JSON {amount, method}). /debit et /credit
-  // existent côté backend mais réservés aux appels inter-services.
+  // GET solde, POST deposit/withdraw pour recharger/retirer
   static String patientWallet(int patientId) => '/patients/$patientId/wallet';
 
   static String patientWalletDeposit(int patientId) =>
@@ -66,19 +48,47 @@ class ApiConstants {
   static String patientWalletWithdraw(int patientId) =>
       '/patients/$patientId/wallet/withdraw';
 
-  /// GET : relevé des mouvements du solde (dépôts/retraits/débits/crédits),
-  /// du plus récent au plus ancien.
+  // GET : liste des mouvements du solde, du plus recent au plus ancien
   static String patientWalletTransactions(int patientId) =>
       '/patients/$patientId/wallet/transactions';
 
-  // --- ml-service (routé via /recommendations/**, route fixe vers
-  // l'instance uvicorn — service Python non enregistré dans Eureka, cf.
-  // ml-service-route dans api-gateway/application.properties) ---
-  /// GET /recommendations/{patientId}?top_n=N : recommandation par
-  /// filtrage de contenu (TF-IDF + similarité cosinus) + note, cf.
-  /// ml-service/app/main.py. Le jeton JWT du patient est relayé tel quel
-  /// par [ApiClient] (withAuth: true par défaut) car ml-service en a
-  /// besoin pour appeler GET /patients/{id} côté user-service.
+  // GET public / PUT proprietaire : disponibilites hebdomadaires du psy
+  static String psychologistAvailabilities(int psychologistId) =>
+      '/psychologists/$psychologistId/availabilities';
+
+  // --- lien de suivi psy ↔ patient (POST=ajouter, DELETE=retirer, GET=liste/statut) ---
+  static String followedPatients(int psyId) =>
+      '/psychologists/$psyId/followed-patients';
+
+  static String followedPatient(int psyId, int patientId) =>
+      '/psychologists/$psyId/followed-patients/$patientId';
+
+  // GET/PUT : antecedents medicaux structures, editable patient + psy suivi
+  static String patientMedicalHistory(int patientId) =>
+      '/patients/$patientId/medical-history';
+
+  // --- notes cliniques privees (psychologue uniquement, jamais le patient
+  // ni l'admin - cf CDC section 6) ---
+  static String patientClinicalNotes(int patientId) =>
+      '/patients/$patientId/clinical-notes';
+  static String clinicalNote(int noteId) => '/clinical-notes/$noteId';
+
+  // --- avis psy (anonymes, reserves au patient ayant eu une seance
+  // COMPLETED avec ce psy) ---
+  // GET : liste publique et anonyme des avis
+  static String psychologistReviews(int psychologistId) =>
+      '/psychologists/$psychologistId/reviews';
+
+  // PUT : cree ou met a jour l'avis du patient connecte (upsert)
+  static String psychologistReview(int psychologistId) =>
+      '/psychologists/$psychologistId/review';
+
+  // GET : l'avis du patient connecte sur ce psy (rating=null si aucun avis)
+  static String psychologistMyReview(int psychologistId) =>
+      '/psychologists/$psychologistId/review/me';
+
+  // --- ml-service (route fixe, pas dans Eureka) ---
+  // GET recommandations (TF-IDF + cosinus), JWT relayé pour appeler user-service
   static String recommendations(int patientId, {int topN = 5}) =>
       '/recommendations/$patientId?top_n=$topN';
 
@@ -91,40 +101,48 @@ class ApiConstants {
   static String appointmentsByPsychologist(int psychologistId) =>
       '/appointments/psychologist/$psychologistId';
 
-  /// `status` est passé en query param côté backend (pas de body JSON) :
-  /// PUT /appointments/{id}/status?status=CONFIRMED|REJECTED|...
+  // status en query param, pas en body JSON
   static String appointmentStatus(int appointmentId, String status) =>
       '/appointments/$appointmentId/status?status=$status';
 
-  // GET /payments/psychologist/{id}/revenue : revenu net (après commission)
-  // d'un psychologue, total + mois en cours.
+  // GET revenu net du psy (apres commission), total + mois en cours
   static String psychologistRevenue(int psychologistId) =>
       '/payments/psychologist/$psychologistId/revenue';
 
-  /// PUT /appointments/{id}/reschedule — corps JSON
-  /// {newStartTime, newEndTime}. Réservé au patient propriétaire ; un RDV
-  /// déjà CONFIRMED repasse en PENDING côté backend (le psychologue doit
-  /// reconfirmer le nouveau créneau).
+  // GET portefeuille psy (solde dispo, total net, historique retraits)
+  static String psychologistWallet(int psychologistId) =>
+      '/payments/psychologist/$psychologistId/wallet';
+
+  // POST retrait simule : ?amount=X&method=ORANGE_MONEY|WAVE|BANK_TRANSFER
+  static String psychologistWithdraw(int psychologistId) =>
+      '/payments/psychologist/$psychologistId/withdraw';
+
+  // GET historique détaillé des paiements reçus par un psy (1 ligne = 1 RDV)
+  static String psychologistTransactions(int psychologistId) =>
+      '/payments/psychologist/$psychologistId/transactions';
+
+  // reserve au patient proprietaire, repasse un RDV confirme en attente (psy doit reconfirmer)
   static String appointmentReschedule(int appointmentId) =>
       '/appointments/$appointmentId/reschedule';
 
-  // DELETE /appointments/{id} — réservé aux RDV ANNULÉ/REFUSÉ, par le
-  // patient propriétaire.
+  // réservé aux RDV ANNULÉ/REFUSÉ, par le patient propriétaire
   static String appointmentById(int appointmentId) =>
       '/appointments/$appointmentId';
 
-  // --- journal privé (routé via /journal/**, implémenté dans user-service
-  // — cf. journal-route dans api-gateway/application.properties).
-  // L'identité du patient est résolue côté backend depuis le JWT (pas de
-  // patientId dans l'URL ni dans le corps) : chaque utilisateur ne voit que
-  // ses propres entrées. ---
+  // --- journal privé (identité patient résolue côté backend via JWT) ---
   static const String journalEntries = '/journal';
 
   static String journalEntry(int entryId) => '/journal/$entryId';
 
-  // --- session de consultation simulée (routé via /sessions/**, implémenté
-  // dans appointment-service) ---
+  // --- urgence : psys disponibles maintenant ---
+  static const String emergencyPsychologists = '/psychologists/emergency';
+
+  static String psychologistEmergencyStatus(int psychologistId) =>
+      '/psychologists/$psychologistId/emergency';
+
+  // --- session de consultation simulée ---
   static const String sessionsStart = '/sessions/start';
+  static const String sessionsEmergency = '/sessions/emergency';
 
   static String sessionEnd(int sessionId) => '/sessions/$sessionId/end';
 
@@ -133,77 +151,64 @@ class ApiConstants {
   static String sessionByAppointment(int appointmentId) =>
       '/sessions/appointment/$appointmentId';
 
-  // --- paiement (routé via /payments/**, implémenté dans
-  // appointment-service — cf. routes[3] dans
-  // api-gateway/application.properties) ---
+  // --- paiement ---
   static const String payments = '/payments';
 
   static String paymentsByAppointment(int appointmentId) =>
       '/payments/appointment/$appointmentId';
 
-  // --- notification-service (routé via /notifications/**) ---
-  /// `userId` ici correspond en réalité au PatientProfile.id (pas
-  /// l'authUserId) — vérifié dans NotificationServiceImpl/OwnershipResolver
-  /// côté backend.
+  // --- notifications ---
+  // userId = en fait PatientProfile.id, pas l'authUserId
   static String notificationsByUser(int patientId) =>
       '/notifications/user/$patientId';
 
   static String notificationRead(int notificationId) =>
       '/notifications/$notificationId/read';
 
-  // --- admin (réservé ROLE_ADMIN, routé vers auth/user/appointment-service
-  // selon le préfixe — cf. api-gateway/application.properties routes
-  // admin-auth-route / admin-user-route / admin-appointment-route) ---
+  // --- admin (réservé ROLE_ADMIN) ---
   static const String adminUsers = '/admin/users';
   static const String adminPsychologists = '/admin/psychologists';
   static const String adminPatients = '/admin/patients';
   static const String adminAppointments = '/admin/appointments';
   static const String adminPayments = '/admin/payments';
 
-  /// GET /admin/appointments?status= — filtre déjà géré côté backend
-  /// (AppointmentServiceImpl#getAllAppointmentsForAdmin), contrairement à
-  /// /admin/payments qui n'a pas d'équivalent (filtrage payments fait
-  /// côté client).
+  // ici le filtre status est gere par le backend, pas pour les paiements (filtre cote app)
   static String adminAppointmentsByStatus(String? status) =>
       status == null ? adminAppointments : '/admin/appointments?status=$status';
 
-  /// Chaque service a son propre /admin/stats/* (renommé pour éviter une
-  /// collision de chemin entre les 3 services, cf. AdminController.java).
+  // chaque service a son propre /admin/stats/*, renomme pour pas avoir de doublons
   static const String adminStatsAccounts = '/admin/stats/accounts';
   static const String adminStatsProfiles = '/admin/stats/profiles';
   static const String adminStatsAppointments = '/admin/stats/appointments';
+  // paiement/commission, maintenant cote payment-service (route a part depuis
+  // l'extraction du paiement en microservice dedie)
+  static const String adminStatsPayments = '/admin/stats/payments';
 
   static String adminSetUserEnabled(int userId, bool enabled) =>
       '/admin/users/$userId/enabled?enabled=$enabled';
 
-  /// DELETE /admin/users/{id} — suppression définitive (irréversible).
+  // suppression définitive, irréversible
   static String adminDeleteUser(int userId) => '/admin/users/$userId';
 
-  /// PATCH /admin/users/{id}/password — reset forcé par l'admin, mot de
-  /// passe transmis en corps JSON (jamais en query string).
+  // reset force par l'admin, mdp en corps JSON
   static String adminResetPassword(int userId) =>
       '/admin/users/$userId/password';
 
   static String adminSetPsychologistVerified(int psychologistId, bool verified) =>
       '/admin/psychologists/$psychologistId/verify?verified=$verified';
 
-  /// Distinct de [adminSetPsychologistVerified] : refuse explicitement une
-  /// demande (ou la remet en attente avec rejected=false). Nécessaire car
-  /// `verify?verified=false` est un no-op sur un profil déjà en attente.
+  // refuse explicitement (verify?verified=false est un no-op si déjà en attente)
   static String adminSetPsychologistRejected(int psychologistId, bool rejected) =>
       '/admin/psychologists/$psychologistId/reject?rejected=$rejected';
 
-  /// GET /admin/platform-settings (appointment-service) : taux de
-  /// commission courant de la plateforme.
+  // taux de commission courant de la plateforme
   static const String adminPlatformSettings = '/admin/platform-settings';
 
-  /// PUT /admin/platform-settings/commission-rate?commissionRatePercent=N
+  // PUT /admin/platform-settings/commission-rate?commissionRatePercent=N
   static String adminSetCommissionRate(double commissionRatePercent) =>
       '/admin/platform-settings/commission-rate?commissionRatePercent=$commissionRatePercent';
 
-  // --- messagerie patient/psychologue (routé via /messages/**, implémentée
-  // dans appointment-service — cf. messaging-route dans
-  // api-gateway/application.properties) ---
+  // --- messagerie patient/psychologue ---
   static const String messagesConversations = '/messages/conversations';
 
   static String messagesConversationMessages(int conversationId) =>
@@ -212,5 +217,57 @@ class ApiConstants {
   static String messagesConversationRead(int conversationId) =>
       '/messages/conversations/$conversationId/read';
 
+  // --- recommandations post-séance (appointment-service via /session-recommendations/**) ---
+  // POST : psy crée, GET /patient/me : patient voit les siennes (non cochées)
+  // GET /appointment/{id} : psy voit celles d'un RDV ; PATCH /{id}/complete ; DELETE /{id}
+  static const String sessionRecommendations = '/session-recommendations';
+  static const String myPendingRecommendations =
+      '/session-recommendations/patient/me';
+  static String recommendationsByAppointment(int appointmentId) =>
+      '/session-recommendations/appointment/$appointmentId';
+  static String recommendationComplete(int id) =>
+      '/session-recommendations/$id/complete';
+  static String sessionRecommendation(int id) => '/session-recommendations/$id';
+
+  // --- questionnaires PHQ-9 / GAD-7 (appointment-service via /questionnaires/**) ---
+  static const String questionnaires = '/questionnaires';
+  static const String myPendingQuestionnaires = '/questionnaires/patient/me/pending';
+  // historique complet patient (pending + completed)
+  static const String myQuestionnaires = '/questionnaires/patient/me';
+  static String patientQuestionnaires(int patientId) =>
+      '/questionnaires/patient/$patientId';
+  static String questionnaireAnswers(int questionnaireId) =>
+      '/questionnaires/$questionnaireId/answers';
+
+  // --- signalements psychologues (user-service via /patients/**/reports, /admin/reports/**) ---
+  static String patientReports(int patientId) => '/patients/$patientId/reports';
+  static const String adminReports = '/admin/reports';
+  static String adminReport(int reportId) => '/admin/reports/$reportId';
+  static String adminReportEvidence(int reportId) =>
+      '/admin/reports/$reportId/evidence';
+
+  // --- broadcast admin (annonces vers tous / patients / psys) ---
+  // audience = 'ALL' | 'PATIENTS' | 'PSYCHOLOGISTS'
+  static const String adminBroadcast = '/admin/notifications/broadcast';
+
+  // GET /users/broadcasts : liste des broadcasts visibles par l'utilisateur connecté
+  // (routé via /users/** existant, filtré par rôle côté backend)
+  static const String broadcasts = '/users/broadcasts';
+
+  // --- compagnon IA "Xalaat" (ai-companion-service, routé via /companion/**) ---
+  // Conversation jamais stockée côté serveur (cf. README ai-companion-service) :
+  // CompanionService côté Flutter garde l'historique en mémoire uniquement et
+  // le renvoie à chaque appel.
+  static const String companionChat = '/companion/chat';
+
   static const Duration timeout = Duration(seconds: 15);
+
+  // Mistral via Ollama peut etre lent (CPU/Metal, pas de GPU dedie) : le
+  // timeout global de 15s ci-dessus coupe systematiquement la reponse avant
+  // qu'elle n'arrive. Cet endpoint a son propre timeout, plus genereux.
+  static const Duration companionChatTimeout = Duration(seconds: 90);
+
+  // upload du justificatif psy (photo/PDF, jusqu'a 20MB) : peut prendre
+  // plus de 15s sur un reseau mobile/wifi faible
+  static const Duration licenseUploadTimeout = Duration(seconds: 60);
 }

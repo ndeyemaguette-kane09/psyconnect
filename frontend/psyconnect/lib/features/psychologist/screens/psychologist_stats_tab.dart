@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -9,16 +10,11 @@ import '../../patient/services/appointment_service.dart';
 import '../../patient/services/psychologist_service.dart';
 import '../../payment/models/payment_models.dart';
 import '../../payment/services/payment_service.dart';
+import 'psy_transaction_history_screen.dart';
 import 'psychologist_profile_screen.dart';
 
-/// Contenu de l'onglet "Stats" du parcours psychologue (cf. maquette v2).
-///
-/// Aucun endpoint de statistiques agrégées n'existe côté backend pour les
-/// compteurs RDV (vérifié : aucun service auth/user/appointment/notification/
-/// ml n'en expose) : ils sont calculés côté client à partir de
-/// `GET /appointments/psychologist/{id}`. Le revenu, lui, vient d'un
-/// endpoint dédié (`GET /payments/psychologist/{id}/revenue`) pour ne pas
-/// recalculer la commission côté Flutter.
+// Onglet Statistiques côté psychologue. Les compteurs de rendez-vous sont
+// calculés depuis la liste locale ; le revenu est fourni par un endpoint dédié.
 class PsychologistStatsTab extends StatefulWidget {
   const PsychologistStatsTab({super.key});
 
@@ -35,11 +31,9 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
   String? _error;
   PsychologistProfile? _me;
   List<Appointment> _appointments = [];
-  // Revenu : chargé séparément des autres stats, avec son propre statut
-  // d'erreur. Un psychologue sans paiement reçu (ou un souci réseau ponctuel
-  // sur cet appel précis) ne doit pas empêcher l'affichage du reste de
-  // l'écran — on affiche juste "—" pour le revenu dans ce cas.
+  // Revenu et portefeuille chargés séparément : en cas d'échec, seul "—" s'affiche.
   PsychologistRevenue? _revenue;
+  PsychologistWallet? _wallet;
 
   @override
   void initState() {
@@ -82,22 +76,138 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
       return;
     }
 
+    // Revenu et portefeuille chargés séparément : une erreur de l'un
+    // n'empêche pas l'affichage de l'autre (ex : table de retraits absente
+    // en développement — le portefeuille échoue mais le revenu s'affiche).
     try {
-      final revenue = await _paymentService.getPsychologistRevenue(
-        psychologistId,
-      );
+      final revenue = await _paymentService.getPsychologistRevenue(psychologistId);
       if (!mounted) return;
       setState(() => _revenue = revenue);
-    } catch (e) {
-      // Pas de _error ici, cf. commentaire sur le champ _revenue.
-    }
+    } catch (_) {}
+
+    try {
+      final wallet = await _paymentService.getPsychologistWallet(psychologistId);
+      if (!mounted) return;
+      setState(() => _wallet = wallet);
+    } catch (_) {}
+  }
+
+  Future<void> _showWithdrawDialog(int psychologistId) async {
+    final amountCtrl = TextEditingController();
+    WithdrawalMethod selectedMethod = WithdrawalMethod.orangeMoney;
+    String? dialogError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: const Text('Retirer mes fonds'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_wallet != null) ...[
+                Text(
+                  'Solde disponible : ${_formatXof(_wallet!.availableBalance)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, color: AppColors.tealDark),
+                ),
+                const SizedBox(height: 16),
+              ],
+              TextField(
+                controller: amountCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: false),
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  labelText: 'Montant (FCFA)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<WithdrawalMethod>(
+                value: selectedMethod,
+                decoration: const InputDecoration(
+                  labelText: 'Méthode',
+                  border: OutlineInputBorder(),
+                ),
+                items: WithdrawalMethod.values
+                    .map((m) => DropdownMenuItem(
+                          value: m,
+                          child: Text(m.label),
+                        ))
+                    .toList(),
+                onChanged: (m) {
+                  if (m != null) setDState(() => selectedMethod = m);
+                },
+              ),
+              if (dialogError != null) ...[
+                const SizedBox(height: 10),
+                Text(dialogError!,
+                    style: const TextStyle(color: AppColors.rose, fontSize: 13)),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Annuler')),
+            FilledButton(
+              onPressed: () async {
+                final amountStr = amountCtrl.text.trim();
+                if (amountStr.isEmpty) {
+                  setDState(() => dialogError = 'Entrez un montant.');
+                  return;
+                }
+                final amount = double.tryParse(amountStr);
+                if (amount == null || amount <= 0) {
+                  setDState(
+                      () => dialogError = 'Montant invalide.');
+                  return;
+                }
+                if (_wallet != null && amount > _wallet!.availableBalance) {
+                  setDState(() =>
+                      dialogError = 'Solde insuffisant.');
+                  return;
+                }
+                Navigator.of(ctx).pop();
+                try {
+                  await _paymentService.withdraw(
+                    psychologistId: psychologistId,
+                    amount: amount,
+                    method: selectedMethod,
+                  );
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          '${_formatXof(amount)} retirés vers ${selectedMethod.label}'),
+                      backgroundColor: AppColors.teal,
+                    ),
+                  );
+                  _load(); // recharge le solde mis à jour
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erreur : $e'),
+                      backgroundColor: AppColors.rose,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Confirmer'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   int _countByStatus(AppointmentStatus status) =>
       _appointments.where((a) => a.status == status).length;
 
-  /// Même format que AdminStatsTab._formatXof (pas de helper partagé dans
-  /// le projet pour un calcul aussi court).
+  // Même format que l'onglet admin, sans factorisation supplémentaire.
   String _formatXof(double amount) {
     final rounded = amount.round();
     final digits = rounded.toString();
@@ -122,9 +232,7 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
               children: [
                 Text('Statistiques',
                     style: Theme.of(context).textTheme.displayMedium),
-                // Pas de 6e onglet "Profil" (la nav suit la maquette à 5
-                // items) : on accède au profil + à la déconnexion via ce
-                // bouton.
+                // Accès au profil psy (pas de 6e onglet dédié).
                 IconButton(
                   tooltip: 'Mon profil',
                   onPressed: () => Navigator.of(context).push(
@@ -185,9 +293,70 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
               ),
               const SizedBox(height: 24),
               if (_revenue != null) ...[
-                _RevenueCard(revenue: _revenue!, formatXof: _formatXof),
-                const SizedBox(height: 24),
+                _RevenueCard(
+                  revenue: _revenue!,
+                  formatXof: _formatXof,
+                  onViewTransactions: () {
+                    final psychologistId =
+                        context.read<AuthProvider>().session?.profileId;
+                    if (psychologistId == null) return;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PsyTransactionHistoryScreen(
+                          psychologistId: psychologistId,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
               ],
+              // Le portefeuille est affiché dans un état dégradé si les données sont indisponibles.
+              if (_wallet != null)
+                _WalletCard(
+                  wallet: _wallet!,
+                  formatXof: _formatXof,
+                  onWithdraw: () => _showWithdrawDialog(
+                    context.read<AuthProvider>().session!.profileId!,
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.tealMid),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.account_balance_wallet_outlined,
+                          color: AppColors.muted, size: 20),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Portefeuille',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.muted)),
+                            SizedBox(height: 4),
+                            Text(
+                              'Données indisponibles.\nVérifiez que la base de données est à jour.',
+                              style: TextStyle(
+                                  color: AppColors.muted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                          onPressed: _load,
+                          child: const Text('Rafraîchir')),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 24),
               Text('Répartition des rendez-vous',
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
@@ -251,16 +420,18 @@ class _StatBox extends StatelessWidget {
   }
 }
 
-/// Affiche le revenu NET (après commission) du psychologue plutôt que le
-/// brut, pour ne pas afficher un montant que le psychologue ne touchera
-/// jamais en totalité. Le taux de
-/// commission est affiché en sous-titre pour expliquer l'écart avec ce que
-/// les patients ont réellement payé.
+// Affiche le revenu net (après commission) pour éviter toute confusion
+// sur le montant réellement perçu. Le taux est rappelé en sous-titre.
 class _RevenueCard extends StatelessWidget {
-  const _RevenueCard({required this.revenue, required this.formatXof});
+  const _RevenueCard({
+    required this.revenue,
+    required this.formatXof,
+    required this.onViewTransactions,
+  });
 
   final PsychologistRevenue revenue;
   final String Function(double) formatXof;
+  final VoidCallback onViewTransactions;
 
   @override
   Widget build(BuildContext context) {
@@ -304,6 +475,25 @@ class _RevenueCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: onViewTransactions,
+              icon: const Icon(Icons.receipt_long_outlined,
+                  size: 16, color: Colors.white70),
+              label: const Text(
+                'Voir le détail',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -327,6 +517,217 @@ class _RevenueValue extends StatelessWidget {
             style: const TextStyle(
                 color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
       ],
+    );
+  }
+}
+
+// carte portefeuille : solde disponible + bouton retrait + historique des retraits
+class _WalletCard extends StatefulWidget {
+  const _WalletCard({
+    required this.wallet,
+    required this.formatXof,
+    required this.onWithdraw,
+  });
+
+  final PsychologistWallet wallet;
+  final String Function(double) formatXof;
+  final VoidCallback onWithdraw;
+
+  @override
+  State<_WalletCard> createState() => _WalletCardState();
+}
+
+class _WalletCardState extends State<_WalletCard> {
+  bool _showHistory = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final wallet = widget.wallet;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.tealMid),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // en-tête
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.account_balance_wallet_outlined,
+                      color: AppColors.tealDark, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Portefeuille',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.tealDark,
+                        fontSize: 15),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                onPressed: wallet.availableBalance <= 0 ? null : widget.onWithdraw,
+                icon: const Icon(Icons.arrow_circle_down_outlined, size: 18),
+                label: const Text('Retirer'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.tealDark,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  textStyle: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // solde disponible mis en avant
+          Text(
+            widget.formatXof(wallet.availableBalance),
+            style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: AppColors.tealDark),
+          ),
+          const Text('Solde disponible',
+              style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          const SizedBox(height: 12),
+
+          // détail en deux colonnes
+          Row(
+            children: [
+              _WalletStat(
+                label: 'Revenu net total',
+                value: widget.formatXof(wallet.totalNetRevenue),
+              ),
+              _WalletStat(
+                label: 'Déjà retiré',
+                value: widget.formatXof(wallet.totalWithdrawn),
+              ),
+            ],
+          ),
+
+          // historique (toggle)
+          if (wallet.withdrawals.isNotEmpty) ...[
+            const Divider(height: 24),
+            GestureDetector(
+              onTap: () => setState(() => _showHistory = !_showHistory),
+              child: Row(
+                children: [
+                  Text(
+                    'Historique (${wallet.withdrawals.length})',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.tealDark,
+                        fontSize: 13),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _showHistory ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.tealDark,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+            if (_showHistory) ...[
+              const SizedBox(height: 8),
+              ...wallet.withdrawals.map(
+                (w) => _WithdrawalRow(
+                    withdrawal: w, formatXof: widget.formatXof),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WalletStat extends StatelessWidget {
+  const _WalletStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style:
+                  const TextStyle(color: AppColors.muted, fontSize: 11)),
+          const SizedBox(height: 2),
+          Text(value,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+}
+
+class _WithdrawalRow extends StatelessWidget {
+  const _WithdrawalRow({required this.withdrawal, required this.formatXof});
+
+  final PsychologistWithdrawal withdrawal;
+  final String Function(double) formatXof;
+
+  String _methodLabel(String method) {
+    switch (method) {
+      case 'ORANGE_MONEY':
+        return 'Orange Money';
+      case 'WAVE':
+        return 'Wave';
+      case 'BANK_TRANSFER':
+        return 'Virement';
+      default:
+        return method;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = withdrawal.createdAt;
+    final date =
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline,
+              color: AppColors.teal, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_methodLabel(withdrawal.method),
+                    style: const TextStyle(fontSize: 13)),
+                Text(date,
+                    style: const TextStyle(
+                        color: AppColors.muted, fontSize: 11)),
+              ],
+            ),
+          ),
+          Text(
+            '- ${formatXof(withdrawal.amount)}',
+            style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.rose,
+                fontSize: 13),
+          ),
+        ],
+      ),
     );
   }
 }

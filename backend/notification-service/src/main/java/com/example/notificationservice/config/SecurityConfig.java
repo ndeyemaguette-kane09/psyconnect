@@ -4,6 +4,7 @@ import com.example.notificationservice.security.JwtAuthenticationFilter;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -35,6 +36,10 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        // POST /notifications est appelé par d'autres microservices
+                        // via Eureka (pas par le gateway), sans JWT utilisateur.
+                        // On l'ouvre sans auth — la route reste protégée côté gateway.
+                        .requestMatchers(HttpMethod.POST, "/notifications").permitAll()
                         .anyRequest().authenticated()
                 )
 

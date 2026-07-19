@@ -1,8 +1,8 @@
-/// Reflète l'enum `Role` de auth-service (backend/auth-service/.../entity/Role.java).
+// reflete l'enum Role de auth-service
 enum UserRole { patient, psychologist, admin }
 
 extension UserRoleX on UserRole {
-  /// Valeur attendue par le backend (sérialisation de l'enum Java).
+  // valeur attendue par le backend (serialisation de l'enum Java)
   String get apiValue {
     switch (this) {
       case UserRole.patient:

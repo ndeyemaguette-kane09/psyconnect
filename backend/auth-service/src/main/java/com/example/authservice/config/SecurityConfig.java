@@ -63,7 +63,9 @@ public class SecurityConfig {
                                 "/auth/login",
                                 "/auth/register",
                                 "/auth/register/patient",
-                                "/auth/register/psy"
+                                "/auth/register/psy",
+                                "/auth/forgot-password",
+                                "/auth/reset-password"
                         ).permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

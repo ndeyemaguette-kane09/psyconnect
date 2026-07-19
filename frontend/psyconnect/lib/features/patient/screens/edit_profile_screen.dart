@@ -4,23 +4,12 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/services/profile_service.dart';
+import 'medical_history_screen.dart';
 
-/// Formulaire d'édition du Profil patient — infos civiles (nom, téléphone,
-/// ville, pays), langue préférée et contact d'urgence.
-///
-/// La langue préférée se règle ici, regroupée avec le reste de l'édition du
-/// profil (elle vivait avant dans l'écran Paramètres, ce qui obligeait à
-/// naviguer à deux endroits différents). Le mode anonyme reste dans
-/// Paramètres : c'est un réglage de confidentialité, pas une info de profil.
-///
-/// Les deux endpoints backend (PUT /users/{id} et PUT /patients/{id})
-/// attendent l'état complet connu, pas seulement les champs modifiés
-/// (DTO de type "create" réutilisé pour la mise à jour) — on repart donc
-/// toujours des profils actuels et on ne change que les champs édités ici,
-/// en conservant les autres (langue, mode anonyme, antécédents médicaux).
-///
-/// Design libre par rapport à la maquette v2 (pas d'écran équivalent) :
-/// avatar d'initiales + champs regroupés en cartes par section.
+// edition du profil patient : infos civiles, langue, contact urgence
+// langue deplacee ici depuis Parametres
+// les deux endpoints veulent tout le profil, donc on repart de l'existant
+// pas dans la maquette, design libre
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
     super.key,
@@ -221,6 +210,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             ),
                           ),
                           const Icon(Icons.chevron_right, color: AppColors.muted),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _SectionLabel('Informations médicales'),
+              const SizedBox(height: 10),
+              _FormCard(
+                children: [
+                  InkWell(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            MedicalHistoryScreen(patientId: widget.patientId),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.medical_information_outlined,
+                              color: AppColors.teal, size: 20),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text('Antécédents médicaux',
+                                style: TextStyle(fontSize: 14)),
+                          ),
+                          Icon(Icons.chevron_right, color: AppColors.muted),
                         ],
                       ),
                     ),

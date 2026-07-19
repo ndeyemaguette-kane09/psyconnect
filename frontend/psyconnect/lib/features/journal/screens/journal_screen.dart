@@ -5,10 +5,8 @@ import '../../../core/theme/app_colors.dart';
 import '../models/journal_models.dart';
 import '../services/journal_service.dart';
 
-/// Journal privé du patient (cf. mémoire projet — "Côté patient d'abord" :
-/// écran journal Flutter). Pas dans la maquette v2 — design libre. CRUD
-/// complet sur /journal (user-service), entièrement scopé par JWT côté
-/// backend : aucune notion de patientId ici.
+// Journal privé du patient (CRUD). Le filtrage par utilisateur est fait
+// côté backend via le token, aucun patientId n'est donc nécessaire ici.
 class JournalScreen extends StatefulWidget {
   const JournalScreen({super.key});
 
@@ -233,9 +231,8 @@ class _JournalEntryCard extends StatelessWidget {
   }
 }
 
-// Émoji + libellé pour une note d'humeur 1-5, plus lisible que le chiffre
-// brut. Utilisé à la fois dans la fiche (carte d'entrée) et dans le
-// sélecteur de l'éditeur, pour rester cohérent.
+// Emoji et libellé associés à chaque note d'humeur (1–5). Utilisés à la fois
+// dans la carte et dans le sélecteur pour garantir une présentation cohérente.
 const _moodEmojis = {1: '😢', 2: '🙁', 3: '😐', 4: '🙂', 5: '😄'};
 const _moodLabels = {
   1: 'Très difficile',
@@ -248,7 +245,7 @@ const _moodLabels = {
 String _moodEmoji(int rating) => _moodEmojis[rating] ?? '😐';
 String _moodLabel(int rating) => _moodLabels[rating] ?? 'Neutre';
 
-/// Feuille de création/édition d'une entrée de journal.
+// Feuille de création ou d'édition d'une entrée de journal.
 class _JournalEntrySheet extends StatefulWidget {
   const _JournalEntrySheet({this.entry, required this.journalService});
 

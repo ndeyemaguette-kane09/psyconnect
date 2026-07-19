@@ -2,10 +2,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../models/messaging_models.dart';
 
-/// Appelle les endpoints de messagerie (routés via /messages/** vers
-/// appointment-service, cf. messaging-route dans
-/// api-gateway/application.properties). Pas de WebSocket : le "temps réel"
-/// est simulé côté écran par polling périodique (cf. chat_screen.dart).
+// endpoints de messagerie, routes via /messages/** vers appointment-service.
+// pas de websocket, le "temps reel" c'est juste du polling cote ecran (chat_screen)
 class MessagingService {
   MessagingService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
@@ -18,9 +16,9 @@ class MessagingService {
         .toList();
   }
 
-  /// "Get or create" : démarre une conversation avec [otherProfileId] (un
-  /// PsychologistProfile.id si l'appelant est patient, un PatientProfile.id
-  /// sinon) ou récupère la conversation existante si elle existe déjà.
+  // get-or-create : démarre une conversation avec otherProfileId (un
+  // PsychologistProfile.id si on est patient, un PatientProfile.id sinon)
+  // ou renvoie celle qui existe déjà
   Future<Conversation> startOrGetConversation(int otherProfileId) async {
     final json = await _api.post(
       ApiConstants.messagesConversations,

@@ -6,10 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Une ligne du relevé du solde d'un patient : le mouvement et le solde
- * résultant. Immutable une fois écrite.
- */
+// une ligne du relevé solde, avec le mouvement et le solde apres
 @Entity
 @Table(name = "wallet_transactions")
 @Getter
@@ -31,8 +28,7 @@ public class WalletTransaction {
     @Column(nullable = false)
     private Double amount;
 
-    // Solde juste après ce mouvement, stocké en dur (pas recalculé) pour
-    // rester exact même si d'autres mouvements arrivent entre deux lectures.
+    // solde après ce mouvement, stocké en dur pour rester exact
     @Column(nullable = false)
     private Double balanceAfter;
 

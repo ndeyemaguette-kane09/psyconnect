@@ -12,7 +12,7 @@ public class MessageResponse {
     private Long id;
     private Long conversationId;
 
-    /** authUserId de l'auteur — le client compare avec son propre authUserId pour aligner la bulle à gauche/droite. */
+    // id de qui a envoyé, pour savoir si la bulle va a gauche ou a droite
     private Long senderAuthUserId;
 
     private String content;

@@ -1,9 +1,12 @@
 package com.example.authservice.controller;
 
 import com.example.authservice.dto.AuthResponse;
+import com.example.authservice.dto.ForgotPasswordRequest;
+import com.example.authservice.dto.ForgotPasswordResponse;
 import com.example.authservice.dto.LoginRequest;
 import com.example.authservice.dto.MessageResponse;
 import com.example.authservice.dto.RegisterRequest;
+import com.example.authservice.dto.ResetPasswordWithCodeRequest;
 import com.example.authservice.entity.Role;
 import com.example.authservice.service.AuthService;
 
@@ -33,6 +36,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.register(request));
     }
 
+    // ces 2 routes forcent le role, le client choisit pas
     @PostMapping("/register/patient")
     public ResponseEntity<MessageResponse> registerPatient(
             @Valid @RequestBody RegisterRequest request
@@ -61,5 +65,20 @@ public class AuthController {
         return ResponseEntity.ok(
                 authService.getCurrentUser(authentication.getName())
         );
+    }
+
+    // publiques (pas de JWT) : c'est tout le but du flux "mot de passe oublie"
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordWithCodeRequest request
+    ) {
+        return ResponseEntity.ok(authService.resetPasswordWithCode(request));
     }
 }

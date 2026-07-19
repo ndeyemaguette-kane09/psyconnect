@@ -41,6 +41,10 @@ dependencies:
   # Appels HTTP vers l'API Gateway (Spring Cloud Gateway, port 8080)
   http: ^1.2.2
 
+  # Deja une dependance transitive de http, declaree ici explicitement pour
+  # construire le Content-Type (MediaType) du justificatif psy a l'upload
+  http_parser: ^4.0.2
+
   # Stockage sécurisé du token JWT sur l'appareil
   flutter_secure_storage: ^9.2.2
 
@@ -62,6 +66,11 @@ dependencies:
   # Ouvre le justificatif téléchargé (PDF ou image) avec la visionneuse
   # native de l'appareil — évite de réimplémenter un lecteur PDF maison.
   open_filex: ^4.5.0
+
+  # Appels vidéo/audio réels via Jitsi Meet (WebRTC). Le backend génère un nom
+  # de room unique (psyconnect-{appointmentId}-{uuid8}), le SDK ouvre
+  # l'interface native Jitsi sur meet.jit.si. Remplace la simulation Agora.
+  jitsi_meet_flutter_sdk: ^10.2.0
 
 dev_dependencies:
   flutter_test:

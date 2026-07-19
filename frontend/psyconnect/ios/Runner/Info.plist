@@ -26,6 +26,11 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Requis par Jitsi Meet SDK pour l'appel vidéo/audio -->
+	<key>NSCameraUsageDescription</key>
+	<string>PsyConnect utilise la caméra pour les appels vidéo avec votre psychologue.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>PsyConnect utilise le microphone pour les appels avec votre psychologue.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

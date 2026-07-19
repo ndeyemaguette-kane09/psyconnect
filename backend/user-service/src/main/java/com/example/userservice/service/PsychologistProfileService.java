@@ -31,35 +31,31 @@ public interface PsychologistProfileService {
             Long callerAuthUserId
     );
 
-    /**
-     * Réservé à l'ADMIN : valide ou invalide le profil d'un psychologue.
-     * Valider (verified=true) lève aussi un éventuel refus précédent
-     * (rejected repasse à false).
-     */
+    // Admin uniquement : valide ou invalide un profil psychologue
     PsychologistProfileResponse setProfileVerified(Long id, boolean verified);
 
-    /**
-     * Réservé à l'ADMIN : refuse explicitement une demande de validation
-     * (rejected=true), ou la remet en attente (rejected=false). Distinct de
-     * {@link #setProfileVerified} : un profil "en attente" a déjà
-     * profileVerified=false, donc sans ce champ "Refuser" serait un no-op.
-     */
+    // Admin uniquement : refuse une demande (distinct de "en attente")
     PsychologistProfileResponse setProfileRejected(Long id, boolean rejected);
 
-    /**
-     * Réservé au propriétaire du profil : envoie/remplace le justificatif
-     * (diplôme, carte professionnelle) joint à l'inscription.
-     */
+    // Liste des psychologues disponibles pour urgence (vérifiés et availableForEmergency=true)
+    List<PsychologistProfileResponse> getEmergencyPsychologists();
+
+    // Le psychologue active/désactive son mode urgence (lui seul peut le faire)
+    PsychologistProfileResponse setEmergencyAvailability(
+            Long id,
+            boolean available,
+            boolean freeSession,
+            Long callerAuthUserId
+    );
+
+    // Upload du justificatif, réservé au propriétaire du profil
     PsychologistProfileResponse uploadLicenseDocument(
             Long id,
             MultipartFile file,
             Long callerAuthUserId
     );
 
-    /**
-     * Accessible au propriétaire du profil OU à un ADMIN (pour la
-     * validation) : renvoie le contenu binaire du justificatif.
-     */
+    // Récupère le justificatif — propriétaire du profil ou administrateur
     LicenseDocumentResponse getLicenseDocument(
             Long id,
             Long callerAuthUserId,

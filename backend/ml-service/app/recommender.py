@@ -1,15 +1,5 @@
-"""Moteur de recommandation par filtrage de contenu (content-based filtering).
-
-PsyConnect (mémoire M2 SIR) recommande des psychologues à un patient en
-comparant le "contenu" du profil patient (langue préférée + motif/historique)
-à celui de chaque psychologue (spécialité + bio + langues parlées), via une
-représentation TF-IDF et une similarité cosinus.
-
-Implémentation volontairement "maison" (numpy + bibliothèque standard,
-sans scikit-learn) : cela permet de tester le moteur dans un environnement
-sans accès réseau pour installer des dépendances, et documente explicitement
-la formule mathématique utilisée pour le mémoire.
-"""
+# compare le profil patient et celui de chaque psy avec TF-IDF + cosinus.
+# fait a la main avec numpy, pas scikit-learn
 
 from __future__ import annotations
 
@@ -20,9 +10,7 @@ from typing import Any, Dict, List, Sequence, Tuple
 
 import numpy as np
 
-# Mots vides français très fréquents : on les retire avant de construire le
-# vocabulaire pour qu'ils ne polluent pas la similarité (ils apparaîtraient
-# dans presque tous les documents et n'apportent aucune information).
+# mots vides FR a virer, sinon ils faussent la similarité
 FRENCH_STOPWORDS = frozenset(
     {
         "le", "la", "les", "un", "une", "des", "de", "du", "et", "en",
@@ -38,7 +26,7 @@ FRENCH_STOPWORDS = frozenset(
 
 
 def normalize_text(text: str) -> str:
-    """Minuscule + suppression des accents (ex: 'Anxiété' -> 'anxiete')."""
+    # minuscule + retire les accents (ex: "Anxiete" -> "anxiete")
 
     if not text:
         return ""
@@ -50,7 +38,7 @@ def normalize_text(text: str) -> str:
 
 
 def tokenize(text: str) -> List[str]:
-    """Découpe un texte normalisé en mots (lettres/chiffres uniquement)."""
+    # decoupe le texte normalisé en mots (que lettres/chiffres)
 
     normalized = normalize_text(text)
     tokens = re.findall(r"[a-z0-9]+", normalized)
@@ -58,14 +46,9 @@ def tokenize(text: str) -> List[str]:
 
 
 def build_tfidf_matrix(documents: Sequence[str]) -> Tuple[np.ndarray, List[str]]:
-    """Construit une matrice TF-IDF (documents x vocabulaire).
-
-    - TF : fréquence du terme dans le document, normalisée par la longueur
-      du document (pour ne pas avantager les documents les plus longs).
-    - IDF : variante "smooth" (comme scikit-learn) :
-      idf(t) = ln((1 + N) / (1 + df(t))) + 1
-      où N = nombre de documents et df(t) = nombre de documents contenant t.
-    """
+    # matrice TF-IDF (documents x vocabulaire).
+    # TF = freq du mot, normalisée par la taille du texte
+    # IDF = formule smooth, comme scikit-learn
 
     tokenized_docs = [tokenize(doc) for doc in documents]
 
@@ -95,7 +78,7 @@ def build_tfidf_matrix(documents: Sequence[str]) -> Tuple[np.ndarray, List[str]]
 
 
 def cosine_similarity(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
-    """Similarité cosinus entre deux vecteurs ; 0.0 si un des deux est nul."""
+    # similarité cosinus entre 2 vecteurs, 0.0 si un des deux est nul
 
     norm_a = np.linalg.norm(vector_a)
     norm_b = np.linalg.norm(vector_b)
@@ -105,13 +88,12 @@ def cosine_similarity(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
 
     similarity = float(np.dot(vector_a, vector_b) / (norm_a * norm_b))
 
-    # Par construction (TF-IDF non négatif), la similarité est dans [0, 1],
-    # mais on protège contre d'éventuelles imprécisions flottantes.
+    # normalement deja entre 0 et 1, mais on securise au cas ou
     return max(0.0, min(1.0, similarity))
 
 
 def build_psychologist_content(psychologist: Dict[str, Any]) -> str:
-    """Texte représentant le profil du psychologue pour le TF-IDF."""
+    # texte du profil psy pour le TF-IDF
 
     parts = [
         psychologist.get("specialty") or "",
@@ -122,7 +104,7 @@ def build_psychologist_content(psychologist: Dict[str, Any]) -> str:
 
 
 def build_patient_query(patient: Dict[str, Any]) -> str:
-    """Texte représentant ce que recherche le patient pour le TF-IDF."""
+    # texte de ce que recherche le patient pour le TF-IDF
 
     parts = [
         patient.get("preferredLanguage") or "",
@@ -138,17 +120,10 @@ def rank_psychologists(
     content_weight: float = 0.7,
     rating_weight: float = 0.3,
 ) -> List[Dict[str, Any]]:
-    """Classe les psychologues disponibles pour un patient donné.
-
-    score = content_weight * similarité_cosinus + rating_weight * (note / 5)
-
-    Si le patient n'a renseigné ni langue préférée ni historique (aucun
-    contenu textuel), la similarité cosinus de tous les psychologues vaut 0
-    et le classement retombe naturellement sur le second terme : les
-    psychologues les mieux notés sont alors recommandés en priorité. Ce repli
-    est une conséquence directe de la formule, pas un cas particulier codé
-    à part.
-    """
+    # classe les psy dispos pour un patient.
+    # score = content_weight * similarité + rating_weight * (note/5)
+    # si le patient a rien renseigné, la similarité vaut 0 partout
+    # et ca retombe juste sur la note, les mieux notés en premier
 
     available_psychologists = [
         p for p in psychologists if p.get("available", True)

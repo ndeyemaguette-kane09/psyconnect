@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
 
-/// Thème global de l'application, basé sur la charte des maquettes :
-/// Playfair Display pour les titres, DM Sans pour le texte courant.
+// theme global de l'app : Playfair Display pour les titres,
+// DM Sans pour le texte normal
 class AppTheme {
   AppTheme._();
 

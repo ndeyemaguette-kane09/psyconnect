@@ -15,9 +15,9 @@ public class ConversationResponse {
     private LocalDateTime createdAt;
     private LocalDateTime lastMessageAt;
 
-    /** Aperçu du dernier message (null si la conversation n'a encore aucun message). */
+    // apercu du dernier message, null si aucun message encore
     private String lastMessagePreview;
 
-    /** Nombre de messages non lus envoyés par l'autre participant. */
+    // nb de messages non lus envoyés par l'autre
     private long unreadCount;
 }

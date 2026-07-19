@@ -1,7 +1,6 @@
-/// Correspond à ConversationResponse côté appointment-service
-/// (GET/POST /messages/conversations). Les noms ne sont jamais embarqués
-/// par le backend (cf. AppointmentResponse) : ils doivent être résolus côté
-/// client via PsychologistService/ProfileService, comme pour les rendez-vous.
+// correspond a ConversationResponse cote appointment-service. le backend
+// envoie jamais les noms, faut aller les chercher cote client via
+// PsychologistService/ProfileService, pareil que pour les RDV
 class Conversation {
   final int id;
   final int patientId;
@@ -32,7 +31,7 @@ class Conversation {
       );
 }
 
-/// Correspond à MessageResponse côté appointment-service.
+// correspond a MessageResponse cote appointment-service
 class ChatMessage {
   final int id;
   final int conversationId;

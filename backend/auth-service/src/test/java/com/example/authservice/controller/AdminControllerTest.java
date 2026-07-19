@@ -27,9 +27,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// La chaîne de filtres de sécurité (JWT) est désactivée ici : le contrôle
-// d'accès "/admin/** -> hasRole(ADMIN)" est porté par SecurityConfig, pas
-// testé à ce niveau. On vérifie uniquement le câblage HTTP -> AdminService.
+// pas de JWT ici, le controle ADMIN est teste ailleurs
+// on verifie juste que les routes appellent bien AdminService
 @WebMvcTest(AdminController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AdminControllerTest {

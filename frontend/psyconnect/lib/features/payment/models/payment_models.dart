@@ -1,10 +1,6 @@
-// Reflète l'enum `PaymentMethod` de appointment-service
-// (backend/appointment-service/.../entity/PaymentMethod.java). Les trois
-// valeurs SIMULATED_* sont préfixées ainsi côté backend : aucune
-// intégration réelle avec un opérateur de paiement. Elles ne servent plus
-// qu'à qualifier un dépôt/retrait sur le solde (cf. WalletScreen) —
-// [wallet] est le seul moyen utilisé pour payer un rendez-vous (cf.
-// PaymentServiceImpl.createPayment, qui force ce moyen côté backend).
+// les 3 valeurs SIMULATED_* sont juste pour faire semblant, y'a pas
+// de vrai operateur derriere. ca sert a marquer un depot/retrait
+// sur le solde (cf WalletScreen) — payer un RDV ça passe que par le wallet
 enum PaymentMethod { orangeMoney, wave, card, wallet }
 
 extension PaymentMethodX on PaymentMethod {
@@ -35,9 +31,8 @@ extension PaymentMethodX on PaymentMethod {
   }
 }
 
-/// Reflète l'enum `PaymentStatus` de appointment-service. En pratique,
-/// côté simulation, un paiement créé est toujours `completed` (cf. backend) —
-/// les autres valeurs existent pour la complétude du modèle.
+// en pratique un paiement cree est toujours completed (c'est simule), les
+// autres valeurs sont juste là pour pas qu'il manque un cas
 enum PaymentStatus { pending, completed, failed, refunded }
 
 extension PaymentStatusX on PaymentStatus {
@@ -70,8 +65,7 @@ extension PaymentStatusX on PaymentStatus {
   }
 }
 
-/// Correspond à CreatePaymentRequest côté appointment-service
-/// (POST /payments).
+// correspond a CreatePaymentRequest du backend (POST /payments)
 class CreatePaymentRequest {
   final int appointmentId;
   final int amount;
@@ -90,7 +84,7 @@ class CreatePaymentRequest {
       };
 }
 
-/// Correspond à PaymentResponse côté appointment-service.
+// correspond a PaymentResponse du backend
 class Payment {
   final int id;
   final int appointmentId;
@@ -136,9 +130,138 @@ class Payment {
   }
 }
 
-// Reflète PsychologistRevenueResponse côté appointment-service (GET
-// /payments/psychologist/{id}/revenue) : revenu NET (après commission)
-// du psychologue, total et sur le mois en cours.
+// enum des methodes de retrait disponibles pour le psy
+enum WithdrawalMethod { orangeMoney, wave, bankTransfer }
+
+extension WithdrawalMethodX on WithdrawalMethod {
+  String get apiValue {
+    switch (this) {
+      case WithdrawalMethod.orangeMoney:
+        return 'ORANGE_MONEY';
+      case WithdrawalMethod.wave:
+        return 'WAVE';
+      case WithdrawalMethod.bankTransfer:
+        return 'BANK_TRANSFER';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case WithdrawalMethod.orangeMoney:
+        return 'Orange Money';
+      case WithdrawalMethod.wave:
+        return 'Wave';
+      case WithdrawalMethod.bankTransfer:
+        return 'Virement bancaire';
+    }
+  }
+}
+
+// un retrait simule (GET /wallet -> withdrawals[])
+class PsychologistWithdrawal {
+  final int id;
+  final int psychologistId;
+  final double amount;
+  final String method;
+  final String status;
+  final DateTime createdAt;
+
+  PsychologistWithdrawal({
+    required this.id,
+    required this.psychologistId,
+    required this.amount,
+    required this.method,
+    required this.status,
+    required this.createdAt,
+  });
+
+  factory PsychologistWithdrawal.fromJson(Map<String, dynamic> json) =>
+      PsychologistWithdrawal(
+        id: (json['id'] as num).toInt(),
+        psychologistId: (json['psychologistId'] as num).toInt(),
+        amount: (json['amount'] as num).toDouble(),
+        method: json['method'] as String,
+        status: json['status'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+// portefeuille du psy : GET /payments/psychologist/{id}/wallet
+class PsychologistWallet {
+  final double availableBalance;
+  final double totalNetRevenue;
+  final double totalWithdrawn;
+  final double commissionRatePercent;
+  final List<PsychologistWithdrawal> withdrawals;
+
+  PsychologistWallet({
+    required this.availableBalance,
+    required this.totalNetRevenue,
+    required this.totalWithdrawn,
+    required this.commissionRatePercent,
+    required this.withdrawals,
+  });
+
+  factory PsychologistWallet.fromJson(Map<String, dynamic> json) =>
+      PsychologistWallet(
+        availableBalance: (json['availableBalance'] as num?)?.toDouble() ?? 0,
+        totalNetRevenue: (json['totalNetRevenue'] as num?)?.toDouble() ?? 0,
+        totalWithdrawn: (json['totalWithdrawn'] as num?)?.toDouble() ?? 0,
+        commissionRatePercent:
+            (json['commissionRatePercent'] as num?)?.toDouble() ?? 0,
+        withdrawals: (json['withdrawals'] as List<dynamic>? ?? [])
+            .map((e) =>
+                PsychologistWithdrawal.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+// une ligne de l'historique détaillé des paiements reçus par le psy :
+// GET /payments/psychologist/{id}/transactions
+// le pseudo du patient est enrichi côté Flutter (appel séparé GET /patients/{id})
+class PaymentTransaction {
+  final int paymentId;
+  final int appointmentId;
+  final int? patientId;
+  final DateTime? appointmentStartTime;
+  final double grossAmount;
+  final double netAmount;
+  final double commissionAmount;
+  final PaymentStatus status; // COMPLETED ou REFUNDED
+  final String transactionReference;
+  final DateTime paidAt;
+
+  PaymentTransaction({
+    required this.paymentId,
+    required this.appointmentId,
+    this.patientId,
+    this.appointmentStartTime,
+    required this.grossAmount,
+    required this.netAmount,
+    required this.commissionAmount,
+    required this.status,
+    required this.transactionReference,
+    required this.paidAt,
+  });
+
+  factory PaymentTransaction.fromJson(Map<String, dynamic> json) =>
+      PaymentTransaction(
+        paymentId: (json['paymentId'] as num).toInt(),
+        appointmentId: (json['appointmentId'] as num).toInt(),
+        patientId: (json['patientId'] as num?)?.toInt(),
+        appointmentStartTime: json['appointmentStartTime'] != null
+            ? DateTime.parse(json['appointmentStartTime'] as String)
+            : null,
+        grossAmount: (json['grossAmount'] as num).toDouble(),
+        netAmount: (json['netAmount'] as num).toDouble(),
+        commissionAmount: (json['commissionAmount'] as num).toDouble(),
+        status: PaymentStatusX.fromApiValue(json['status'] as String),
+        transactionReference: json['transactionReference'] as String,
+        paidAt: DateTime.parse(json['paidAt'] as String),
+      );
+}
+
+// revenu net du psy (apres commission), total et mois en cours
 class PsychologistRevenue {
   final double commissionRatePercent;
   final double totalGrossRevenue;

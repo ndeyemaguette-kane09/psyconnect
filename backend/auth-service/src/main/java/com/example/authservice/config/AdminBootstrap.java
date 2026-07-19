@@ -11,16 +11,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/**
- * Crée un compte ADMIN par défaut au démarrage de l'application, s'il n'en
- * existe pas déjà. Nécessaire car {@code AuthService.register()} interdit
- * volontairement l'inscription publique en tant qu'ADMIN (voir
- * "Cannot register as admin") : c'est donc le seul mécanisme de création
- * d'un premier compte administrateur.
- *
- * Idempotent : si un utilisateur avec le rôle ADMIN existe déjà, ne fait
- * rien (ne réinitialise pas son mot de passe).
- */
+// Crée un compte administrateur par défaut si aucun n'existe en base.
+// register() bloque l'inscription directe avec le rôle ADMIN.
+
 @Component
 public class AdminBootstrap implements CommandLineRunner {
 

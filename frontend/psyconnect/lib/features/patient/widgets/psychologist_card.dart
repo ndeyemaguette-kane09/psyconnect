@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/psychologist_models.dart';
 
-/// Carte compacte utilisée pour la section "Recommandé pour vous" de
-/// l'accueil patient (cf. `.psy-mini` dans la maquette v2).
+// carte compacte pour la section "Recommandé pour vous" de l'accueil
 class PsychologistMiniCard extends StatelessWidget {
   const PsychologistMiniCard({
     super.key,
@@ -45,7 +44,18 @@ class PsychologistMiniCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            OutlinedButton(onPressed: onTap, child: const Text('Voir')),
+            OutlinedButton(
+              onPressed: onTap,
+              // le theme global met minimumSize: Size.fromHeight(48), donc
+              // une largeur infinie (pensee pour un bouton pleine largeur
+              // dans un SizedBox/Expanded) ; ici le bouton est nu dans un
+              // Row, il faut une largeur bornee sous peine de crash layout
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(64, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+              ),
+              child: const Text('Voir'),
+            ),
           ],
         ),
       ),
@@ -53,7 +63,7 @@ class PsychologistMiniCard extends StatelessWidget {
   }
 }
 
-/// Carte complète utilisée dans la liste de recherche (cf. `.psy-card`).
+// carte complete utilisee dans la liste de recherche (.psy-card)
 class PsychologistCard extends StatelessWidget {
   const PsychologistCard({
     super.key,

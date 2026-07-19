@@ -42,7 +42,6 @@ public class User {
 
     private LocalDateTime createdAt;
 
-    // Constructors
     public User() {
     }
 
@@ -52,7 +51,6 @@ public class User {
         this.enabled = true;
     }
 
-        // Getters and Setters
         public Long getId() {
             return id;
         }

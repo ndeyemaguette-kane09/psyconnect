@@ -1,14 +1,11 @@
-/// Sérialise un `DateTime` local en ISO-8601 sans suffixe de zone, attendu
-/// par les `LocalDateTime` côté Java (partagé par [CreateAppointmentRequest]
-/// et [RescheduleAppointmentRequest]).
+// ISO-8601 sans suffixe de zone, ce qu'attend LocalDateTime cote Java
 String isoLocalDateTime(DateTime dt) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${dt.year.toString().padLeft(4, '0')}-${two(dt.month)}-${two(dt.day)}'
       'T${two(dt.hour)}:${two(dt.minute)}:${two(dt.second)}';
 }
 
-/// Reflète l'enum `ConsultationType` de appointment-service
-/// (backend/appointment-service/.../entity/ConsultationType.java).
+// reflete l'enum ConsultationType de appointment-service
 enum ConsultationType { video, audio, chat, physical }
 
 extension ConsultationTypeX on ConsultationType {
@@ -54,12 +51,11 @@ extension ConsultationTypeX on ConsultationType {
   }
 }
 
-/// Reflète l'enum `AppointmentStatus` de appointment-service.
+// reflete l'enum AppointmentStatus de appointment-service
 enum AppointmentStatus { pending, confirmed, completed, cancelled, rejected }
 
 extension AppointmentStatusX on AppointmentStatus {
-  /// Valeur attendue par le backend (query param `?status=` de
-  /// PUT /appointments/{id}/status, cf. AppointmentService).
+  // valeur attendue par le backend, en query param
   String get apiValue {
     switch (this) {
       case AppointmentStatus.pending:
@@ -108,10 +104,8 @@ extension AppointmentStatusX on AppointmentStatus {
   }
 }
 
-/// Correspond à CreateAppointmentRequest côté appointment-service
-/// (POST /appointments). `startTime`/`endTime` sont sérialisés en
-/// ISO-8601 sans suffixe de zone (LocalDateTime côté Java) — il faut donc
-/// construire les DateTime localement (pas en UTC).
+// correspond a CreateAppointmentRequest (POST /appointments). dates en local,
+// pas en UTC, le backend attend du LocalDateTime sans zone
 class CreateAppointmentRequest {
   final int patientId;
   final int psychologistId;
@@ -136,8 +130,7 @@ class CreateAppointmentRequest {
       };
 }
 
-/// Correspond à RescheduleAppointmentRequest côté appointment-service
-/// (PUT /appointments/{id}/reschedule).
+// correspond a la requete de report cote appointment-service
 class RescheduleAppointmentRequest {
   final DateTime newStartTime;
   final DateTime newEndTime;
@@ -153,7 +146,7 @@ class RescheduleAppointmentRequest {
       };
 }
 
-/// Correspond à AppointmentResponse côté appointment-service.
+// correspond a AppointmentResponse cote appointment-service
 class Appointment {
   final int id;
   final int patientId;
@@ -163,10 +156,8 @@ class Appointment {
   final ConsultationType consultationType;
   final AppointmentStatus status;
 
-  // Date de création du RDV — distincte de [startTime] (qui change lors
-  // d'un report). Utilisée pour trier l'agenda "par date d'ajout" plutôt
-  // que par date du créneau. Absente sur les très anciens RDV créés avant
-  // l'ajout de ce champ côté backend : repli sur [startTime] dans ce cas.
+  // date de creation, pas la meme chose que startTime
+  // absente sur les vieux RDV, on prend startTime a la place
   final DateTime createdAt;
 
   Appointment({

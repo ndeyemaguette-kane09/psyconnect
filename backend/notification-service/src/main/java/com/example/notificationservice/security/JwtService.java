@@ -32,10 +32,13 @@ public class JwtService {
     }
 
     public Long extractUserId(String token) {
-        return extractClaim(
-                token,
-                claims -> claims.get("userId", Long.class)
-        );
+        return extractClaim(token, claims -> {
+            Object val = claims.get("userId");
+            if (val == null) return null;
+            if (val instanceof Long) return (Long) val;
+            if (val instanceof Number) return ((Number) val).longValue();
+            return Long.parseLong(val.toString());
+        });
     }
 
     public <T> T extractClaim(

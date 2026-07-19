@@ -13,15 +13,8 @@ import com.example.appointmentservice.entity.Appointment;
 import com.example.appointmentservice.entity.AppointmentStatus;
 import com.example.appointmentservice.repository.AppointmentRepository;
 
-/**
- * Rappel automatique "1h avant le rendez-vous", en notification in-app au
- * patient et au psychologue.
- *
- * Tourne toutes les 5 minutes, fenêtre de 5 min centrée sur "maintenant +
- * 1h" : assez fin pour qu'un rendez-vous donné tombe forcément dans une
- * seule fenêtre. Seuls les rendez-vous CONFIRMED sont concernés (un
- * PENDING n'a pas de garantie de tenir).
- */
+// envoie un rappel 10 min avant le RDV, au patient et au psy
+// tourne toutes les 5 min, que pour les RDV confirmés
 @Component
 public class AppointmentReminderScheduler {
 
@@ -45,7 +38,7 @@ public class AppointmentReminderScheduler {
     public void sendUpcomingReminders() {
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime windowStart = now.plusHours(1);
+        LocalDateTime windowStart = now.plusMinutes(10);
         LocalDateTime windowEnd = windowStart.plusMinutes(WINDOW_MINUTES);
 
         List<Appointment> dueForReminder =
@@ -63,23 +56,23 @@ public class AppointmentReminderScheduler {
                 notificationClient.send(
                         appointment.getPatientId(),
                         "Rappel de rendez-vous",
-                        "Votre rendez-vous commence dans environ 1h, à " + time + ".",
-                        "REMINDER"
+                        "Votre rendez-vous commence dans 10 minutes, à " + time + ".",
+                        "REMINDER",
+                        "PATIENT"
                 );
 
                 notificationClient.send(
                         appointment.getPsychologistId(),
                         "Rappel de rendez-vous",
-                        "Vous avez un rendez-vous dans environ 1h, à " + time + ".",
-                        "REMINDER"
+                        "Vous avez un rendez-vous dans 10 minutes, à " + time + ".",
+                        "REMINDER",
+                        "PSYCHOLOGIST"
                 );
 
                 appointment.setReminderSent(true);
                 appointmentRepository.save(appointment);
             } catch (Exception e) {
-                // Best-effort, comme tous les autres envois de notification
-                // de ce service : un rappel manqué ne doit jamais faire
-                // échouer le job pour les autres rendez-vous de la fenêtre.
+                // Si ça échoue, on continue avec les autres rendez-vous
                 LOGGER.warn(
                         "Échec de l'envoi du rappel pour le rendez-vous {}",
                         appointment.getId(),

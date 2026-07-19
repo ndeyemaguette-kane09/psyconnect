@@ -39,46 +39,29 @@ public interface PatientProfileService {
             Long callerAuthUserId
     );
 
-    /** Réservé à l'ADMIN : liste tous les profils patients, sans contrôle de propriété. */
+    // Admin uniquement : liste tous les patients sans vérification de propriété
     java.util.List<PatientProfileResponse> getAllPatientsForAdmin();
 
-    /** Lecture du solde PsyConnect — propriétaire uniquement. */
+    // lecture du solde, proprietaire uniquement
     WalletResponse getWallet(Long patientId, Long callerAuthUserId);
 
-    /**
-     * Dépôt simulé (Wave/Orange Money) vers le solde PsyConnect, initié par
-     * le patient lui-même depuis l'écran "Mon solde".
-     */
+    // Dépôt effectué par le patient lui-même
     WalletResponse depositToWallet(
             Long patientId, Double amount, String method, Long callerAuthUserId
     );
 
-    /**
-     * Retrait simulé du solde PsyConnect vers Wave/Orange Money — l'opération
-     * inverse du dépôt. Échoue si le solde est insuffisant.
-     */
+    // Retrait simulé, inverse du dépôt. Échoue si le solde est insuffisant
     WalletResponse withdrawFromWallet(
             Long patientId, Double amount, String method, Long callerAuthUserId
     );
 
-    /**
-     * Débite le solde pour payer un rendez-vous — appelé par
-     * appointment-service (le JWT relayé est celui du patient qui paie, donc
-     * le contrôle de propriété s'applique de la même façon). Échoue si le
-     * solde est insuffisant.
-     */
+    // Débite pour payer un rendez-vous, échoue si le solde est insuffisant
     WalletResponse debitWallet(Long patientId, Double amount, Long callerAuthUserId);
 
-    /**
-     * Crédite le solde suite au remboursement d'un rendez-vous annulé —
-     * appelé par appointment-service.
-     */
+    // credite quand un RDV est remboursé
     WalletResponse creditWallet(Long patientId, Double amount, Long callerAuthUserId);
 
-    /**
-     * Relevé des mouvements du solde PsyConnect (dépôts, retraits, débits,
-     * crédits), du plus récent au plus ancien — propriétaire uniquement.
-     */
+    // relevé des mouvements, plus recent en premier, proprietaire uniquement
     java.util.List<WalletTransactionResponse> getWalletTransactions(
             Long patientId, Long callerAuthUserId
     );

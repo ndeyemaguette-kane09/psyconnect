@@ -26,9 +26,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// La chaîne de filtres de sécurité (JWT) est désactivée ici : on teste
-// uniquement la logique du contrôleur, en simulant directement l'attribut
-// "authUserId" que JwtAuthenticationFilter pose normalement sur la requête.
+// on coupe la securite ici, on teste juste le controleur
+// on simule direct l'attribut "authUserId" mis par le filtre JWT
 @WebMvcTest(JournalEntryController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class JournalEntryControllerTest {

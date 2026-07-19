@@ -58,3 +58,11 @@ logs/
 
 ### Postman (exports volumineux, optionnel) ###
 # postman/*.json
+
+### Fichiers temporaires et archives ###
+*.zip
+*.tmp
+*.bak
+*.bak2
+*.bak_liminaires
+PsyConnect_Diagrammes_UML_v2.pdf

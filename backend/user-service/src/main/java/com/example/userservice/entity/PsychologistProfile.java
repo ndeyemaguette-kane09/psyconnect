@@ -20,16 +20,26 @@ public class PsychologistProfile {
 
     private String bio;
 
-    @Column(nullable = false)
+    // Langues parlées : non demandées à l'inscription (uniquement modifiables
+    // depuis "Profil > Modifier"), donc doit rester optionnel en base.
+    // c'était nullable=false par erreur → création de profil impossible
+    // pour tout nouveau psychologue (corrigé le 2026-06-30)
     private String languages;
 
     @Column(nullable = false)
     private String specialty;
 
-    @Column(nullable = false)
-    private int yearsOfExperience;
+    // Optionnel à l'inscription (champ "Années d'expérience" sans validator
+    // côté Flutter) : Integer (pas int) pour accepter null sans NPE au
+    // unboxing, et sans contrainte NOT NULL en base (corrigé le 2026-06-30,
+    // même bug que languages/licenseNumber)
+    private Integer yearsOfExperience;
 
     private String city;
+
+    // adresse precise du cabinet, pour les patients qui veulent s'y rendre
+    // physiquement (consultation type "physical"). facultatif, distinct de city
+    private String address;
 
     @Column(nullable = false)
     private Boolean available = true;
@@ -42,13 +52,13 @@ public class PsychologistProfile {
     @Column(nullable = false)
     private Boolean profileVerified = false;
 
-    // profileVerified=false ne distingue pas "en attente" de "refusé" donc
-    // on a besoin d'un champ séparé pour le refus admin. Le default Postgres
-    // évite l'échec de l'ALTER TABLE sur les lignes déjà existantes.
+    // Champ séparé pour le refus : sinon on ne peut pas distinguer "en attente" et "refusé"
     @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean rejected = false;
 
-    @Column(nullable = false)
+    // Numéro de licence : optionnel à l'inscription côté Flutter, à ne pas
+    // confondre avec le justificatif (fichier) qui, lui, est obligatoire.
+    // c'était nullable=false par erreur, même bug que languages (2026-06-30)
     private String licenseNumber;
 
     private Integer consultationPrice;
@@ -56,11 +66,20 @@ public class PsychologistProfile {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    // Justificatif (diplôme / carte pro) : nom de fichier généré par
-    // FileStorageService + content-type d'origine, pour le téléchargement.
+    // Nom du fichier justificatif (généré par FileStorageService) et son type
     private String licenseDocumentPath;
 
     private String licenseDocumentContentType;
+
+    // mode urgence : le psy active ce flag pour indiquer qu'il est dispo
+    // immédiatement (sans RDV). le patient peut alors l'appeler directement.
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean availableForEmergency = false;
+
+    // consultation solidaire : si true, le psy propose sa séance d'urgence
+    // gratuitement (pas de débit sur le wallet patient)
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private Boolean offersFreeSessions = false;
 
     @PrePersist
     protected void onCreate() {
@@ -71,7 +90,6 @@ public class PsychologistProfile {
     }
 
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -109,10 +127,10 @@ public class PsychologistProfile {
     public void setSpecialty(String specialty) {
         this.specialty = specialty;
     }
-    public int getYearsOfExperience() {
+    public Integer getYearsOfExperience() {
         return yearsOfExperience;
     }
-    public void setYearsOfExperience(int yearsOfExperience) {
+    public void setYearsOfExperience(Integer yearsOfExperience) {
         this.yearsOfExperience = yearsOfExperience;
     }
     public String getCity() {
@@ -120,6 +138,12 @@ public class PsychologistProfile {
     }
     public void setCity(String city) {
         this.city = city;
+    }
+    public String getAddress() {
+        return address;
+    }
+    public void setAddress(String address) {
+        this.address = address;
     }
     public Boolean getAvailable() {
         return available;
@@ -187,5 +211,21 @@ public class PsychologistProfile {
 
     public void setLicenseDocumentContentType(String licenseDocumentContentType) {
         this.licenseDocumentContentType = licenseDocumentContentType;
+    }
+
+    public Boolean getAvailableForEmergency() {
+        return availableForEmergency;
+    }
+
+    public void setAvailableForEmergency(Boolean availableForEmergency) {
+        this.availableForEmergency = availableForEmergency;
+    }
+
+    public Boolean getOffersFreeSessions() {
+        return offersFreeSessions;
+    }
+
+    public void setOffersFreeSessions(Boolean offersFreeSessions) {
+        this.offersFreeSessions = offersFreeSessions;
     }
 }

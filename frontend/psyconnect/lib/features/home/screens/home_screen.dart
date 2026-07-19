@@ -9,12 +9,11 @@ import '../../auth/screens/splash_screen.dart';
 import '../../patient/screens/patient_shell.dart';
 import '../../psychologist/screens/psychologist_shell.dart';
 
-/// Point d'entrée post-connexion : route vers l'accueil dédié au rôle de la
-/// session. Le rôle patient a son parcours complet à onglets (PatientShell :
-/// Accueil/Chercher/RDV/Messages/Profil), le rôle psychologue le sien
-/// (PsychologistShell : Accueil/Agenda/Patients/Messages/Stats), et le rôle
-/// admin le sien (AdminShell : Dashboard/Utilisateurs/Validation/Stats/
-/// Config), tous fidèles à la maquette v2 quand elle couvre l'écran.
+// écran après connexion, envoie vers l'accueil du bon rôle :
+// patient -> PatientShell (Accueil/Chercher/RDV/Messages/Profil)
+// psy -> PsychologistShell (Accueil/Agenda/Patients/Messages/Stats)
+// admin -> AdminShell (Dashboard/Utilisateurs/Validation/Stats/Config)
+// suit la maquette v2 quand elle existe pour l'écran
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 

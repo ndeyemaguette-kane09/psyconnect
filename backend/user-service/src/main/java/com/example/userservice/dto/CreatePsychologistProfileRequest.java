@@ -21,5 +21,8 @@ public class CreatePsychologistProfileRequest {
 
     private String city;
 
+    // adresse precise du cabinet (consultation en presentiel)
+    private String address;
+
     private String licenseNumber;
 }

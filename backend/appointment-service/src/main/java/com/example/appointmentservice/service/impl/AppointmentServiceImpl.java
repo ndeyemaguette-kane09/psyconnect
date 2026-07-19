@@ -1,8 +1,14 @@
 package com.example.appointmentservice.service.impl;
 
+import java.util.EnumSet;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.example.appointmentservice.client.NotificationClient;
+import com.example.appointmentservice.client.PaymentClient;
 import com.example.appointmentservice.dto.AppointmentResponse;
 import com.example.appointmentservice.dto.CreateAppointmentRequest;
 import com.example.appointmentservice.dto.RescheduleAppointmentRequest;
@@ -14,7 +20,6 @@ import com.example.appointmentservice.repository.AppointmentRepository;
 import com.example.appointmentservice.security.SecurityUtils;
 import com.example.appointmentservice.service.AppointmentService;
 import com.example.appointmentservice.service.OwnershipResolver;
-import com.example.appointmentservice.service.PaymentService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -25,6 +30,9 @@ import java.util.stream.Collectors;
 public class AppointmentServiceImpl
         implements AppointmentService {
 
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(AppointmentServiceImpl.class);
+
     private final AppointmentRepository
             appointmentRepository;
 
@@ -32,13 +40,13 @@ public class AppointmentServiceImpl
 
     private final OwnershipResolver ownershipResolver;
 
-    private final PaymentService paymentService;
+    private final PaymentClient paymentClient;
 
     public AppointmentServiceImpl(
             AppointmentRepository appointmentRepository,
             NotificationClient notificationClient,
             OwnershipResolver ownershipResolver,
-            PaymentService paymentService
+            PaymentClient paymentClient
     ) {
 
         this.appointmentRepository =
@@ -48,10 +56,10 @@ public class AppointmentServiceImpl
 
         this.ownershipResolver = ownershipResolver;
 
-        this.paymentService = paymentService;
+        this.paymentClient = paymentClient;
     }
 
-    /** Vérifie que l'appelant courant est bien le patient ou le psychologue de ce rendez-vous. */
+    // Vérifie que l'appelant est bien le patient ou le psychologue du rendez-vous
     private void checkParticipant(Appointment appointment) {
 
         if (SecurityUtils.hasRole("PATIENT")) {
@@ -114,20 +122,39 @@ public class AppointmentServiceImpl
             );
         }
 
+        // seuls les RDV actifs (en attente ou confirmés) bloquent le créneau ;
+        // les RDV annulés/refusés/terminés libèrent le créneau immédiatement
+        Set<AppointmentStatus> activeStatuses =
+                EnumSet.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED);
+
         boolean conflict =
                 appointmentRepository
-                        .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThan(
+                        .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusIn(
                                 request.getPsychologistId(),
                                 request.getEndTime(),
-                                request.getStartTime()
+                                request.getStartTime(),
+                                activeStatuses
                         );
 
-        
-
         if (conflict) {
-
             throw new RuntimeException(
                     "Le psychologue possède déjà un rendez-vous sur ce créneau"
+            );
+        }
+
+        // un patient ne peut pas avoir deux RDV actifs au même horaire
+        boolean patientConflict =
+                appointmentRepository
+                        .existsByPatientIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusIn(
+                                request.getPatientId(),
+                                request.getEndTime(),
+                                request.getStartTime(),
+                                activeStatuses
+                        );
+
+        if (patientConflict) {
+            throw new RuntimeException(
+                    "Vous avez déjà un rendez-vous sur ce créneau"
             );
         }
 
@@ -163,9 +190,7 @@ public class AppointmentServiceImpl
                         appointment
                 );
 
-        // Le RDV est créé PENDING : le message ne doit pas donner
-        // l'impression que c'est déjà acté, le psychologue peut encore
-        // refuser.
+        // le message doit pas faire croire que le RDV est déjà confirmé
         notifyPatient(
                 savedAppointment.getId(),
                 request.getPatientId(),
@@ -175,8 +200,7 @@ public class AppointmentServiceImpl
                         + "d'être effective."
         );
 
-        // Notifie aussi le psychologue, qui sinon ne découvre la demande
-        // qu'en ouvrant son agenda.
+        // notifie aussi le psy, sinon il voit la demande que dans son agenda
         notifyPsychologist(
                 savedAppointment.getId(),
                 request.getPsychologistId(),
@@ -189,11 +213,7 @@ public class AppointmentServiceImpl
         return mapToResponse(savedAppointment);
     }
 
-    /// Envoie une notification au patient via notification-service.
-    /// Best-effort : un échec d'envoi (service down, etc.) ne doit jamais
-    /// faire échouer l'opération principale (création/changement de statut
-    /// du rendez-vous) — seulement logué en warning. Cf. commentaire
-    /// d'origine sur createAppointment.
+    // Notification au patient — un échec ici ne bloque pas le rendez-vous
     private void notifyPatient(
             Long appointmentId,
             Long patientId,
@@ -205,11 +225,12 @@ public class AppointmentServiceImpl
                 patientId,
                 title,
                 message,
-                "APPOINTMENT"
+                "APPOINTMENT",
+                "PATIENT"
         );
     }
 
-    /// Même contrat que {@link #notifyPatient}, mais vers le psychologue.
+    // pareil que notifyPatient mais pour le psy
     private void notifyPsychologist(
             Long appointmentId,
             Long psychologistId,
@@ -221,7 +242,8 @@ public class AppointmentServiceImpl
                 psychologistId,
                 title,
                 message,
-                "APPOINTMENT"
+                "APPOINTMENT",
+                "PSYCHOLOGIST"
         );
     }
 
@@ -262,10 +284,7 @@ public class AppointmentServiceImpl
         AppointmentStatus newStatus =
                 AppointmentStatus.valueOf(status.toUpperCase());
 
-        // `checkParticipant` vérifie juste que l'appelant est l'une des deux
-        // parties, pas quel statut il a le droit de poser : sans ce
-        // contrôle, un patient pourrait forcer CONFIRMED sur son propre RDV.
-        // Seul le psychologue confirme/refuse, seul le patient annule.
+        // seul le psy confirme ou refuse, seul le patient annule
         boolean callerIsPsychologist = SecurityUtils.hasRole("PSYCHOLOGIST");
         if (
             (newStatus == AppointmentStatus.CONFIRMED
@@ -282,12 +301,7 @@ public class AppointmentServiceImpl
             );
         }
 
-        // Politique de remboursement : une annulation à plus de 48h du début
-        // du rendez-vous déclenche un remboursement automatique de tout
-        // paiement COMPLETED associé (cf. maquette confirmer_RDV.png). En
-        // dessous de 48h, aucun remboursement n'est déclenché. Le calcul se
-        // fait avant la sauvegarde du nouveau statut, sur l'horaire encore
-        // inchangé du rendez-vous.
+        // annulation +48h avant = remboursement auto, sinon rien
         boolean refunded = false;
 
         if (newStatus == AppointmentStatus.CANCELLED) {
@@ -297,7 +311,7 @@ public class AppointmentServiceImpl
             ).toHours();
 
             if (hoursUntilStart >= 48) {
-                paymentService.refundCompletedPayments(appointment.getId());
+                paymentClient.refundCompletedPayments(appointment.getId(), appointment.getPatientId());
                 refunded = true;
             }
         }
@@ -387,18 +401,38 @@ public class AppointmentServiceImpl
             );
         }
 
+        Set<AppointmentStatus> activeStatuses =
+                EnumSet.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED);
+
         boolean conflict =
                 appointmentRepository
-                        .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndIdNot(
+                        .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusInAndIdNot(
                                 appointment.getPsychologistId(),
                                 request.getNewEndTime(),
                                 request.getNewStartTime(),
+                                activeStatuses,
                                 appointment.getId()
                         );
 
         if (conflict) {
             throw new RuntimeException(
                     "Le psychologue possède déjà un rendez-vous sur ce nouveau créneau"
+            );
+        }
+
+        boolean patientConflict =
+                appointmentRepository
+                        .existsByPatientIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusInAndIdNot(
+                                appointment.getPatientId(),
+                                request.getNewEndTime(),
+                                request.getNewStartTime(),
+                                activeStatuses,
+                                appointment.getId()
+                        );
+
+        if (patientConflict) {
+            throw new RuntimeException(
+                    "Vous avez déjà un autre rendez-vous sur ce nouveau créneau"
             );
         }
 
@@ -409,8 +443,7 @@ public class AppointmentServiceImpl
         appointment.setEndTime(request.getNewEndTime());
 
         if (wasConfirmed) {
-            // Un rendez-vous déjà confirmé repasse en attente : le
-            // psychologue doit reconfirmer explicitement le nouveau créneau.
+            // le psy doit reconfirmer le nouveau créneau
             appointment.setStatus(AppointmentStatus.PENDING);
         }
 
@@ -423,7 +456,8 @@ public class AppointmentServiceImpl
                 wasConfirmed
                         ? "Un patient a reporté un rendez-vous confirmé à un nouveau créneau : veuillez le reconfirmer."
                         : "Un patient a reporté un rendez-vous en attente à un nouveau créneau.",
-                "APPOINTMENT"
+                "APPOINTMENT",
+                "PSYCHOLOGIST"
         );
 
         return mapToResponse(updatedAppointment);
@@ -435,8 +469,18 @@ public class AppointmentServiceImpl
             Long psychologistId
     ) {
 
-        if (!SecurityUtils.hasRole("PSYCHOLOGIST")
-                || !ownershipResolver.resolveOwnPsychologistId().equals(psychologistId)) {
+        Long ownId = null;
+        try {
+            ownId = ownershipResolver.resolveOwnPsychologistId();
+        } catch (Exception ex) {
+            LOGGER.error("[appointment] resolveOwnPsychologistId a échoué pour GET /appointments/psychologist/{}: {}",
+                    psychologistId, ex.getMessage());
+            throw ex;
+        }
+        boolean hasRole = SecurityUtils.hasRole("PSYCHOLOGIST");
+        LOGGER.info("[appointment] GET /psychologist/{} | hasRole={} | ownId={}", psychologistId, hasRole, ownId);
+        if (!hasRole || !ownId.equals(psychologistId)) {
+            LOGGER.warn("[appointment] Accès refusé : hasRole={}, ownId={}, psychologistId={}", hasRole, ownId, psychologistId);
             throw new ForbiddenOperationException(
                     "Vous ne pouvez consulter que vos propres rendez-vous"
             );
@@ -551,8 +595,7 @@ public class AppointmentServiceImpl
                                 )
                         );
 
-        // Suppression réservée au patient propriétaire, pour nettoyer son
-        // agenda — jamais au psychologue.
+        // Seul le patient peut supprimer, jamais le psychologue
         if (!SecurityUtils.hasRole("PATIENT")
                 || !ownershipResolver.resolveOwnPatientId().equals(appointment.getPatientId())) {
             throw new ForbiddenOperationException(
@@ -560,12 +603,7 @@ public class AppointmentServiceImpl
             );
         }
 
-        // Limité aux RDV déjà sans suite (ANNULÉ ou REFUSÉ) : un PENDING/
-        // CONFIRMED/COMPLETED doit rester visible (RDV actif, ou historique
-        // de consultation/paiement). Pas de contrainte FK en base sur
-        // Payment.appointmentId (simple Long, pas de @ManyToOne) : la
-        // suppression ne casse rien côté paiements, mais on la restreint
-        // côté métier plutôt que technique.
+        // que annulé ou refusé peut etre supprimé, le reste reste visible
         if (appointment.getStatus() != AppointmentStatus.CANCELLED
                 && appointment.getStatus() != AppointmentStatus.REJECTED) {
             throw new ForbiddenOperationException(
@@ -574,5 +612,19 @@ public class AppointmentServiceImpl
         }
 
         appointmentRepository.delete(appointment);
+    }
+
+    // Appel inter-service uniquement : user-service vérifie que le psychologue a déjà
+    // eu un RDV avec ce patient avant d'ouvrir l'acces aux notes cliniques /
+    // antecedents medicaux. Pas de check de role ici : la protection est faite
+    // en amont (endpoint /patients/*/clinical-notes exige PSYCHOLOGIST).
+    @Override
+    public boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted) {
+        if (requireCompleted) {
+            return appointmentRepository.existsByPatientIdAndPsychologistIdAndStatus(
+                    patientId, psychologistId, AppointmentStatus.COMPLETED
+            );
+        }
+        return appointmentRepository.existsByPatientIdAndPsychologistId(patientId, psychologistId);
     }
 }
