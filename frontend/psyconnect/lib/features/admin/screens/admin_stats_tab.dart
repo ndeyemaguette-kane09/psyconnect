@@ -7,10 +7,9 @@ import '../services/admin_service.dart';
 import 'admin_appointments_list_screen.dart';
 import 'admin_payments_list_screen.dart';
 
-/// Onglet "Stats" — vue globale des rendez-vous et paiements, à partir de
-/// GET /admin/stats/appointments (appointment-service) : statuts des RDV +
-/// agrégats de paiement (déjà calculés côté backend, contrairement aux
-/// stats du Dashboard qui sont dérivées côté client).
+// onglet "Stats" — vue globale RDV + paiements, via
+// GET /admin/stats/appointments : statuts + agregats deja calcules cote
+// backend, contrairement au Dashboard qui derive tout cote client
 class AdminStatsTab extends StatefulWidget {
   const AdminStatsTab({super.key});
 
@@ -151,9 +150,8 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Part de revenus de l'administrateur — taux réglable depuis
-              // l'onglet Config (PUT /admin/platform-settings/commission-rate),
-              // pas une valeur figée en dur.
+              // part de revenus de l'admin — taux reglable depuis l'onglet
+              // Config, pas une valeur figee en dur
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),

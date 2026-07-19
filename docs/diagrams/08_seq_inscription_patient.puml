@@ -1,0 +1,65 @@
+@startuml 08_seq_inscription_patient
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBackgroundColor #EEF7FF
+skinparam sequenceParticipantBorderColor #2E6DA4
+skinparam sequenceLifeLineBorderColor #2E6DA4
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+title Séquence — Inscription patient & connexion JWT
+
+actor "Patient" as P
+participant "Application Flutter" as App
+participant "API Gateway\n:8080" as GW
+participant "auth-service\n:8081" as Auth
+participant "user-service\n:8082" as UserSvc
+database "psyconnect_auth" as DB_Auth
+database "psyconnect_user" as DB_User
+
+== Inscription ==
+
+P -> App : Saisit e-mail, mot de passe,\nnom, prénom, pseudo
+App -> GW : POST /auth/register/patient\n{email, password, firstName,\nlastName, pseudo}
+GW -> Auth : route /auth/**
+Auth -> DB_Auth : INSERT User{role=PATIENT,\nenabled=true, password=BCrypt}
+DB_Auth --> Auth : User créé (id)
+Auth --> GW : 200 OK {message: "Inscription réussie"}
+GW --> App : 200 OK
+
+App -> GW : POST /users\n{authUserId, firstName, lastName, phone}
+GW -> UserSvc : route /users/**
+UserSvc -> DB_User : INSERT UserProfile{authUserId}
+DB_User --> UserSvc : UserProfile créé (id)
+UserSvc --> GW : 201 Created {UserProfile}
+GW --> App : 201 Created
+
+App -> GW : POST /patients\n{authUserId, preferredLanguage,\nemergencyContact...}
+GW -> UserSvc : route /patients/**
+UserSvc -> DB_User : INSERT PatientProfile{walletBalance=0}
+DB_User --> UserSvc : PatientProfile créé (id)
+UserSvc --> GW : 201 Created {PatientProfile}
+GW --> App : 201 Created
+App -> P : ✓ Inscription réussie
+
+== Connexion ==
+
+P -> App : Saisit e-mail & mot de passe
+App -> GW : POST /auth/login\n{email, password}
+GW -> Auth : route /auth/**
+Auth -> DB_Auth : SELECT User WHERE email=?
+DB_Auth --> Auth : User{role, enabled, id}
+Auth -> Auth : Vérifie BCrypt(password)
+Auth -> Auth : Génère JWT\n{email, role=PATIENT, userId, exp=24h}
+Auth --> GW : 200 OK {token, role, id, pseudo}
+GW --> App : 200 OK
+App -> App : Stocke le token JWT\nen mémoire (session)
+App -> P : ✓ Connecté — accueil patient
+
+note right of Auth
+  Le JWT est auto-signé avec
+  une clé secrète partagée par
+  tous les services.
+  Chaque service valide le token
+  localement (JwtAuthenticationFilter).
+end note
+
+@enduml

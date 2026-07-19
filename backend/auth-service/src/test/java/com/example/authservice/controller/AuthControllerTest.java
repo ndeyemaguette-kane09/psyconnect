@@ -29,11 +29,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// La chaîne de filtres de sécurité (JWT) est désactivée ici : on teste
-// uniquement la logique du contrôleur. JwtAuthenticationFilter et
-// CustomUserDetailsService sont mockés pour permettre à Spring de
-// construire le contexte @WebMvcTest sans erreur (ils ne sont pas
-// auto-détectés comme des beans simples par le slice de test).
+// pas de JWT ici, on teste juste le controller
+// les mocks servent juste a faire demarrer le contexte de test
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {

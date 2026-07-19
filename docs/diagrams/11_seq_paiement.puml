@@ -1,0 +1,85 @@
+@startuml 11_seq_paiement
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBackgroundColor #EEF7FF
+skinparam sequenceParticipantBorderColor #2E6DA4
+skinparam sequenceLifeLineBorderColor #2E6DA4
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+title Séquence — Paiement de RDV via le solde PsyConnect
+
+actor "Patient" as P
+actor "Psychologue" as Psy
+participant "Application Flutter" as App
+participant "API Gateway\n:8080" as GW
+participant "user-service\n:8082" as UserSvc
+participant "appointment-service\n:8083" as ApptSvc
+participant "payment-service\n:8085" as PaySvc
+participant "notification-service\n:8086" as Notif
+database "psyconnect_user" as DB_User
+database "psyconnect_payment" as DB_Pay
+
+== Recharge du solde (optionnel si solde insuffisant) ==
+
+P -> App : Ouvre Solde PsyConnect
+App -> GW : GET /patients/{id}/wallet
+GW -> UserSvc : solde actuel
+UserSvc --> App : {walletBalance: X FCFA}
+
+P -> App : Recharge (montant, méthode simulée)
+App -> GW : POST /patients/{id}/wallet/deposit\n{amount, method: SIMULATED_ORANGE_MONEY|...}
+GW -> UserSvc : crédite le solde
+UserSvc -> DB_User : UPDATE walletBalance += amount\nINSERT WalletTransaction{type=DEPOSIT}
+UserSvc --> App : {walletBalance: X+amount}
+App -> P : ✓ Solde rechargé
+
+== Paiement du rendez-vous ==
+
+P -> App : Clique "Payer" sur le RDV confirmé
+App -> GW : POST /payments\n{appointmentId, method: WALLET}
+GW -> PaySvc : route /payments/**
+PaySvc -> ApptSvc : GET /appointments/{id}\n(vérification statut CONFIRMED)
+ApptSvc --> PaySvc : {status=CONFIRMED, amount, patientId, psychologistId}
+PaySvc -> UserSvc : POST /patients/{patientId}/wallet/debit\n{amount}
+UserSvc -> DB_User : UPDATE walletBalance -= amount\nINSERT WalletTransaction{type=DEBIT}
+UserSvc --> PaySvc : 200 OK {newBalance}
+PaySvc -> DB_Pay : INSERT Payment{status=COMPLETED,\nmethod=WALLET, ref="SIM-{UUID}"}
+PaySvc -> Notif : POST /notifications\n{userId=patient, title="Paiement confirmé",\ntype=PAYMENT}
+PaySvc -> Notif : POST /notifications\n{userId=psy, title="Paiement reçu pour votre RDV",\ntype=PAYMENT}
+PaySvc --> App : 201 Created {Payment}
+App -> P : ✓ Paiement effectué
+
+== Annulation avec remboursement ==
+
+P -> App : Annule le RDV (>= 48h avant)
+App -> GW : PUT /appointments/{id}/status?status=CANCELLED
+GW -> ApptSvc : annulation
+ApptSvc -> DB_User : UPDATE status=CANCELLED
+ApptSvc -> PaySvc : POST /payments/appointment/{id}/refund
+PaySvc -> UserSvc : POST /patients/{patientId}/wallet/credit\n{amount}
+UserSvc -> DB_User : UPDATE walletBalance += amount\nINSERT WalletTransaction{type=CREDIT}
+PaySvc -> DB_Pay : UPDATE Payment{status=REFUNDED}
+PaySvc -> Notif : POST /notifications\n{userId=patient, title="Remboursement effectué",\ntype=PAYMENT}
+PaySvc --> App : 200 OK
+App -> P : ✓ Remboursé sur votre solde
+
+== Retrait du revenu (psychologue) ==
+
+Psy -> App : Consulte ses revenus
+App -> GW : GET /payments/psychologist/{id}/revenue
+GW -> PaySvc : calcul revenu net
+PaySvc --> App : {totalNet, currentMonthNet, commissionRate}
+
+Psy -> App : Demande un retrait
+App -> GW : POST /payments/psychologist/{id}/withdraw\n{amount, method: ORANGE_MONEY}
+GW -> PaySvc : retrait simulé
+PaySvc -> DB_Pay : INSERT PsychologistWithdrawal{status=COMPLETED}
+PaySvc --> App : 200 OK {message: "Retrait de X FCFA effectué"}
+
+note right of PaySvc
+  Taux de commission configurable par l'admin.
+  revenu_net_psy = montant_rdv × (1 - taux/100)
+  Défaut : 20 % de commission plateforme.
+  Les retraits sont simulés (pas d'API bancaire réelle).
+end note
+
+@enduml

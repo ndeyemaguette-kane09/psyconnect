@@ -1,0 +1,7 @@
+build/
+!build/libs/
+.gradle/
+bin/
+*.md
+.git/
+uploads/

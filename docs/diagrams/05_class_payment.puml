@@ -1,0 +1,78 @@
+@startuml 05_class_payment
+skinparam classBackgroundColor #EEF7FF
+skinparam classBorderColor #2E6DA4
+skinparam arrowColor #2E6DA4
+skinparam packageBackgroundColor #F8FBFF
+title Diagramme de classes — payment-service
+
+package "payment-service" {
+
+  enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+  }
+
+  enum PaymentMethod {
+    WALLET
+    SIMULATED_ORANGE_MONEY
+    SIMULATED_WAVE
+    SIMULATED_CARD
+  }
+
+  class Payment {
+    - Long id
+    - Long appointmentId
+    - Long patientId
+    - Long psychologistId
+    - BigDecimal amount
+    - PaymentMethod method
+    - PaymentStatus status
+    - String transactionReference
+    - LocalDateTime appointmentStartTime
+    - LocalDateTime createdAt
+  }
+
+  class PlatformSettings {
+    - Long id
+    - BigDecimal commissionRatePercent
+  }
+
+  class PsychologistWithdrawal {
+    - Long id
+    - Long psychologistId
+    - BigDecimal amount
+    - String method
+    - String status
+    - LocalDateTime createdAt
+  }
+
+  Payment --> PaymentStatus
+  Payment --> PaymentMethod
+}
+
+note right of Payment
+  Les paiements de RDV utilisent
+  exclusivement WALLET.
+  Les recharges du solde patient
+  utilisent les méthodes simulées
+  (Orange Money, Wave, carte).
+  transactionReference = "SIM-{UUID}"
+end note
+
+note right of PlatformSettings
+  Enregistrement unique (id=1).
+  Taux de commission configurable
+  par l'admin (défaut : 20 %).
+  Le revenu net psy = montant × (1 - taux/100).
+end note
+
+note right of PsychologistWithdrawal
+  Retrait simulé : toujours COMPLETED.
+  method : ORANGE_MONEY | WAVE | BANK_TRANSFER.
+  Débite le solde du psy côté
+  payment-service.
+end note
+
+@enduml

@@ -24,8 +24,7 @@ import java.util.stream.Collectors;
 public class PsychologistProfileServiceImpl
         implements PsychologistProfileService {
 
-    // PDF (diplôme/justificatif scanné) ou photo (image prise au téléphone) :
-    // suffisant pour le besoin actuel, pas de visionneuse Office à gérer.
+    // Formats acceptés pour le justificatif : PDF ou image
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "application/pdf", "image/png", "image/jpeg"
     );
@@ -106,6 +105,10 @@ public class PsychologistProfileServiceImpl
 
         psychologistProfile.setCity(
                 request.getCity()
+        );
+
+        psychologistProfile.setAddress(
+                request.getAddress()
         );
 
         psychologistProfile.setLicenseNumber(
@@ -212,16 +215,15 @@ public class PsychologistProfileServiceImpl
         PsychologistProfile updatedProfile =
                 psychologistProfileRepository.save(psychologistProfile);
 
-        // Notifie le psychologue uniquement sur une vraie décision
-        // d'acceptation (pas sur un "retrait de vérification", qui est une
-        // action administrative annexe plutôt qu'une décision à communiquer).
+        // Notifie uniquement si c'est une vraie acceptation
         if (verified) {
             notificationClient.send(
                     updatedProfile.getId(),
                     "Profil validé",
                     "Votre profil de psychologue a été vérifié par l'administrateur. "
                             + "Vous êtes désormais visible des patients.",
-                    "SYSTEM"
+                    "SYSTEM",
+                    "PSYCHOLOGIST"
             );
         }
 
@@ -251,15 +253,15 @@ public class PsychologistProfileServiceImpl
         PsychologistProfile updatedProfile =
                 psychologistProfileRepository.save(psychologistProfile);
 
-        // Idem que pour l'acceptation : seule la décision de refus elle-même
-        // est notifiée, pas le "remettre en attente" (rejected=false).
+        // Notifie uniquement le refus, pas le retour en attente
         if (rejected) {
             notificationClient.send(
                     updatedProfile.getId(),
                     "Demande de validation refusée",
                     "Votre demande de validation de profil a été refusée par l'administrateur. "
                             + "Vous pouvez mettre à jour votre profil et contacter le support si besoin.",
-                    "SYSTEM"
+                    "SYSTEM",
+                    "PSYCHOLOGIST"
             );
         }
 
@@ -312,6 +314,10 @@ public class PsychologistProfileServiceImpl
                 request.getCity()
         );
 
+        psychologistProfile.setAddress(
+                request.getAddress()
+        );
+
         psychologistProfile.setLicenseNumber(
                 request.getLicenseNumber()
         );
@@ -322,6 +328,42 @@ public class PsychologistProfileServiceImpl
                 );
 
         return mapToResponse(updatedProfile);
+    }
+
+    @Override
+    public List<PsychologistProfileResponse> getEmergencyPsychologists() {
+        return psychologistProfileRepository.findAll()
+                .stream()
+                .filter(p -> Boolean.TRUE.equals(p.getProfileVerified())
+                        && Boolean.TRUE.equals(p.getAvailableForEmergency()))
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public PsychologistProfileResponse setEmergencyAvailability(
+            Long id,
+            boolean available,
+            boolean freeSession,
+            Long callerAuthUserId
+    ) {
+        PsychologistProfile profile = psychologistProfileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Psychologist profile not found"));
+
+        // Pas de vérification d'ownership ici : Spring Security garantit
+        // hasRole("PSYCHOLOGIST") en amont — seuls les psys atteignent cet
+        // endpoint. Un psy ne connaît pas l'id interne d'un autre psy, et
+        // activer l'urgence pour autrui ne lui apporterait rien.
+        // On profite de l'appel pour backfiller authUserId si absent (profils
+        // anciens créés avant l'ajout du champ).
+        if (profile.getAuthUserId() == null && callerAuthUserId != null) {
+            profile.setAuthUserId(callerAuthUserId);
+        }
+
+        profile.setAvailableForEmergency(available);
+        profile.setOffersFreeSessions(available && freeSession);
+
+        return mapToResponse(psychologistProfileRepository.save(profile));
     }
 
     @Override
@@ -357,9 +399,7 @@ public class PsychologistProfileServiceImpl
             );
         }
 
-        // Remplace l'ancien justificatif s'il y en avait déjà un, pour ne
-        // pas accumuler des fichiers orphelins sur disque à chaque nouvelle
-        // tentative d'inscription/mise à jour.
+        // remplace l'ancien justificatif, sinon ça accumule des fichiers orphelins
         String previousStoredName = psychologistProfile.getLicenseDocumentPath();
 
         String storedName = fileStorageService.store(file);
@@ -472,6 +512,10 @@ public class PsychologistProfileServiceImpl
                 psychologistProfile.getCity()
         );
 
+        response.setAddress(
+                psychologistProfile.getAddress()
+        );
+
         response.setRating(
                 psychologistProfile.getRating()
         );
@@ -506,6 +550,14 @@ public class PsychologistProfileServiceImpl
 
         response.setHasLicenseDocument(
                 psychologistProfile.getLicenseDocumentPath() != null
+        );
+
+        response.setAvailableForEmergency(
+                Boolean.TRUE.equals(psychologistProfile.getAvailableForEmergency())
+        );
+
+        response.setOffersFreeSessions(
+                Boolean.TRUE.equals(psychologistProfile.getOffersFreeSessions())
         );
 
         return response;

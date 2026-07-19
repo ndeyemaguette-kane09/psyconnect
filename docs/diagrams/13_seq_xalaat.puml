@@ -1,0 +1,70 @@
+@startuml 13_seq_xalaat
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBackgroundColor #EEF7FF
+skinparam sequenceParticipantBorderColor #2E6DA4
+skinparam sequenceLifeLineBorderColor #2E6DA4
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+title Séquence — Compagnon IA "Xalaat"
+
+actor "Patient" as P
+participant "Application Flutter\n(mémoire de session)" as App
+participant "API Gateway\n:8080" as GW
+participant "ai-companion-service\n:8087" as AI
+participant "RiskDetectionService" as Risk
+participant "Ollama\n(qwen2.5:3b)" as LLM
+
+P -> App : Ouvre l'écran Xalaat
+App -> P : Interface de chat vide\n(aucun historique persisté)
+
+== Message sans signal de détresse ==
+
+P -> App : Saisit un message\n("Je me sens un peu anxieux aujourd'hui")
+App -> App : Ajoute le message à l'historique\nde session en mémoire Flutter
+
+App -> GW : POST /companion/chat\n{message: "...", history: [ChatTurn...]}\nAuthorization: Bearer JWT
+GW -> AI : route /companion/**\n(timeout spécifique : 90s)
+
+AI -> Risk : isRisky("Je me sens un peu anxieux aujourd'hui")
+Risk -> Risk : Vérifie les mots-clés de détresse\n(liste prédéfinie : suicide, mourir,\nme faire du mal, fin, etc.)
+Risk --> AI : false (pas de signal)
+
+AI -> AI : Reconstruit le contexte Spring AI\ndepuis l'historique reçu
+AI -> LLM : Appel Ollama\n{system_prompt: "Tu es Xalaat, un\ncompagnon d'écoute empathique...",\nmessages: [historique + message]}
+LLM --> AI : {reply: "Je vous entends, l'anxiété est..."}
+
+AI --> GW : 200 OK {reply: "...", isSafetyFallback: false}
+GW --> App : 200 OK
+App -> App : Ajoute la réponse à l'historique\nde session en mémoire Flutter
+App -> P : Affiche la réponse de Xalaat
+
+== Message avec signal de détresse ==
+
+P -> App : Saisit un message préoccupant\n("Je n'ai plus envie de vivre")
+App -> GW : POST /companion/chat\n{message: "Je n'ai plus envie de vivre", history: [...]}
+GW -> AI : route /companion/**
+AI -> Risk : isRisky("Je n'ai plus envie de vivre")
+Risk --> AI : true ✓
+
+AI --> GW : 200 OK\n{reply: "Je vous entends et je m'inquiète\npour vous. En cas de crise,\ncontactez le 3114 (SOS Amitié)\nou le 15 (SAMU)...",\nisSafetyFallback: true}
+
+note right of AI
+  En cas de garde-fou déclenché :
+  Aucun appel à Ollama.
+  La réponse est un message de sécurité
+  prédéfini avec les numéros d'urgence.
+  Flutter affiche une bannière rouge.
+end note
+
+GW --> App : 200 OK
+App -> P : Affiche le message de sécurité\navec bannière d'alerte
+
+note right of App
+  L'historique n'est jamais envoyé
+  au serveur entre deux sessions.
+  Fermer l'écran efface tout.
+  Confidentialité totale : aucune
+  conversation stockée en base.
+end note
+
+@enduml

@@ -1,8 +1,7 @@
 import 'user_role.dart';
 
-/// Correspond à RegisterRequest côté auth-service.
-/// Le rôle est fixé par l'endpoint appelé (/auth/register/patient ou
-/// /auth/register/psy), donc pas besoin de l'envoyer ici.
+// correspond a RegisterRequest cote auth-service. le role est fixe par
+// l'endpoint appele (/auth/register/patient ou /psy), pas besoin de l'envoyer ici
 class RegisterAccountRequest {
   final String email;
   final String password;
@@ -27,15 +26,9 @@ class RegisterAccountRequest {
       };
 }
 
-/// Correspond à AuthResponse côté auth-service (réponse de /auth/login).
-///
-/// [userProfileId] et [profileId] ne viennent jamais de /auth/login (qui ne
-/// connaît que l'authUserId) : ils sont renseignés a posteriori par
-/// AuthProvider, soit juste après la création du profil (onboarding), soit
-/// via une résolution par authUserId (cf. ApiConstants.patientProfileByAuthUser)
-/// pour un utilisateur déjà onboardé qui se reconnecte. [profileId] est
-/// l'id du PatientProfile ou PsychologistProfile (selon [role]) — c'est le
-/// "patientId"/"psychologistId" attendu par appointment-service.
+// correspond a AuthResponse (reponse /auth/login). userProfileId et profileId
+// viennent jamais du login, remplis apres coup par AuthProvider (onboarding
+// ou resolution par authUserId). profileId = patientId/psychologistId selon le role
 class AuthSession {
   final String token;
   final UserRole role;

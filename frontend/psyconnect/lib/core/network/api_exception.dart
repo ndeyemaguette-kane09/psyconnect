@@ -1,22 +1,24 @@
-/// Exception unifiée pour les erreurs d'appel API.
-///
-/// Le backend Spring Boot renvoie deux formes d'erreur (cf.
-/// GlobalExceptionHandler des services) :
-/// - 400 avec une map { champ: message } pour les erreurs de validation
-///   (@Valid sur les DTO de RegisterRequest, etc.)
-/// - 400 avec { "message": "..." } pour les RuntimeException métier
-///
-/// [fieldErrors] est rempli dans le premier cas (utile pour afficher les
-/// erreurs sous chaque champ de formulaire), [message] dans les deux cas.
+// erreur unique pour tous les appels API.
+//
+// le backend renvoie deux types d'erreur :
+// - 400 avec { champ: message } pour les erreurs de formulaire
+// - 400 avec { "message": "..." } pour les erreurs metier
+//
+// fieldErrors est rempli dans le premier cas (pour afficher l'erreur sous
+// chaque champ du formulaire), message dans les deux cas.
 class ApiException implements Exception {
   final int? statusCode;
   final String message;
   final Map<String, String> fieldErrors;
+  // Code fonctionnel envoyé par le backend (ex : "ACCOUNT_BANNED").
+  // Permet d'identifier précisément le type d'erreur sans analyser le texte.
+  final String? errorCode;
 
   ApiException({
     this.statusCode,
     required this.message,
     this.fieldErrors = const {},
+    this.errorCode,
   });
 
   factory ApiException.network() => ApiException(

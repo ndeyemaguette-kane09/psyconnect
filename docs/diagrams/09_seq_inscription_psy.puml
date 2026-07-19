@@ -1,0 +1,94 @@
+@startuml 09_seq_inscription_psy
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBackgroundColor #EEF7FF
+skinparam sequenceParticipantBorderColor #2E6DA4
+skinparam sequenceLifeLineBorderColor #2E6DA4
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+title Séquence — Inscription psychologue & validation admin
+
+actor "Psychologue" as Psy
+actor "Administrateur" as Admin
+participant "Application Flutter" as App
+participant "API Gateway\n:8080" as GW
+participant "auth-service\n:8081" as Auth
+participant "user-service\n:8082" as UserSvc
+participant "notification-service\n:8086" as Notif
+database "psyconnect_auth" as DB_Auth
+database "psyconnect_user" as DB_User
+database "psyconnect_notification" as DB_Notif
+
+== Inscription du psychologue ==
+
+Psy -> App : Saisit ses informations\n(e-mail, mot de passe, spécialité,\nlicence, prix consultation...)
+App -> GW : POST /auth/register/psy
+GW -> Auth : route /auth/**
+Auth -> DB_Auth : INSERT User{role=PSYCHOLOGIST}
+Auth --> App : 200 OK
+
+App -> GW : POST /users {UserProfile}
+GW -> UserSvc : crée UserProfile
+UserSvc --> App : 201 Created
+
+App -> GW : POST /psychologists\n{bio, specialty, yearsOfExperience,\nconsultationPrice, licenseNumber...}
+GW -> UserSvc : route /psychologists/**
+UserSvc -> DB_User : INSERT PsychologistProfile\n{profileVerified=false, rejected=false}
+UserSvc --> App : 201 Created
+
+App -> GW : POST /psychologists/{id}/license-document\n[multipart: fichier PDF/PNG, max 20 MB]
+GW -> UserSvc : upload justificatif
+UserSvc -> UserSvc : Stocke le fichier sur disque,\nmet à jour licenseDocumentPath
+UserSvc --> App : 200 OK
+
+== Tentative de connexion (bloquée) ==
+
+Psy -> App : Tente de se connecter
+App -> GW : POST /auth/login
+GW -> Auth : authentifie
+Auth -> UserSvc : GET /psychologists/by-auth-user/{id}\n(vérification du statut d'approbation)
+UserSvc --> Auth : {profileVerified=false, rejected=false}
+Auth --> App : 403 Forbidden\n"Votre compte est en attente de validation"
+App -> Psy : ⚠ Compte en attente
+
+== Validation par l'administrateur ==
+
+Admin -> App : Se connecte (rôle ADMIN)
+App -> GW : GET /admin/psychologists
+GW -> UserSvc : liste des psys
+UserSvc --> App : [{id, profileVerified=false, ...}]
+
+Admin -> App : Clique sur le psychologue,\nouvre la fiche détail
+App -> GW : GET /psychologists/{id}/license-document
+GW -> UserSvc : télécharge le justificatif
+UserSvc --> App : [fichier PDF/PNG]
+App -> Admin : Affiche le justificatif
+
+Admin -> App : Valide (ou refuse)
+App -> GW : PATCH /admin/psychologists/{id}/verify?verified=true
+GW -> UserSvc : route /admin/**
+UserSvc -> DB_User : UPDATE profileVerified=true
+UserSvc -> Notif : POST /notifications\n{userId=psy.authUserId,\ntitle="Compte approuvé",\ntype=SYSTEM}
+Notif -> DB_Notif : INSERT Notification
+UserSvc --> App : 200 OK
+
+== Connexion autorisée ==
+
+Psy -> App : Se reconnecte
+App -> GW : POST /auth/login
+GW -> Auth : authentifie
+Auth -> UserSvc : GET /psychologists/by-auth-user/{id}
+UserSvc --> Auth : {profileVerified=true}
+Auth -> Auth : Génère JWT{role=PSYCHOLOGIST}
+Auth --> App : 200 OK {token}
+App -> Psy : ✓ Connecté — accueil psychologue
+
+note right of UserSvc
+  Si l'admin refuse :
+  PATCH /admin/psychologists/{id}/reject?rejected=true
+  → rejected=true, notif "Compte refusé"
+  → Le psy peut renvoyer un justificatif
+    depuis son profil et demander
+    une nouvelle révision.
+end note
+
+@enduml

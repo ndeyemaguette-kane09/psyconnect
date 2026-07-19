@@ -1,0 +1,71 @@
+@startuml 12_seq_questionnaire
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBackgroundColor #EEF7FF
+skinparam sequenceParticipantBorderColor #2E6DA4
+skinparam sequenceLifeLineBorderColor #2E6DA4
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+title Séquence — Questionnaire PHQ-9 / GAD-7
+
+actor "Psychologue" as Psy
+actor "Patient" as P
+participant "Application Flutter" as App
+participant "API Gateway\n:8080" as GW
+participant "appointment-service\n:8083" as ApptSvc
+participant "notification-service\n:8086" as Notif
+database "psyconnect_appointment" as DB_Appt
+database "psyconnect_notification" as DB_Notif
+
+== Envoi du questionnaire par le psychologue ==
+
+Psy -> App : Ouvre la fiche du patient,\nclique "Envoyer un questionnaire"
+Psy -> App : Choisit le type (PHQ-9 ou GAD-7)\net optionnellement un RDV associé
+App -> GW : POST /questionnaires\n{type: PHQ9|GAD7, patientId, appointmentId?}
+GW -> ApptSvc : route /questionnaires/**
+ApptSvc -> DB_Appt : INSERT Questionnaire\n{status=SENT, sentAt=now()}
+ApptSvc -> Notif : POST /notifications\n{userId=patient,\ntitle="Nouveau questionnaire en attente",\ntype=QUESTIONNAIRE}
+Notif -> DB_Notif : INSERT Notification
+ApptSvc --> App : 201 Created {Questionnaire}
+App -> Psy : ✓ Questionnaire envoyé
+
+== Réponse du patient ==
+
+P -> App : Badge rouge sur l'onglet Profil\n→ Mes questionnaires
+App -> GW : GET /questionnaires/patient/me/pending
+GW -> ApptSvc : questionnaires en attente
+ApptSvc --> App : [{Questionnaire{status=SENT, type=PHQ9}}]
+
+P -> App : Répond aux 9 questions\n(échelle 0–3 pour PHQ-9)
+App -> GW : POST /questionnaires/{id}/answers\n{answers: [0,1,2,1,0,3,2,1,0]}
+GW -> ApptSvc : soumission des réponses
+ApptSvc -> ApptSvc : Calcule le score\n(somme des réponses)\nEx. PHQ-9 score = 10 → Dépression modérée
+ApptSvc -> DB_Appt : UPDATE Questionnaire\n{status=COMPLETED, answers="0,1,2,...",\nscore=10, completedAt=now()}
+ApptSvc -> Notif : POST /notifications\n{userId=psy,\ntitle="Résultat PHQ-9 disponible (score: 10)",\ntype=QUESTIONNAIRE_RESULT}
+Notif -> DB_Notif : INSERT Notification
+ApptSvc --> App : 200 OK {score: 10}
+App -> P : ✓ Questionnaire soumis\nScore affiché avec interprétation
+
+== Consultation des résultats par le psychologue ==
+
+Psy -> App : Ouvre la fiche du patient
+App -> GW : GET /questionnaires/patient/{patientId}
+GW -> ApptSvc : historique des questionnaires
+ApptSvc --> App : [{type=PHQ9, score=10, completedAt,...}]
+App -> Psy : Affiche l'historique avec\nl'évolution des scores dans le temps
+
+note right of ApptSvc
+  Interprétations des scores PHQ-9 :
+  0–4  : Aucune dépression
+  5–9  : Légère
+  10–14: Modérée
+  15–19: Modérément sévère
+  20–27: Sévère
+
+  Interprétations des scores GAD-7 :
+  0–4  : Anxiété minimale
+  5–9  : Légère
+  10–14: Modérée
+  15–21: Sévère
+end note
+
+@enduml

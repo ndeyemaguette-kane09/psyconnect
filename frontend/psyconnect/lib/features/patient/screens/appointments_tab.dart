@@ -13,12 +13,8 @@ import '../models/psychologist_models.dart';
 import '../services/appointment_service.dart';
 import '../services/psychologist_service.dart';
 
-/// Contenu de l'onglet "RDV" du parcours patient (cf. maquette v2) — liste
-/// des rendez-vous du patient, triés du plus proche au plus ancien.
-///
-/// `GET /appointments/patient/{id}` ne renvoie pas le nom du psychologue
-/// (seulement `psychologistId`) : on récupère `GET /psychologists` à côté
-/// pour résoudre les noms, comme déjà fait dans `PatientHomeScreen`.
+// Onglet rendez-vous du patient. L'API ne renvoie pas le nom du psychologue
+// directement : on charge la liste complète des psychologues en parallèle.
 class AppointmentsTab extends StatefulWidget {
   const AppointmentsTab({super.key});
 
@@ -36,13 +32,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   List<Appointment> _appointments = [];
   Map<int, PsychologistProfile> _psychologistsById = {};
 
-  // Filtre par statut façon "balises" (même pattern que les filtres
-  // anxiété/dépression de la recherche de psychologues). `null` = "Tous" :
-  // affichage groupé par statut.
+  // filtre par statut, null = "Tous" (groupé par statut)
   AppointmentStatus? _statusFilter;
 
-  // RDV CONFIRMED ayant déjà un paiement COMPLETED : le bouton "Payer" ne
-  // doit plus s'afficher pour eux.
+  // RDV déjà payés : le bouton "Payer" est masqué pour ces entrées.
   Set<int> _paidAppointmentIds = {};
 
   @override
@@ -57,7 +50,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       _error = null;
     });
 
-    // Lu avant tout `await` : éviter d'utiliser `context` après un gap async.
+    // Lu avant l'await pour éviter d'utiliser context après une opération asynchrone.
     final patientId = context.read<AuthProvider>().session?.profileId;
     if (patientId == null) {
       setState(() {
@@ -74,13 +67,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       ]);
       final appointments = results[0] as List<Appointment>;
       final psychologists = results[1] as List<PsychologistProfile>;
-      // Tri par date d'ajout (createdAt), pas par date du créneau : un RDV
-      // tout juste demandé doit apparaître en haut.
+      // Tri par date de création, le plus récent en tête de liste.
       appointments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      // Seuls les RDV CONFIRMED peuvent afficher "Payer" : on ne vérifie
-      // l'existence d'un paiement déjà complété que pour ceux-là, pour
-      // éviter un appel réseau par RDV sans intérêt (PENDING/CANCELLED/...).
+      // Vérification du paiement uniquement pour les RDV confirmés.
       final confirmedIds = appointments
           .where((a) => a.status == AppointmentStatus.confirmed)
           .map((a) => a.id)
@@ -103,11 +93,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     }
   }
 
-  /// Renvoie l'id des RDV (parmi [confirmedAppointmentIds]) qui ont déjà un
-  /// paiement COMPLETED — donc qui ne doivent plus afficher de bouton
-  /// "Payer". Best-effort : un échec ponctuel sur un RDV donné ne bloque pas
-  /// l'affichage des autres (le pire cas reste un bouton "Payer" visible à
-  /// tort, immédiatement rejeté par le backend, cf. PaymentServiceImpl).
+  // Renvoie les identifiants des RDV déjà payés, pour masquer le bouton "Payer".
+  // Les vérifications sont faites en parallèle ; un échec sur l'un n'empêche pas les autres.
   Future<Set<int>> _loadPaidAppointmentIds(List<int> confirmedAppointmentIds) async {
     if (confirmedAppointmentIds.isEmpty) return {};
     final paid = <int>{};
@@ -117,16 +104,11 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         if (payments.any((p) => p.status == PaymentStatus.completed)) {
           paid.add(id);
         }
-      } catch (_) {
-        // Best-effort, cf. doc ci-dessus.
-      }
+      } catch (_) {}
     }));
     return paid;
   }
 
-  /// Ouvre l'écran de paiement (simulé) pour un RDV encore en attente.
-  /// Rafraîchit la liste au retour : un paiement réussi confirme le RDV
-  /// côté backend (cf. PaymentScreen/PaymentServiceImpl).
   Future<void> _pay(Appointment appointment, PsychologistProfile? psychologist) async {
     final price = psychologist?.consultationPrice;
     if (price == null || price <= 0) return;
@@ -145,9 +127,49 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     if (mounted) _load();
   }
 
-  /// Ouvre l'écran d'appel simulé (CONFIRMED + type vidéo/audio uniquement —
-  /// cf. SessionServiceImpl côté backend qui refuse de démarrer une session
-  /// sur un RDV non confirmé).
+  // Ouvre la feuille d'avis. Pré-remplie si le patient en a déjà soumis un.
+  Future<void> _leaveReview(
+      Appointment appointment, PsychologistProfile? psychologist) async {
+    PsychologistReview? existing;
+    try {
+      existing =
+          await _psychologistService.getMyReview(appointment.psychologistId);
+    } catch (_) {
+      // Échec silencieux : le formulaire part de zéro.
+    }
+    if (!mounted) return;
+
+    final result = await showModalBottomSheet<_ReviewInput>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReviewSheet(
+        psychologistName: psychologist?.fullName ?? 'ce psychologue',
+        initialRating: existing?.rating,
+        initialComment: existing?.comment,
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    try {
+      await _psychologistService.submitReview(
+        appointment.psychologistId,
+        rating: result.rating,
+        comment: result.comment,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Merci, votre avis a été enregistré.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message =
+          e is ApiException ? e.message : "L'envoi de l'avis a échoué.";
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   void _joinCall(Appointment appointment, PsychologistProfile? psychologist) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -160,9 +182,6 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     );
   }
 
-  /// Ouvre la feuille de report (nouveau créneau) pour un RDV encore
-  /// modifiable (PENDING ou CONFIRMED). Pas dans la maquette v2 (qui ne
-  /// montre qu'un bouton "Reporter" sans détailler l'écran) — design libre.
   Future<void> _reschedule(Appointment appointment) async {
     final newRange = await showModalBottomSheet<_NewSlot>(
       context: context,
@@ -209,9 +228,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     }
   }
 
-  /// Annule un RDV après confirmation, en affichant au préalable la
-  /// politique de remboursement applicable (cf. maquette
-  /// confirmer_RDV.png : "Remboursement si annulation 48h avant").
+  // Annule un RDV et affiche la règle de remboursement (seuil 48 h).
   Future<void> _cancel(Appointment appointment) async {
     final hoursUntilStart =
         appointment.startTime.difference(DateTime.now()).inHours;
@@ -258,8 +275,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     }
   }
 
-  // Supprime définitivement un RDV annulé/refusé. Réservé par le backend
-  // à ces deux statuts — voir `_AppointmentCard`.
+  // Supprime définitivement un RDV annulé ou refusé.
   Future<void> _delete(Appointment appointment) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -296,8 +312,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     }
   }
 
-  // Ordre d'affichage des groupes en vue "Tous" : les RDV qui demandent
-  // encore une action (en attente, confirmé) en haut, l'historique en dessous.
+  // ordre des groupes en vue "Tous", en attente d'abord
   static const _groupOrder = [
     AppointmentStatus.pending,
     AppointmentStatus.confirmed,
@@ -306,46 +321,36 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     AppointmentStatus.rejected,
   ];
 
-  /// Construit une carte pour un RDV donné — extrait du builder de liste
-  /// pour être réutilisé par les groupes par statut (vue "Tous") et par la
-  /// liste filtrée (vue par balise).
   Widget _buildCard(Appointment appointment) {
     final psychologist = _psychologistsById[appointment.psychologistId];
-    // Reporter/Annuler n'ont de sens que pour un RDV encore modifiable et
-    // pas déjà passé.
+    // Report/annulation disponibles uniquement si le RDV n'est pas encore passé.
     final modifiable = (appointment.status == AppointmentStatus.pending ||
             appointment.status == AppointmentStatus.confirmed) &&
         appointment.startTime.isAfter(DateTime.now());
-    // Rejoindre l'appel : RDV confirmé + consultation vidéo/audio uniquement
-    // (chat passe par la messagerie, cabinet n'a pas de session distante).
-    // Même fenêtre que côté backend (SessionServiceImpl.startSession) : 10
-    // min avant le créneau jusqu'à sa fin.
+    // Fenêtre d'appel : de 10 minutes avant le début jusqu'à 30 minutes après la fin
+    // (même grace que côté psy, pour éviter l'asymétrie où le psy peut rejoindre
+    // mais le patient ne le peut plus si l'heure de fin est légèrement dépassée).
     final now = DateTime.now();
     final callWindowOpen =
         now.isAfter(appointment.startTime.subtract(const Duration(minutes: 10))) &&
-            now.isBefore(appointment.endTime);
+            now.isBefore(appointment.endTime.add(const Duration(minutes: 30)));
     final isCallType = appointment.consultationType == ConsultationType.video ||
         appointment.consultationType == ConsultationType.audio;
     final canJoinCall = appointment.status == AppointmentStatus.confirmed &&
         isCallType &&
         callWindowOpen;
-    // RDV confirmé, du bon type, mais pas encore l'heure : message indicatif
-    // plutôt qu'un bouton qui disparaît sans explication.
+    // Pas encore l'heure : on affiche un message plutôt que de simplement masquer le bouton.
     final callNotYetOpen = appointment.status == AppointmentStatus.confirmed &&
         isCallType &&
         !callWindowOpen &&
         now.isBefore(appointment.startTime);
-    // Suppression réservée aux RDV sans suite (annulé/refusé), cf.
-    // AppointmentServiceImpl.deleteAppointment.
+    // Suppression disponible uniquement pour les RDV annulés ou refusés.
     final deletable = appointment.status == AppointmentStatus.cancelled ||
         appointment.status == AppointmentStatus.rejected;
     return _AppointmentCard(
       appointment: appointment,
       psychologist: psychologist,
-      // Le paiement n'est proposé qu'une fois le rendez-vous CONFIRMED par
-      // le psychologue (cf. PaymentServiceImpl côté backend, qui refuse
-      // tout paiement sur un RDV encore PENDING), et plus du tout si un
-      // paiement COMPLETED existe déjà pour ce RDV.
+      // Paiement disponible uniquement si le RDV est confirmé et pas encore payé.
       onPay: appointment.status == AppointmentStatus.confirmed &&
               (psychologist?.consultationPrice ?? 0) > 0 &&
               !_paidAppointmentIds.contains(appointment.id)
@@ -357,12 +362,14 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       onReschedule: modifiable ? () => _reschedule(appointment) : null,
       onCancel: modifiable ? () => _cancel(appointment) : null,
       onDelete: deletable ? () => _delete(appointment) : null,
+      // Avis disponible uniquement pour les séances réellement terminées.
+      onReview: appointment.status == AppointmentStatus.completed
+          ? () => _leaveReview(appointment, psychologist)
+          : null,
     );
   }
 
-  // Slivers du contenu principal (hors titre/filtres) : soit une liste
-  // plate filtrée par balise, soit des sections groupées par statut quand
-  // "Tous" est sélectionné.
+  // liste filtrée par statut, ou groupée si "Tous"
   List<Widget> _buildContentSlivers() {
     if (_statusFilter != null) {
       final filtered =
@@ -532,18 +539,20 @@ class _AppointmentCard extends StatelessWidget {
     this.onReschedule,
     this.onCancel,
     this.onDelete,
+    this.onReview,
   });
 
   final Appointment appointment;
   final PsychologistProfile? psychologist;
   final VoidCallback? onPay;
   final VoidCallback? onJoinCall;
-  // RDV confirmé et de type appel, mais pas encore dans la fenêtre
-  // autorisée (10 min avant le créneau jusqu'à sa fin).
+  // appel possible mais pas encore l'heure
   final bool callNotYetOpen;
   final VoidCallback? onReschedule;
   final VoidCallback? onCancel;
   final VoidCallback? onDelete;
+  // laisser/modifier un avis, seulement si RDV terminé
+  final VoidCallback? onReview;
 
   Color get _statusColor {
     switch (appointment.status) {
@@ -654,6 +663,14 @@ class _AppointmentCard extends StatelessWidget {
               ],
             ),
           ],
+          if (onReview != null) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: onReview,
+              icon: const Icon(Icons.star_outline, size: 18),
+              label: const Text('Laisser un avis'),
+            ),
+          ],
           if (onDelete != null) ...[
             const SizedBox(height: 8),
             Align(
@@ -722,7 +739,7 @@ class _AppointmentCard extends StatelessWidget {
   }
 }
 
-/// Nouveau créneau choisi dans [_RescheduleSheet].
+// Nouveau créneau sélectionné lors d'un report de rendez-vous.
 class _NewSlot {
   const _NewSlot({required this.start, required this.end});
 
@@ -730,9 +747,7 @@ class _NewSlot {
   final DateTime end;
 }
 
-/// Feuille de report d'un RDV : reprend le sélecteur date/heure de
-/// [PsychologistProfileScreen] (créneaux fixes, pas d'agenda serveur) plutôt
-/// que d'en inventer un nouveau. Pas dans la maquette v2 — design libre.
+// Feuille de report : sélecteur de date et d'heure pour choisir un nouveau créneau.
 class _RescheduleSheet extends StatefulWidget {
   const _RescheduleSheet({required this.appointment});
 
@@ -882,5 +897,127 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
   static String _weekdayShort(int weekday) {
     const labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     return labels[weekday - 1];
+  }
+}
+
+// Note et commentaire saisis via la feuille d'avis.
+class _ReviewInput {
+  const _ReviewInput({required this.rating, this.comment});
+
+  final int rating;
+  final String? comment;
+}
+
+// Feuille pour soumettre ou modifier un avis anonyme. Pré-remplie si le patient
+// a déjà soumis un avis pour ce psychologue.
+class _ReviewSheet extends StatefulWidget {
+  const _ReviewSheet({
+    required this.psychologistName,
+    this.initialRating,
+    this.initialComment,
+  });
+
+  final String psychologistName;
+  final int? initialRating;
+  final String? initialComment;
+
+  @override
+  State<_ReviewSheet> createState() => _ReviewSheetState();
+}
+
+class _ReviewSheetState extends State<_ReviewSheet> {
+  late int _rating;
+  late final TextEditingController _commentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _rating = widget.initialRating ?? 5;
+    _commentController =
+        TextEditingController(text: widget.initialComment ?? '');
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final comment = _commentController.text.trim();
+    Navigator.of(context).pop(
+      _ReviewInput(rating: _rating, comment: comment.isEmpty ? null : comment),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.tealMid,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text('Votre avis sur ${widget.psychologistName}',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            const Text(
+              'Votre avis reste anonyme, y compris pour le psychologue.',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (i) {
+                  final filled = i < _rating;
+                  return IconButton(
+                    onPressed: () => setState(() => _rating = i + 1),
+                    icon: Icon(
+                      filled ? Icons.star : Icons.star_border,
+                      color: AppColors.gold,
+                      size: 32,
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _commentController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Un commentaire (facultatif)',
+                filled: true,
+                fillColor: AppColors.background,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _confirm,
+              child: const Text("Envoyer l'avis"),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

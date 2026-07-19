@@ -2,14 +2,9 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../models/notification_models.dart';
 
-/// Appelle les endpoints de notification-service (via l'API Gateway) :
-/// GET /notifications/user/{userId}, PUT /notifications/{id}/read.
-///
-/// Côté backend, `userId` est soit un PatientProfile.id (rôle PATIENT) soit
-/// un PsychologistProfile.id (rôle PSYCHOLOGIST) — `OwnershipResolver`
-/// résout la propriété selon le rôle du jeton courant. Utilisé pour les
-/// notifications patient (RDV) et psychologue (décision admin de
-/// validation/refus).
+// appelle notification-service pour lire/marquer lues les notifs
+// userId = patient ou psy selon le role du token
+// utilise pour les notifs RDV (patient) et decision admin (psy)
 class NotificationService {
   NotificationService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 

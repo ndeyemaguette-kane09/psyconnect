@@ -1,0 +1,69 @@
+@startuml 14_seq_signalement
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipantBackgroundColor #EEF7FF
+skinparam sequenceParticipantBorderColor #2E6DA4
+skinparam sequenceLifeLineBorderColor #2E6DA4
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+title Séquence — Signalement d'un psychologue
+
+actor "Patient" as P
+actor "Administrateur" as Admin
+participant "Application Flutter" as App
+participant "API Gateway\n:8080" as GW
+participant "user-service\n:8082" as UserSvc
+database "psyconnect_user" as DB_User
+
+== Dépôt du signalement par le patient ==
+
+P -> App : Ouvre le profil d'un psychologue,\nclique "Signaler ce psychologue"
+P -> App : Sélectionne un motif\n(Comportement inapproprié, Prix abusif,\nFausses informations, etc.)
+P -> App : Rédige une description,\noption : ajoute une pièce jointe (preuve)
+
+App -> GW : POST /patients/{patientId}/reports?psychologistId={id}\n[multipart : {reason, description, file?}]
+GW -> UserSvc : route /patients/**
+UserSvc -> DB_User : INSERT PsychologistReport\n{status=PENDING, evidenceFilename?}
+UserSvc -> UserSvc : Stocke la pièce jointe sur disque\n(si fournie)
+UserSvc --> App : 201 Created {report.id}
+App -> P : ✓ Signalement envoyé
+
+== Traitement par l'administrateur ==
+
+Admin -> App : Ouvre l'onglet Modération\n(dans Paramètres)
+App -> GW : GET /admin/reports?status=PENDING
+GW -> UserSvc : liste des signalements
+UserSvc --> App : [{id, patientId, psychologistId,\nreason, description, status=PENDING}]
+
+Admin -> App : Clique sur un signalement pour le détail
+
+alt Preuve jointe
+  App -> GW : GET /admin/reports/{id}/evidence
+  GW -> UserSvc : télécharge la pièce jointe
+  UserSvc --> App : [fichier]
+  App -> Admin : Affiche la preuve
+end
+
+alt Admin traite le signalement
+  Admin -> App : Saisit une note admin,\nchoisit le statut (Traité / Rejeté)
+  App -> GW : PATCH /admin/reports/{id}\n{status: "REVIEWED"|"DISMISSED", adminNote}
+  GW -> UserSvc : mise à jour
+  UserSvc -> DB_User : UPDATE PsychologistReport\n{status, adminNote}
+  UserSvc --> App : 200 OK
+  App -> Admin : ✓ Signalement traité
+end
+
+note right of UserSvc
+  Statuts possibles :
+  PENDING   → nouveau signalement
+  REVIEWED  → traité par l'admin
+              (action prise : avertissement,
+              suspension du psy, etc.)
+  DISMISSED → rejeté (non fondé)
+
+  La plateforme ne déclenche pas
+  de sanction automatique.
+  L'admin décide manuellement
+  de la suite à donner.
+end note
+
+@enduml

@@ -1,0 +1,69 @@
+@startuml 01d_use_case_admin
+skinparam actorStyle awesome
+skinparam usecaseBackgroundColor #EEF7FF
+skinparam usecaseBorderColor #2E6DA4
+skinparam arrowColor #2E6DA4
+skinparam actor {
+  BackgroundColor #D6EAF8
+  BorderColor #2874A6
+}
+title Cas d'utilisation — Administrateur
+
+left to right direction
+
+actor "Administrateur" as Admin
+
+rectangle "PsyConnect — Espace Administrateur" {
+
+  package "Gestion des utilisateurs" {
+    usecase "Lister tous les comptes" as UC_ListUsers
+    usecase "Activer / désactiver un compte" as UC_ToggleUser
+    usecase "Réinitialiser le mot de passe d'un compte" as UC_ResetPwd
+    usecase "Supprimer un compte" as UC_DeleteUser
+  }
+
+  package "Validation des psychologues" {
+    usecase "Consulter les demandes en attente" as UC_PendingPsy
+    usecase "Télécharger le justificatif d'exercice" as UC_License
+    usecase "Approuver un psychologue" as UC_Approve
+    usecase "Refuser un psychologue" as UC_Reject
+  }
+
+  package "Tableau de bord" {
+    usecase "Consulter les statistiques des comptes" as UC_StatsAccounts
+    usecase "Consulter les statistiques des RDV" as UC_StatsAppt
+    usecase "Consulter les statistiques financières" as UC_StatsPayments
+  }
+
+  package "Modération" {
+    usecase "Consulter les signalements" as UC_Reports
+    usecase "Télécharger une preuve de signalement" as UC_Evidence
+    usecase "Traiter / rejeter un signalement" as UC_HandleReport
+  }
+
+  package "Communication & Configuration" {
+    usecase "Envoyer une annonce groupée" as UC_Broadcast
+    usecase "Consulter l'historique des annonces" as UC_BroadcastHistory
+    usecase "Régler le taux de commission" as UC_Commission
+  }
+}
+
+Admin --> UC_ListUsers
+Admin --> UC_ToggleUser
+Admin --> UC_ResetPwd
+Admin --> UC_DeleteUser
+Admin --> UC_PendingPsy
+Admin --> UC_License
+Admin --> UC_Approve
+Admin --> UC_Reject
+Admin --> UC_StatsAccounts
+Admin --> UC_StatsAppt
+Admin --> UC_StatsPayments
+Admin --> UC_Reports
+Admin --> UC_Evidence
+Admin --> UC_HandleReport
+Admin --> UC_Broadcast
+Admin --> UC_BroadcastHistory
+Admin --> UC_Commission
+
+@enduml

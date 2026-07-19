@@ -5,12 +5,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * Accès, depuis la couche service, à l'en-tête Authorization brut de la
- * requête HTTP en cours — nécessaire pour le relayer vers
- * notification-service (cf. {@link com.example.userservice.client.NotificationClient}),
- * sur le même modèle que appointment-service.security.SecurityUtils.
- */
+// Récupère le header Authorization depuis la couche service
+// pour le relayer vers notification-service
 public final class SecurityUtils {
 
     private SecurityUtils() {

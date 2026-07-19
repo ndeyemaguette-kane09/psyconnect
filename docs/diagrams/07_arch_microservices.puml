@@ -1,0 +1,95 @@
+@startuml 07_arch_microservices
+skinparam componentStyle rectangle
+skinparam componentBackgroundColor #EEF7FF
+skinparam componentBorderColor #2E6DA4
+skinparam arrowColor #2874A6
+skinparam arrowFontSize 11
+skinparam databaseBackgroundColor #FFF8E1
+skinparam databaseBorderColor #D4A017
+skinparam packageBackgroundColor #F0F8FF
+skinparam packageBorderColor #AED6F1
+skinparam nodeBorderColor #AED6F1
+skinparam nodeBackgroundColor #F0F8FF
+title Architecture microservices — PsyConnect
+
+actor "Patient" as P
+actor "Psychologue" as Psy
+actor "Administrateur" as Admin
+
+node "Serveur PsyConnect" {
+
+  component "API Gateway\n(Spring Cloud Gateway)\n:8080" as GW #D6EAF8
+
+  package "Microservices" {
+    together {
+      component "auth-service\n:8081" as Auth
+      component "user-service\n:8082" as UserSvc
+    }
+    together {
+      component "appointment-service\n:8083" as ApptSvc
+      component "payment-service\n:8085" as PaySvc
+    }
+    together {
+      component "notification-service\n:8086" as NotifSvc
+      component "ai-companion-service\n:8087" as AI
+    }
+  }
+
+  package "Bases de données PostgreSQL" {
+    together {
+      database "psyconnect_auth" as DB_Auth
+      database "psyconnect_user" as DB_User
+    }
+    together {
+      database "psyconnect_appointment" as DB_Appt
+      database "psyconnect_payment" as DB_Pay
+    }
+    database "psyconnect_notification" as DB_Notif
+  }
+
+  package "Services auxiliaires" {
+    component "ml-service\n(recommandations TF-IDF)\n:8000" as ML #E8DAEF
+    component "Ollama\n(qwen2.5:3b)" as Ollama #FDEBD0
+    component "Eureka :8761\n+ Zipkin :9411" as Infra #D5F5E3
+  }
+}
+
+' Flux entrants
+P --> GW
+Psy --> GW
+Admin --> GW
+
+' Gateway → services
+GW --> Auth      : /auth/**
+GW --> UserSvc   : /users/** /patients/**\n/psychologists/**
+GW --> ApptSvc   : /appointments/**\n/messages/** /questionnaires/**
+GW --> PaySvc    : /payments/**
+GW --> NotifSvc  : /notifications/**
+GW --> AI        : /companion/**
+GW --> ML        : /recommendations/**
+
+' Bases de données
+Auth    --> DB_Auth
+UserSvc --> DB_User
+ApptSvc --> DB_Appt
+PaySvc  --> DB_Pay
+NotifSvc --> DB_Notif
+
+' Appels inter-services
+Auth    --> UserSvc   : vérif. statut psy\nà la connexion
+PaySvc  --> ApptSvc  : vérif. statut RDV\navant paiement
+PaySvc  --> UserSvc  : débit / crédit\nwallet patient
+ApptSvc --> PaySvc   : remboursement\nlors d'annulation
+ApptSvc --> NotifSvc : notif. RDV\net rappels
+PaySvc  --> NotifSvc : notif. paiements
+UserSvc --> NotifSvc : notif. validation\npsy et annonces
+AI      --> Ollama   : inférence LLM
+
+note right of Infra
+  Tous les services s'enregistrent
+  sur Eureka (load-balancing).
+  Zipkin collecte les traces
+  distribuées entre services.
+end note
+
+@enduml

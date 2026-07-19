@@ -8,11 +8,9 @@ import '../../auth/providers/auth_provider.dart';
 import '../models/messaging_models.dart';
 import '../services/messaging_service.dart';
 
-/// Écran de discussion d'une conversation (patient ↔ psychologue).
-///
-/// Pas de WebSocket côté backend : le "temps réel" est simulé par un
-/// rafraîchissement périodique (polling) toutes les 6 secondes, suffisant
-/// pour une messagerie de cabinet (pas un chat instantané grand public).
+// ecran de discussion patient <-> psy.
+// pas de websocket cote backend, le "temps reel" c'est juste un polling
+// toutes les 6 secondes — ca suffit pour une messagerie de cabinet
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
@@ -71,8 +69,8 @@ class _ChatScreenState extends State<ChatScreen> {
         _error = null;
       });
 
-      // Marquer comme lu dès l'ouverture, et après chaque nouveau message
-      // reçu pendant que l'écran est ouvert.
+      // marque lu dès l'ouverture, et a chaque nouveau message recu tant
+      // que l'ecran reste ouvert
       if (initial || hadNewMessages) {
         unawaited(_messagingService.markConversationRead(widget.conversationId));
       }

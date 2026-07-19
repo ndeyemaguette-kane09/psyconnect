@@ -51,13 +51,8 @@ public class UserProfileController {
         return ResponseEntity.ok(response);
     }
 
-    // Symétrique de /patients/by-auth-user/{authUserId} et
-    // /psychologists/by-auth-user/{authUserId} : permet de retrouver le
-    // UserProfile.id à partir de l'authUserId du JWT, sans connaître l'id
-    // numérique du UserProfile. Utile notamment pour réparer un compte dont
-    // l'onboarding s'est arrêté avant la création du PatientProfile /
-    // PsychologistProfile (UserProfile déjà créé, mais id inconnu côté
-    // client).
+    // pareil que pour patient/psy mais pour UserProfile.id
+    // utile si l'inscription s'est arretée avant la creation du profil
     @GetMapping("/by-auth-user/{authUserId}")
     public ResponseEntity<UserProfileResponse>
     getProfileByAuthUserId(

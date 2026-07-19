@@ -14,22 +14,11 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.appointmentservice.security.SecurityUtils;
 
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
-/**
- * Point d'entrée unique vers notification-service pour l'envoi de
- * notifications "best effort" (paiement confirmé, rendez-vous créé ou
- * changé de statut, session terminée). Centralise ce qui était dupliqué
- * (RestTemplate + try/catch identiques) dans PaymentServiceImpl,
- * AppointmentServiceImpl et SessionServiceImpl.
- *
- * Une notification non envoyée ne doit JAMAIS faire échouer l'opération
- * métier principale (paiement, rendez-vous, session) qui l'a déclenchée :
- * après épuisement des tentatives de retry ou ouverture du circuit
- * breaker, le fallback se contente de logguer un avertissement plutôt que
- * de relancer une exception vers l'appelant.
- */
+// seul point d'entree vers notification-service
+// une notif ratée doit jamais faire echouer le reste
+// @CircuitBreaker retiré : état OPEN persistant bloquait toutes les notifs définitivement
 @Component
 public class NotificationClient {
 
@@ -47,28 +36,28 @@ public class NotificationClient {
         this.notificationServiceUrl = notificationServiceUrl;
     }
 
-    // fallbackMethod est attaché à @Retry (l'aspect le plus EXTERNE, voir
-    // l'ordre par défaut Retry(CircuitBreaker(...)) de Resilience4j), pas à
-    // @CircuitBreaker : si on l'attachait à @CircuitBreaker, son fallback
-    // (qui ne relance rien volontairement, cf. fallbackSend) ferait
-    // paraître l'appel "réussi" dès la 1ère tentative côté @Retry, qui ne
-    // réessaierait alors jamais. En l'attachant à @Retry, le fallback ne
-    // s'exécute qu'une fois, après épuisement réel des tentatives (ou
-    // échec rapide si le circuit est ouvert).
-    @CircuitBreaker(name = "notificationService")
     @Retry(name = "notificationService", fallbackMethod = "fallbackSend")
-    public void send(Long userId, String title, String message, String type) {
+    public void send(Long userId, String title, String message, String type, String userRole) {
 
         Map<String, Object> notification = new HashMap<>();
         notification.put("userId", userId);
         notification.put("title", title);
         notification.put("message", message);
         notification.put("type", type);
+        notification.put("userRole", userRole);
 
         HttpHeaders headers = new HttpHeaders();
-        String authorization = SecurityUtils.currentAuthorizationHeader();
-        if (authorization != null) {
-            headers.set("Authorization", authorization);
+        // currentAuthorizationHeader() lit RequestContextHolder qui n'est PAS
+        // disponible dans un thread @Scheduled (pas de requête HTTP liée).
+        // On attrape silencieusement : POST /notifications est permitAll côté
+        // notification-service, donc l'absence de token n'est pas bloquante.
+        try {
+            String authorization = SecurityUtils.currentAuthorizationHeader();
+            if (authorization != null) {
+                headers.set("Authorization", authorization);
+            }
+        } catch (IllegalStateException ignored) {
+            // appelé depuis un scheduler — pas de contexte HTTP, pas de token à transmettre
         }
 
         restTemplate.exchange(
@@ -79,7 +68,10 @@ public class NotificationClient {
         );
     }
 
-    private void fallbackSend(Long userId, String title, String message, String type, Throwable t) {
+    // fallback : on lève une RuntimeException pour que l'appelant (scheduler)
+    // puisse l'attraper et éviter de marquer reminderSent=true à tort.
+    // Cela permet aussi de réessayer lors du prochain cycle du scheduler.
+    private void fallbackSend(Long userId, String title, String message, String type, String userRole, Throwable t) {
         LOGGER.warn(
                 "Notification non envoyée à l'utilisateur {} (\"{}\") : notification-service indisponible "
                         + "(retry épuisé ou circuit ouvert)",
@@ -87,5 +79,6 @@ public class NotificationClient {
                 title,
                 t
         );
+        throw new RuntimeException("notification-service indisponible, rappel non envoyé", t);
     }
 }

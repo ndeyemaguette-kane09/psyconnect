@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,16 +8,14 @@ import '../../auth/screens/splash_screen.dart';
 import '../../auth/services/profile_service.dart';
 import '../../journal/screens/journal_screen.dart';
 import '../../payment/screens/wallet_screen.dart';
-import '../services/notification_service.dart';
+import '../services/questionnaire_service.dart';
 import 'edit_profile_screen.dart';
-import 'notifications_screen.dart';
+import 'medical_history_screen.dart';
+import 'questionnaire_history_screen.dart';
 import 'settings_screen.dart';
 
-/// Contenu de l'onglet "Profil" du parcours patient (cf. maquette v2) —
-/// infos civiles + infos patient, édition du profil, accès aux écrans
-/// Paramètres et Notifications (aucun des deux n'existe dans la maquette,
-/// ajoutés à la demande de l'utilisateur — cf. mémoire projet), et bouton de
-/// déconnexion (déplacé ici depuis l'ancien header de [PatientHomeScreen]).
+// Onglet Profil du patient : informations personnelles, édition, navigation
+// vers les paramètres et déconnexion.
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
 
@@ -29,12 +25,12 @@ class ProfileTab extends StatefulWidget {
 
 class _ProfileTabState extends State<ProfileTab> {
   final _profileService = ProfileService();
-  final _notificationService = NotificationService();
+  final _questionnaireService = QuestionnaireService();
 
   bool _loading = true;
   UserProfile? _userProfile;
   PatientProfile? _patientProfile;
-  int _unreadNotifCount = 0;
+  int _pendingQuestionnaireCount = 0;
 
   @override
   void initState() {
@@ -45,7 +41,7 @@ class _ProfileTabState extends State<ProfileTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
 
-    // Lus avant tout `await` : éviter d'utiliser `context` après un gap async.
+    // Lu avant l'await pour éviter d'utiliser context après une opération asynchrone.
     final session = context.read<AuthProvider>().session;
     final userProfileId = session?.userProfileId;
     final patientId = session?.profileId;
@@ -60,46 +56,25 @@ class _ProfileTabState extends State<ProfileTab> {
         patientProfile = await _profileService.getPatientProfileById(patientId);
       }
     } catch (_) {
-      // Profil indisponible (réseau/serveur) : on affiche l'écran avec ce
-      // qu'on a déjà plutôt que de planter.
+      // Profil indisponible : on conserve ce qui a déjà été chargé.
+    }
+
+    // questionnaires en attente — pour le badge sur le bouton profil
+    int pendingCount = 0;
+    try {
+      final pending = await _questionnaireService.getMyPendingQuestionnaires();
+      pendingCount = pending.length;
+    } catch (_) {
+      // Échec silencieux : le badge reste à 0.
     }
 
     if (!mounted) return;
     setState(() {
       _userProfile = userProfile;
       _patientProfile = patientProfile;
+      _pendingQuestionnaireCount = pendingCount;
       _loading = false;
     });
-
-    unawaited(_refreshUnreadNotifCount());
-  }
-
-  // Badge sur la cloche "Notifications", même principe que le badge
-  // "messages non lus" des shells (cf. PatientShell) — appel best-effort
-  // séparé du reste du chargement du profil : une erreur réseau ici ne doit
-  // pas empêcher d'afficher le profil.
-  Future<void> _refreshUnreadNotifCount() async {
-    final patientId = context.read<AuthProvider>().session?.profileId;
-    if (patientId == null) return;
-    try {
-      final notifications =
-          await _notificationService.getNotificationsByUserId(patientId);
-      final unread = notifications.where((n) => !n.isRead).length;
-      if (mounted) setState(() => _unreadNotifCount = unread);
-    } catch (_) {
-      // Échec silencieux : le badge garde sa dernière valeur connue.
-    }
-  }
-
-  Future<void> _openNotifications(int patientId) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NotificationsScreen(userId: patientId),
-      ),
-    );
-    // Les notifications consultées ont pu être marquées lues pendant que
-    // l'écran était ouvert : on rafraîchit le badge au retour.
-    if (mounted) _refreshUnreadNotifCount();
   }
 
   Future<void> _openEditProfile() async {
@@ -144,24 +119,7 @@ class _ProfileTabState extends State<ProfileTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Profil', style: Theme.of(context).textTheme.displayMedium),
-                IconButton(
-                  tooltip: 'Notifications',
-                  icon: Badge(
-                    isLabelVisible: _unreadNotifCount > 0,
-                    label: Text('$_unreadNotifCount'),
-                    child: const Icon(Icons.notifications_outlined,
-                        color: AppColors.teal),
-                  ),
-                  onPressed: session?.profileId == null
-                      ? null
-                      : () => _openNotifications(session!.profileId!),
-                ),
-              ],
-            ),
+            Text('Profil', style: Theme.of(context).textTheme.displayMedium),
             const SizedBox(height: 8),
             if (_loading)
               const Padding(
@@ -273,6 +231,35 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
               const SizedBox(height: 10),
               _NavRow(
+                icon: Icons.assignment_outlined,
+                label: 'Mes questionnaires',
+                badge: _pendingQuestionnaireCount > 0
+                    ? _pendingQuestionnaireCount
+                    : null,
+                onTap: () => Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) => const QuestionnaireHistoryScreen(),
+                      ),
+                    )
+                    .then((_) => _load()),
+              ),
+              const SizedBox(height: 10),
+              _NavRow(
+                icon: Icons.medical_information_outlined,
+                label: 'Antécédents médicaux',
+                onTap: session?.profileId == null
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => MedicalHistoryScreen(
+                              patientId: session!.profileId!,
+                            ),
+                          ),
+                        ),
+              ),
+              const SizedBox(height: 10),
+              _NavRow(
                 icon: Icons.settings_outlined,
                 label: 'Paramètres',
                 onTap: (session?.profileId == null || session?.userProfileId == null)
@@ -307,11 +294,18 @@ class _ProfileTabState extends State<ProfileTab> {
 }
 
 class _NavRow extends StatelessWidget {
-  const _NavRow({required this.icon, required this.label, required this.onTap});
+  const _NavRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badge,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  // nombre affiché dans un badge rouge à droite (null = pas de badge)
+  final int? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -330,6 +324,24 @@ class _NavRow extends StatelessWidget {
             Icon(icon, color: AppColors.teal, size: 20),
             const SizedBox(width: 12),
             Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+            if (badge != null) ...[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.rose,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$badge',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
             const Icon(Icons.chevron_right, color: AppColors.muted),
           ],
         ),

@@ -1,10 +1,6 @@
-"""Client HTTP vers user-service, via l'API Gateway.
-
-Le service ML n'étant pas enregistré dans Eureka, il ne peut pas résoudre
-`USER-SERVICE` côté client comme le font les services Spring Boot
-(@LoadBalanced RestTemplate). Il passe donc systématiquement par la même
-porte d'entrée que le frontend Flutter : l'API Gateway (GATEWAY_URL).
-"""
+# client HTTP vers user-service, via la gateway.
+# le service ML est pas dans Eureka, donc il passe par la gateway
+# comme Flutter, pas par un appel direct entre services
 
 from typing import Any, Dict, List, Optional
 
@@ -14,21 +10,18 @@ from app import config
 
 
 class PatientNotFoundError(Exception):
-    """Le profil patient demandé n'existe pas (404 côté user-service)."""
+    # profil patient pas trouvé (404 cote user-service)
+    pass
 
 
 class UserServiceUnavailableError(Exception):
-    """user-service (via la gateway) n'a pas répondu correctement."""
+    # user-service (via la gateway) a pas répondu correctement
+    pass
 
 
 def _auth_headers(authorization: Optional[str]) -> Dict[str, str]:
-    """`GET /patients/{id}` exige un JWT côté user-service (`.authenticated()`).
-
-    Le service ML n'a pas de compte/jeton propre : il relaie simplement le
-    en-tête Authorization du patient qui a initié l'appel (transmis par le
-    frontend, ou par Postman dans les tests), exactement comme le ferait
-    n'importe quel autre appel passant par la gateway.
-    """
+    # GET /patients/{id} exige un JWT. le service ML a pas son propre jeton,
+    # donc on relaie juste celui du patient qui a appelé
 
     if not authorization:
         return {}
@@ -58,8 +51,7 @@ async def fetch_patient_profile(
 
 
 async def fetch_psychologists(authorization: Optional[str] = None) -> List[Dict[str, Any]]:
-    # GET /psychologists est public côté user-service (permitAll), mais on
-    # relaie aussi le jeton ici par cohérence : ça ne change rien au résultat.
+    # GET /psychologists est public, mais on relaie le jeton quand meme
     url = f"{config.GATEWAY_URL}/psychologists"
 
     try:

@@ -13,12 +13,7 @@ import com.example.appointmentservice.service.MessagingService;
 
 import jakarta.validation.Valid;
 
-/**
- * Messagerie patient ↔ psychologue (CDC 4.x). Routée via le gateway sous
- * /messages/** vers appointment-service (cf. application.properties,
- * messaging-route) — pas de microservice dédié, même politique que pour le
- * paiement et la session vidéo.
- */
+// Messagerie patient-psychologue, même principe que paiement/visio
 @RestController
 @RequestMapping("/messages")
 public class MessagingController {
@@ -34,11 +29,7 @@ public class MessagingController {
         return ResponseEntity.ok(messagingService.listMyConversations());
     }
 
-    /**
-     * "Get or create" : retourne la conversation existante avec ce
-     * participant si elle existe déjà, sinon en crée une nouvelle (toujours
-     * 200, jamais 201, puisqu'on ne garantit pas qu'une création a eu lieu).
-     */
+    // Crée la conversation si elle n'existe pas encore, sinon la retourne
     @PostMapping("/conversations")
     public ResponseEntity<ConversationResponse> startOrGetConversation(
             @Valid @RequestBody StartConversationRequest request

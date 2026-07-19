@@ -82,10 +82,7 @@ public class AdminController {
         );
     }
 
-    // Renommé /stats -> /stats/accounts : user-service et appointment-service
-    // exposent chacun leur propre /admin/stats, ce qui rendrait le routage
-    // gateway ambigu si les 3 chemins restaient identiques (cf. api-gateway
-    // application.properties, routes admin-*).
+    // /stats/accounts pour pas que la gateway se perde entre les services
     @GetMapping("/stats/accounts")
     public ResponseEntity<AdminStatsResponse> getStats() {
         return ResponseEntity.ok(adminService.getStats());

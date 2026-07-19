@@ -1,11 +1,6 @@
-"""Tests du moteur de recommandation (app.recommender).
-
-Ces tests ne dépendent que de numpy (pas de FastAPI/httpx), pour pouvoir
-être exécutés même dans un environnement sans accès réseau pour installer
-les dépendances complètes du service. Lancement :
-
-    python3 -m tests.test_recommender   (depuis backend/ml-service)
-"""
+# tests du moteur de reco (app.recommender).
+# dependent que de numpy, pas besoin de FastAPI/httpx pour les lancer
+# lancement : python3 -m tests.test_recommender (depuis backend/ml-service)
 
 import sys
 from pathlib import Path
@@ -82,9 +77,8 @@ def test_unavailable_psychologists_are_excluded():
 
 
 def test_content_match_outranks_lower_rated_but_relevant_psychologist():
-    # Le patient décrit un motif qui correspond clairement à la spécialité
-    # du psychologue 1 (anxiété/stress), même si le psychologue 2 a une
-    # meilleure note. La similarité de contenu doit faire basculer le score.
+    # le motif du patient correspond au psy 1, pas au 2
+    # meme si le psy 2 a une meilleure note
     patient = {
         "preferredLanguage": "Français",
         "medicalHistory": "Je ressens beaucoup d'anxiété et de stress au travail",
@@ -101,10 +95,10 @@ def test_empty_patient_query_falls_back_to_rating_ranking():
 
     results = rank_psychologists(patient, PSYCHOLOGISTS, top_n=10)
 
-    # Toutes les similarités de contenu sont nulles
+    # toutes les similarités sont a zero
     assert all(r["contentSimilarity"] == 0.0 for r in results)
 
-    # Le classement retombe sur la note : psy 2 (5.0) avant psy 1 (4.0)
+    # le classement retombe sur la note : psy 2 avant psy 1
     assert [r["id"] for r in results] == [2, 1]
 
 
@@ -128,7 +122,7 @@ def test_build_psychologist_content_and_patient_query_are_strings():
 
 
 def _run_all_tests():
-    """Exécute tous les tests du module sans dépendre de pytest."""
+    # lance tous les tests du module sans dependre de pytest
 
     test_functions = [
         obj

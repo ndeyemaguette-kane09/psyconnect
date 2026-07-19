@@ -42,11 +42,7 @@ public class Appointment {
     
     private String meetingLink;
 
-    // Rappel automatique 1h avant le rendez-vous (AppointmentReminderScheduler) :
-    // évite d'envoyer le même rappel plusieurs fois au fil des passages du
-    // job planifié. `columnDefinition` pour que les rendez-vous déjà en base
-    // avant cette colonne ne se retrouvent pas avec une valeur NULL (qui
-    // empêcherait le filtre ...ReminderSentFalse de les sélectionner).
+    // Évite d'envoyer le rappel plusieurs fois
     @Column(columnDefinition = "boolean default false")
     private Boolean reminderSent = Boolean.FALSE;
 

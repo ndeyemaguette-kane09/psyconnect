@@ -6,14 +6,12 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/splash_screen.dart';
 import '../../patient/models/psychologist_models.dart';
 import '../../patient/services/psychologist_service.dart';
+import 'edit_psychologist_profile_screen.dart';
+import 'psy_availability_screen.dart';
 
-/// Écran "Profil" du parcours psychologue — absent de la maquette v2 (qui ne
-/// prévoit que 5 onglets, sans Profil), pour voir ses informations et se
-/// déconnecter depuis un endroit dédié plutôt que via la seule icône logout
-/// cachée sur l'onglet Accueil
-/// (conservée telle quelle par ailleurs, cf. mémoire projet). Accessible via
-/// un bouton dans [PsychologistStatsTab], pas un 6e onglet de navigation,
-/// pour ne pas s'écarter de la maquette sur la barre du bas.
+// ecran "Profil" cote psy, absent de la maquette
+// pour voir ses infos et se deconnecter sans passer par la seule icone logout
+// accessible via un bouton dans Stats, pas un 6e onglet
 class PsychologistProfileScreen extends StatefulWidget {
   const PsychologistProfileScreen({super.key});
 
@@ -67,6 +65,23 @@ class _PsychologistProfileScreenState
     }
   }
 
+  Future<void> _editProfile() async {
+    if (_me == null) return;
+    final session = context.read<AuthProvider>().session;
+    final psychologistId = session?.profileId;
+    if (psychologistId == null) return;
+
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditPsychologistProfileScreen(
+          psychologistId: psychologistId,
+          psychologist: _me!,
+        ),
+      ),
+    );
+    if (saved == true) _load();
+  }
+
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -102,7 +117,17 @@ class _PsychologistProfileScreenState
     final name = _me != null ? _me!.fullName : (session?.pseudo ?? '');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(
+        title: const Text('Profil'),
+        actions: [
+          if (_me != null)
+            IconButton(
+              onPressed: _editProfile,
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Modifier le profil',
+            ),
+        ],
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
@@ -197,6 +222,11 @@ class _PsychologistProfileScreenState
                     value: _me?.city),
                 const SizedBox(height: 10),
                 _InfoRow(
+                    icon: Icons.map_outlined,
+                    label: 'Adresse du cabinet',
+                    value: _me?.address),
+                const SizedBox(height: 10),
+                _InfoRow(
                     icon: Icons.description_outlined,
                     label: 'Bio',
                     value: _me?.bio),
@@ -207,6 +237,34 @@ class _PsychologistProfileScreenState
                   value: _me?.hasLicenseDocument == true
                       ? 'Fourni'
                       : 'Non fourni',
+                ),
+                const SizedBox(height: 20),
+                const _SectionLabel('Planning'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final psychologistId =
+                          context.read<AuthProvider>().session?.profileId;
+                      if (psychologistId == null) return;
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PsyAvailabilityScreen(
+                            psychologistId: psychologistId,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.calendar_today_outlined,
+                        color: AppColors.teal),
+                    label: const Text('Mes disponibilités',
+                        style: TextStyle(color: AppColors.teal)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.teal),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 28),
                 SizedBox(

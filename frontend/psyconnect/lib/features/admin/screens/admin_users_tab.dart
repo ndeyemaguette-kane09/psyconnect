@@ -5,14 +5,9 @@ import '../models/admin_models.dart';
 import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
 
-/// Onglet "Utilisateurs" — pas dans la maquette v2 (seul l'onglet Dashboard
-/// y est dessiné), construit à partir de GET /admin/users (auth-service) :
-/// liste de tous les comptes (patients/psychologues/admins confondus), avec
-/// activation/désactivation via PATCH /admin/users/{id}/enabled.
-///
-/// Ce sont les comptes d'authentification bruts (email/pseudo/rôle), pas les
-/// fiches PatientProfile/PsychologistProfile détaillées — celles-ci sont
-/// gérées depuis l'onglet Validation pour les psychologues.
+// Onglet "Utilisateurs" : liste tous les comptes (email, pseudo, rôle)
+// avec activation/désactivation. Les fiches détaillées des psychologues
+// sont dans l'onglet Validation.
 class AdminUsersTab extends StatefulWidget {
   const AdminUsersTab({super.key});
 
@@ -411,9 +406,8 @@ class _UserCard extends StatelessWidget {
                   value: user.enabled,
                   onChanged: (_) => onToggle(),
                 ),
-                // Suppression/reset réservés aux comptes non-admin : le
-                // backend refuse déjà ces actions sur un compte ADMIN, donc
-                // pas la peine de proposer le menu pour ces lignes.
+                // Suppression et réinitialisation réservées aux comptes non-admin :
+                // le backend refuse déjà ces opérations sur un compte ADMIN.
                 if (user.role != 'ADMIN')
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, size: 20, color: AppColors.muted),

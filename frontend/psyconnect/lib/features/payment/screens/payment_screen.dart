@@ -8,18 +8,10 @@ import '../services/payment_service.dart';
 import '../services/wallet_service.dart';
 import 'wallet_screen.dart';
 
-// Écran de paiement (simulé) d'un rendez-vous : pas de choix de moyen de
-// paiement ici, le rendez-vous est payé directement depuis le solde
-// interne du patient (rechargé au préalable sur [WalletScreen]). Si le
-// solde est insuffisant, le backend refuse le paiement (402) et l'écran
-// propose d'aller recharger plutôt que d'afficher une erreur sèche.
-//
-// `PaymentServiceImpl` considère toute transaction réussie (après débit du
-// solde) et passe directement le rendez-vous en CONFIRMED. Le patient peut
-// aussi choisir de payer plus tard ([_skip]) : le RDV reste alors PENDING.
-//
-// Retourne `true` via [Navigator.pop] si le paiement a réussi, `false`
-// (ou rien) sinon, pour que l'écran appelant sache s'il doit rafraîchir.
+// écran de paiement simulé : on paie avec le solde interne
+// (rechargé sur WalletScreen). pas assez de solde -> le backend refuse et
+// on propose de recharger. paiement ok confirme le RDV, sinon il reste
+// en attente si on choisit "payer plus tard". pop(true) si ça a marché.
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({
     super.key,
@@ -60,8 +52,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (!mounted) return;
       setState(() => _wallet = wallet);
     } catch (_) {
-      // Échec silencieux : le bouton "Payer" reste actif, l'éventuelle
-      // insuffisance de solde sera de toute façon détectée par le backend.
+      // on dit rien, le backend verra de toute facon si le solde est trop bas
     } finally {
       if (mounted) setState(() => _loadingWallet = false);
     }
@@ -71,13 +62,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _wallet == null || _wallet!.balance >= widget.amount;
 
   Future<void> _pay() async {
-    // Garde-fou anti double-tap : `setState` ne désactive le bouton qu'au
-    // prochain frame, donc un double-tap très rapide peut déclencher deux
-    // appels à `_pay()` avant que le bouton ne soit visuellement désactivé.
-    // `_paying` (champ Dart, lu de façon synchrone) bloque ce second appel
-    // immédiatement. Le vrai filet de sécurité reste côté backend (cf.
-    // PaymentServiceImpl), qui rejette tout paiement si un paiement
-    // COMPLETED existe déjà pour ce rendez-vous.
+    // pour eviter le double clic : setState desactive le bouton qu'au prochain frame,
+    // donc on verifie tout de suite ici en plus. le backend protege aussi de son cote.
     if (_paying) return;
     setState(() {
       _paying = true;

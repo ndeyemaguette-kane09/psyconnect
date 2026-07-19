@@ -2,15 +2,12 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../models/payment_models.dart';
 
-/// Appelle les endpoints de appointment-service (via l'API Gateway) :
-/// POST /payments, GET /payments/appointment/{id}.
-///
-/// Paiement simulé (cf. PaymentServiceImpl côté backend) : aucune
-/// intégration réelle avec Orange Money/Wave/une banque, débité depuis le
-/// solde PsyConnect du patient. Ne confirme PAS le rendez-vous : seul un
-/// rendez-vous déjà CONFIRMED par le psychologue peut être payé, et le
-/// backend rejette toute tentative de paiement en double pour un même
-/// rendez-vous (déjà COMPLETED).
+// endpoints paiement du backend : POST /payments,
+// GET /payments/appointment/{id}.
+//
+// paiement simulé, pas de vraie connexion Orange Money/Wave/banque, ça débite
+// juste le solde PsyConnect du patient. ça confirme pas le RDV (faut déjà être
+// confirmé par le psy avant), et le backend empêche de payer deux fois le même RDV.
 class PaymentService {
   PaymentService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
@@ -32,13 +29,45 @@ class PaymentService {
         .toList();
   }
 
-  /// Revenu net (après commission) d'un psychologue, total + mois en cours —
-  /// cf. PaymentController#getPsychologistRevenue côté backend.
+  // revenu net du psy (apres commission), total et mois en cours
   Future<PsychologistRevenue> getPsychologistRevenue(
     int psychologistId,
   ) async {
     final json =
         await _api.get(ApiConstants.psychologistRevenue(psychologistId));
     return PsychologistRevenue.fromJson(json as Map<String, dynamic>);
+  }
+
+  // portefeuille du psy : solde disponible + historique des retraits
+  Future<PsychologistWallet> getPsychologistWallet(int psychologistId) async {
+    final json =
+        await _api.get(ApiConstants.psychologistWallet(psychologistId));
+    return PsychologistWallet.fromJson(json as Map<String, dynamic>);
+  }
+
+  // historique détaillé des paiements reçus par le psy
+  Future<List<PaymentTransaction>> getTransactionsByPsychologistId(
+    int psychologistId,
+  ) async {
+    final json = await _api.get(
+      ApiConstants.psychologistTransactions(psychologistId),
+    );
+    return (json as List)
+        .map((e) => PaymentTransaction.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // retrait simulé : amount en FCFA, method = apiValue de WithdrawalMethod
+  Future<PsychologistWithdrawal> withdraw({
+    required int psychologistId,
+    required double amount,
+    required WithdrawalMethod method,
+  }) async {
+    final json = await _api.post(
+      '${ApiConstants.psychologistWithdraw(psychologistId)}'
+      '?amount=$amount&method=${method.apiValue}',
+      body: {},
+    );
+    return PsychologistWithdrawal.fromJson(json as Map<String, dynamic>);
   }
 }

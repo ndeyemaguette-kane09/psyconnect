@@ -1,15 +1,7 @@
-"""Service ML de recommandation de psychologues (PsyConnect Sénégal).
-
-Filtrage par contenu (content-based) : on compare le profil texte du
-patient (langue préférée + motif/historique) à celui de chaque psychologue
-(spécialité + bio + langues), via TF-IDF + similarité cosinus
-(voir app.recommender), combiné à la note du psychologue.
-
-Ce service n'est pas enregistré dans Eureka : il est appelé par l'API
-Gateway via une route fixe (/recommendations/**, voir
-api-gateway/application.properties), et appelle lui-même user-service via
-la gateway (voir app.user_service_client).
-"""
+# service ML de recommandation de psy.
+# compare le profil patient et le profil psy avec TF-IDF + cosinus
+# pas dans Eureka, la gateway route direct vers /recommendations/**
+# et on rappelle user-service via la gateway aussi
 
 from typing import Optional
 
@@ -44,14 +36,11 @@ async def get_recommendations(
         default=config.DEFAULT_TOP_N,
         ge=1,
         le=config.MAX_TOP_N,
-        description="Nombre maximum de psychologues recommandés à retourner",
+        description="nombre max de psy a retourner",
     ),
     authorization: Optional[str] = Header(
         default=None,
-        description=(
-            "Jeton JWT du patient appelant (ex: 'Bearer <token>'), relayé tel "
-            "quel vers user-service car GET /patients/{id} y est protégé."
-        ),
+        description="jeton JWT du patient (ex: 'Bearer <token>'), relayé tel quel vers user-service",
     ),
 ) -> RecommendationResponse:
 

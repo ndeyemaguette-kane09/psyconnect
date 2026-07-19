@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 
-/// Bandeau d'erreur réutilisé sur les écrans login/register, affiché quand
-/// AuthProvider.errorMessage n'est pas nul.
+// bandeau d'erreur reutilise sur login/register, affiche quand
+// AuthProvider.errorMessage est pas nul
 class ErrorBanner extends StatelessWidget {
   const ErrorBanner({super.key, required this.message});
 

@@ -5,6 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +20,9 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter
         extends OncePerRequestFilter {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
 
@@ -33,6 +38,9 @@ public class JwtAuthenticationFilter
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+
+        final String method = request.getMethod();
+        final String uri    = request.getRequestURI();
 
         final String authHeader =
                 request.getHeader("Authorization");
@@ -54,6 +62,7 @@ public class JwtAuthenticationFilter
         try {
             username = jwtService.extractUsername(jwt);
         } catch (RuntimeException ex) {
+            log.warn("JWT filter [{}] {} — extractUsername failed: {}", method, uri, ex.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
@@ -63,17 +72,17 @@ public class JwtAuthenticationFilter
                 .getContext()
                 .getAuthentication() == null) {
 
-            if (jwtService.isTokenValid(jwt)) {
+            boolean valid = jwtService.isTokenValid(jwt);
+
+            if (valid) {
+                String role = jwtService.extractRole(jwt);
+                String authority = "ROLE_" + role;
 
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
                                 username,
                                 null,
-                                List.of(
-                                        new SimpleGrantedAuthority(
-                                                "ROLE_" + jwtService.extractRole(jwt)
-                                        )
-                                )
+                                List.of(new SimpleGrantedAuthority(authority))
                         );
 
                 authToken.setDetails(
@@ -89,8 +98,10 @@ public class JwtAuthenticationFilter
                     Long authUserId = jwtService.extractUserId(jwt);
                     request.setAttribute("authUserId", authUserId);
                 } catch (RuntimeException ex) {
-                    // pas de claim userId (anciens tokens) : on laisse l'attribut absent
+                    // Ancien token sans userId — attribut laissé vide intentionnellement
                 }
+            } else {
+                log.warn("JWT filter [{}] {} — token INVALID (expired or bad signature)", method, uri);
             }
         }
 

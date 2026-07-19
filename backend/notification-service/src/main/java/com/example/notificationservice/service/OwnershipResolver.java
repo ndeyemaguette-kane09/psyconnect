@@ -15,16 +15,7 @@ import com.example.notificationservice.security.SecurityUtils;
 
 import java.util.Map;
 
-/**
- * Résout le PatientProfile.id de l'utilisateur courant à partir de son
- * authUserId (claim du JWT), en appelant user-service. Nécessaire car
- * Notification.userId stocke un PatientProfile.id, distinct de l'authUserId
- * porté par le jeton — voir user-service: GET /patients/by-auth-user/{authUserId}.
- *
- * Le jeton JWT de l'appelant est relayé tel quel vers user-service (cette
- * route y exige une authentification et vérifie elle-même que authUserId
- * correspond à l'appelant).
- */
+// retrouve l'id du patient a partir du JWT, via user-service
 @Component
 public class OwnershipResolver {
 
@@ -82,12 +73,7 @@ public class OwnershipResolver {
         }
     }
 
-    /**
-     * Équivalent de {@link #resolveOwnPatientId()} pour un psychologue —
-     * résout le PsychologistProfile.id de l'utilisateur courant. Nécessaire
-     * pour que les notifications envoyées à un psychologue (ex. décision de
-     * validation de l'admin) puissent être lues par leur propriétaire.
-     */
+    // pareil que resolveOwnPatientId mais pour un psy
     @SuppressWarnings("unchecked")
     public Long resolveOwnPsychologistId() {
 

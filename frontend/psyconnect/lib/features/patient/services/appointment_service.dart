@@ -2,13 +2,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../models/appointment_models.dart';
 
-/// Appelle les endpoints de appointment-service (via l'API Gateway) :
-/// POST /appointments, GET /appointments/patient/{id},
-/// GET /appointments/psychologist/{id}, PUT /appointments/{id}/status.
-///
-/// Partagé entre le parcours patient et le parcours psychologue (qui vivent
-/// dans des dossiers `features/` séparés) : pas de raison de dupliquer ce
-/// client juste pour respecter la frontière de dossier.
+// appelle appointment-service pour les RDV
+// partage entre patient et psy, pas envie de dupliquer ce fichier
 class AppointmentService {
   AppointmentService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
@@ -42,9 +37,8 @@ class AppointmentService {
         .toList();
   }
 
-  /// Confirme ou refuse un RDV en attente (ou tout autre changement de
-  /// statut valide). Le backend attend le statut en query param, pas en
-  /// corps JSON — cf. ApiConstants.appointmentStatus.
+  // confirme ou refuse un RDV
+  // le statut part en query param, pas dans le corps
   Future<Appointment> updateAppointmentStatus(
     int appointmentId,
     AppointmentStatus status,
@@ -55,9 +49,8 @@ class AppointmentService {
     return Appointment.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Reporte un RDV encore modifiable (en attente ou confirmé) à un nouveau
-  /// créneau. S'il était confirmé, le backend le repasse en attente : le
-  /// psychologue doit reconfirmer le nouveau créneau.
+  // reporte un RDV. s'il etait confirme, repasse en attente
+  // le psy doit reconfirmer
   Future<Appointment> rescheduleAppointment(
     int appointmentId,
     RescheduleAppointmentRequest request,
@@ -69,9 +62,7 @@ class AppointmentService {
     return Appointment.fromJson(json as Map<String, dynamic>);
   }
 
-  // Supprime définitivement un RDV ANNULÉ ou REFUSÉ. Le backend rejette
-  // tout autre statut ou toute tentative par quelqu'un d'autre que le
-  // patient propriétaire.
+  // supprime definitivement un RDV annule/refuse, rejette tout autre statut
   Future<void> deleteAppointment(int appointmentId) async {
     await _api.delete(ApiConstants.appointmentById(appointmentId));
   }

@@ -45,8 +45,8 @@ public class PatientProfileController {
                 );
     }
 
-    // Accessible au propriétaire, à un PSYCHOLOGIST ou à un ADMIN. Le
-    // masquage du nom réel (mode anonyme) est géré côté service.
+    // accessible au proprietaire, a un psy ou a un admin
+    // le mode anonyme est gere dans le service
     @GetMapping("/{id}")
     public ResponseEntity<PatientProfileResponse>
     getPatientProfile(
@@ -101,9 +101,8 @@ public class PatientProfileController {
         );
     }
 
-    // Solde PsyConnect : argent simulé, dépensé pour les RDV, crédité en
-    // cas de remboursement. /debit et /credit sont appelés par
-    // appointment-service (JWT du patient relayé), pas par le frontend.
+    // le solde sert a payer les RDV et a recevoir les remboursements
+    // /debit et /credit sont appelés par appointment-service, pas le frontend
     @GetMapping("/{id}/wallet")
     public ResponseEntity<WalletResponse> getWallet(
             HttpServletRequest httpRequest,

@@ -1,0 +1,74 @@
+@startuml 01c_use_case_psychologue
+skinparam actorStyle awesome
+skinparam usecaseBackgroundColor #EEF7FF
+skinparam usecaseBorderColor #2E6DA4
+skinparam arrowColor #2E6DA4
+skinparam actor {
+  BackgroundColor #D6EAF8
+  BorderColor #2874A6
+}
+title Cas d'utilisation — Psychologue
+
+left to right direction
+
+actor "Psychologue" as Psy
+
+rectangle "PsyConnect — Espace Psychologue" {
+
+  package "Authentification & Profil" {
+    usecase "S'inscrire" as UC_Register
+    usecase "Se connecter" as UC_Login
+    usecase "Compléter / modifier son profil" as UC_Profile
+    usecase "Déposer son justificatif d'exercice" as UC_License
+    usecase "Définir ses disponibilités" as UC_Availabilities
+    usecase "Réinitialiser son mot de passe" as UC_Pwd
+  }
+
+  package "Gestion des rendez-vous" {
+    usecase "Consulter son agenda" as UC_Agenda
+    usecase "Confirmer un rendez-vous" as UC_Confirm
+    usecase "Refuser un rendez-vous" as UC_Reject
+    usecase "Rejoindre la séance en ligne" as UC_Join
+  }
+
+  package "Suivi des patients" {
+    usecase "Marquer un patient comme suivi" as UC_Follow
+    usecase "Rédiger des notes cliniques" as UC_Notes
+    usecase "Consulter les antécédents médicaux" as UC_Medical
+    usecase "Envoyer un questionnaire (PHQ-9/GAD-7)" as UC_SendQ
+    usecase "Consulter les résultats des questionnaires" as UC_ViewQ
+    usecase "Ajouter une recommandation post-séance" as UC_Reco
+  }
+
+  package "Communication & Revenus" {
+    usecase "Envoyer / recevoir des messages" as UC_Msg
+    usecase "Consulter ses notifications" as UC_Notif
+    usecase "Consulter les annonces" as UC_Annonces
+    usecase "Consulter ses revenus nets" as UC_Revenue
+    usecase "Retirer ses revenus" as UC_Withdraw
+  }
+}
+
+Psy --> UC_Register
+Psy --> UC_Login
+Psy --> UC_Profile
+Psy --> UC_License
+Psy --> UC_Availabilities
+Psy --> UC_Pwd
+Psy --> UC_Agenda
+Psy --> UC_Confirm
+Psy --> UC_Reject
+Psy --> UC_Join
+Psy --> UC_Follow
+Psy --> UC_Notes
+Psy --> UC_Medical
+Psy --> UC_SendQ
+Psy --> UC_ViewQ
+Psy --> UC_Reco
+Psy --> UC_Msg
+Psy --> UC_Notif
+Psy --> UC_Annonces
+Psy --> UC_Revenue
+Psy --> UC_Withdraw
+
+@enduml

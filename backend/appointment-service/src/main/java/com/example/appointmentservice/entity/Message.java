@@ -6,12 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Un message dans une {@link Conversation}. {@code senderAuthUserId} est
- * l'authUserId du JWT (pas patientId/psychologistId) : ça permet de savoir
- * "ce message est-il de moi ?" par simple comparaison, sans avoir besoin de
- * connaître le rôle de l'auteur ni de résoudre son profil métier.
- */
+// un message dans une conversation, senderAuthUserId vient du JWT
 @Entity
 @Table(name = "messages")
 @Getter
@@ -34,7 +29,7 @@ public class Message {
     @Column(nullable = false)
     private LocalDateTime sentAt;
 
-    /** Null tant que le destinataire n'a pas ouvert/marqué la conversation comme lue. */
+    // null tant que c'est pas lu
     private LocalDateTime readAt;
 
     @PrePersist

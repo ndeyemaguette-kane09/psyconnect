@@ -9,14 +9,8 @@ import '../models/user_role.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/error_banner.dart';
 
-/// Inscription en 2 étapes :
-/// 1) Compte (auth-service : email, mot de passe, pseudo, nom, prénom)
-/// 2) Profil (user-service : téléphone, ville + champs spécifiques psy)
-///
-/// Étape 1 -> POST /auth/register/patient|psy
-/// Étape 2 -> login puis POST /users (+ /patients ou /psychologists),
-/// orchestré par AuthProvider.completePatientOnboarding /
-/// completePsychologistOnboarding.
+// Inscription en deux étapes : compte (email, mot de passe, pseudo, nom),
+// puis profil (téléphone, ville et champs spécifiques au psychologue).
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key, required this.role});
 
@@ -42,17 +36,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _profileFormKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _cityController = TextEditingController();
+  // Adresse du cabinet (psychologue uniquement), visible par les patients venant en présentiel.
+  final _addressController = TextEditingController();
   final _specialtyController = TextEditingController();
   final _yearsController = TextEditingController();
   final _priceController = TextEditingController();
   final _licenseNumberController = TextEditingController();
 
-  // Justificatif (diplôme/carte pro) — pas un TextEditingController : on ne
-  // garde que le chemin local du fichier choisi, envoyé après la création
-  // du profil (cf. _submitProfile). Pas de Form validator dédié possible
-  // pour un sélecteur de fichier, donc vérifié manuellement avant l'appel.
+  // Chemin local du justificatif choisi via file_picker, envoyé après la création du profil.
+  // Pas de validator Form pour un file picker : la vérification est faite manuellement.
+  // Obligatoire pour un psychologue : sans document, l'administrateur ne peut pas valider
+  // le compte, et la connexion reste bloquée jusqu'à l'approbation.
   String? _licenseDocumentPath;
   String? _licenseDocumentName;
+  String? _licenseDocumentError;
 
   bool get _isPsychologist => widget.role == UserRole.psychologist;
 
@@ -66,6 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       _licenseDocumentPath = picked!.path;
       _licenseDocumentName = picked.name;
+      _licenseDocumentError = null;
     });
   }
 
@@ -78,6 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _lastNameController.dispose();
     _phoneController.dispose();
     _cityController.dispose();
+    _addressController.dispose();
     _specialtyController.dispose();
     _yearsController.dispose();
     _priceController.dispose();
@@ -105,6 +104,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _submitProfile(AuthProvider auth) async {
     if (!_profileFormKey.currentState!.validate()) return;
 
+    if (_isPsychologist && _licenseDocumentPath == null) {
+      setState(() {
+        _licenseDocumentError =
+            'Le justificatif (diplôme ou carte professionnelle) est requis.';
+      });
+      return;
+    }
+
     final bool ok;
     if (_isPsychologist) {
       ok = await auth.completePsychologistOnboarding(
@@ -117,12 +124,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         city: _cityController.text.trim().isEmpty
             ? null
             : _cityController.text.trim(),
+        address: _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
         yearsOfExperience: int.tryParse(_yearsController.text.trim()),
         consultationPrice: int.tryParse(_priceController.text.trim()),
         licenseNumber: _licenseNumberController.text.trim().isEmpty
             ? null
             : _licenseNumberController.text.trim(),
         licenseDocumentPath: _licenseDocumentPath,
+        licenseDocumentName: _licenseDocumentName,
       );
     } else {
       ok = await auth.completePatientOnboarding(
@@ -138,6 +149,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (ok && mounted) {
+      if (_isPsychologist && auth.licenseUploadWarning) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 5),
+            content: Text(
+              "Compte créé, mais l'envoi du justificatif a échoué. "
+              'Vous pourrez le renvoyer depuis votre profil.',
+            ),
+          ),
+        );
+      }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
         (route) => false,
@@ -187,11 +209,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   isPsychologist: _isPsychologist,
                   phoneController: _phoneController,
                   cityController: _cityController,
+                  addressController: _addressController,
                   specialtyController: _specialtyController,
                   yearsController: _yearsController,
                   priceController: _priceController,
                   licenseNumberController: _licenseNumberController,
                   licenseDocumentName: _licenseDocumentName,
+                  licenseDocumentError: _licenseDocumentError,
                   onPickLicenseDocument: _pickLicenseDocument,
                   isLoading: auth.isLoading,
                   onSubmit: () => _submitProfile(auth),
@@ -384,11 +408,13 @@ class _ProfileStep extends StatelessWidget {
     required this.isPsychologist,
     required this.phoneController,
     required this.cityController,
+    required this.addressController,
     required this.specialtyController,
     required this.yearsController,
     required this.priceController,
     required this.licenseNumberController,
     required this.licenseDocumentName,
+    required this.licenseDocumentError,
     required this.onPickLicenseDocument,
     required this.isLoading,
     required this.onSubmit,
@@ -399,11 +425,13 @@ class _ProfileStep extends StatelessWidget {
   final bool isPsychologist;
   final TextEditingController phoneController;
   final TextEditingController cityController;
+  final TextEditingController addressController;
   final TextEditingController specialtyController;
   final TextEditingController yearsController;
   final TextEditingController priceController;
   final TextEditingController licenseNumberController;
   final String? licenseDocumentName;
+  final String? licenseDocumentError;
   final VoidCallback onPickLicenseDocument;
   final bool isLoading;
   final VoidCallback onSubmit;
@@ -444,6 +472,15 @@ class _ProfileStep extends StatelessWidget {
             ),
           ),
           if (isPsychologist) ...[
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: addressController,
+              decoration: const InputDecoration(
+                labelText: 'Adresse du cabinet (optionnel)',
+                hintText: 'Visible par les patients pour les séances en cabinet',
+                prefixIcon: Icon(Icons.map_outlined),
+              ),
+            ),
             const SizedBox(height: 14),
             TextFormField(
               controller: specialtyController,
@@ -494,8 +531,17 @@ class _ProfileStep extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              'Justificatif (diplôme ou carte professionnelle, optionnel)',
+              'Justificatif (diplôme ou carte professionnelle) *',
               style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              "Requis pour que l'administrateur puisse valider votre compte. "
+              'Sans approbation, vous ne pourrez pas vous connecter.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.muted),
             ),
             const SizedBox(height: 6),
             OutlinedButton.icon(
@@ -506,6 +552,13 @@ class _ProfileStep extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (licenseDocumentError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                licenseDocumentError!,
+                style: const TextStyle(color: AppColors.rose, fontSize: 12),
+              ),
+            ],
           ],
           const SizedBox(height: 28),
           ElevatedButton(

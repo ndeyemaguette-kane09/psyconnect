@@ -1,0 +1,192 @@
+@startuml 03_class_user
+skinparam classBackgroundColor #EEF7FF
+skinparam classBorderColor #2E6DA4
+skinparam arrowColor #2E6DA4
+skinparam packageBackgroundColor #F8FBFF
+title Diagramme de classes — user-service
+
+package "user-service" {
+
+  class UserProfile {
+    - Long id
+    - Long authUserId
+    - String firstName
+    - String lastName
+    - String phoneNumber
+    - String gender
+    - LocalDate dateOfBirth
+    - String address
+    - String city
+    - String country
+    - Boolean profileCompleted
+  }
+
+  class PatientProfile {
+    - Long id
+    - Long authUserId
+    - Boolean anonymousMode
+    - String preferredLanguage
+    - String emergencyContactName
+    - String emergencyContactPhone
+    - Double walletBalance
+  }
+
+  class PsychologistProfile {
+    - Long id
+    - Long authUserId
+    - String bio
+    - String specialty
+    - String languages
+    - Integer yearsOfExperience
+    - String city
+    - String address
+    - Integer consultationPrice
+    - Boolean available
+    - Double rating
+    - int totalReviews
+    - Boolean profileVerified
+    - Boolean rejected
+    - String licenseNumber
+    - String licenseDocumentPath
+    - Boolean offersFreeSessions
+  }
+
+  class PsychologistAvailability {
+    - Long id
+    - Integer dayOfWeek
+    - Integer startHour
+    - Integer endHour
+    - Integer slotDurationMinutes
+  }
+
+  class JournalEntry {
+    - Long id
+    - String content
+    - Integer moodRating
+    - LocalDateTime createdAt
+  }
+
+  class MedicalHistory {
+    - Long id
+    - Long patientProfileId
+    - String allergies
+    - String chronicConditions
+    - String currentTreatments
+    - String psychiatricHistory
+    - String lastUpdatedByRole
+    - LocalDateTime updatedAt
+  }
+
+  class ClinicalNote {
+    - Long id
+    - Long patientProfileId
+    - Long psychologistProfileId
+    - Long appointmentId
+    - String content
+    - LocalDateTime createdAt
+  }
+
+  class Review {
+    - Long id
+    - Long patientProfileId
+    - Long psychologistProfileId
+    - Integer rating
+    - String comment
+    - LocalDateTime createdAt
+  }
+
+  class PsyPatientLink {
+    - Long id
+    - Long psychologistProfileId
+    - Long patientProfileId
+    - LocalDateTime linkedAt
+  }
+
+  class WalletTransaction {
+    - Long id
+    - WalletTransactionType type
+    - Double amount
+    - Double balanceAfter
+    - String method
+    - LocalDateTime createdAt
+  }
+
+  class PsychologistReport {
+    - Long id
+    - Long patientProfileId
+    - Long psychologistProfileId
+    - ReportReason reason
+    - String description
+    - String evidenceFilename
+    - ReportStatus status
+    - String adminNote
+    - LocalDateTime createdAt
+  }
+
+  class Broadcast {
+    - Long id
+    - String title
+    - String message
+    - String audience
+    - int recipientCount
+    - LocalDateTime sentAt
+  }
+
+  enum WalletTransactionType {
+    DEPOSIT
+    WITHDRAWAL
+    DEBIT
+    CREDIT
+  }
+
+  enum ReportReason {
+    PRIX_ABUSIF
+    COMPORTEMENT_INAPPROPRIE
+    FAUSSES_INFORMATIONS
+    DEMANDE_PAIEMENT_HORS_APP
+    AUTRE
+  }
+
+  enum ReportStatus {
+    PENDING
+    REVIEWED
+    DISMISSED
+  }
+
+  ' Relations
+  UserProfile "1" -- "0..1" PatientProfile : profil patient >
+  UserProfile "1" -- "0..1" PsychologistProfile : profil psy >
+  PatientProfile "1" -- "0..*" JournalEntry : rédige >
+  PatientProfile "1" -- "0..*" WalletTransaction : génère >
+  PatientProfile "1" -- "0..1" MedicalHistory : possède >
+  PsychologistProfile "1" -- "0..*" PsychologistAvailability : définit >
+  PsychologistProfile "1" -- "0..*" ClinicalNote : rédige >
+  PatientProfile "1" -- "0..*" ClinicalNote : concerne <
+  PatientProfile "1" -- "0..*" Review : rédige >
+  PsychologistProfile "1" -- "0..*" Review : reçoit <
+  PsychologistProfile "1" -- "0..*" PsyPatientLink : suit >
+  PatientProfile "1" -- "0..*" PsyPatientLink : est suivi par <
+  PatientProfile "1" -- "0..*" PsychologistReport : soumet >
+  PsychologistProfile "1" -- "0..*" PsychologistReport : fait l'objet de <
+
+  WalletTransaction --> WalletTransactionType
+  PsychologistReport --> ReportReason
+  PsychologistReport --> ReportStatus
+}
+
+note right of ClinicalNote
+  Visible uniquement par le
+  psychologue auteur.
+  Jamais accessible au patient
+  ni à l'admin.
+end note
+
+note right of PsychologistProfile
+  profileVerified=false tant que
+  l'admin n'a pas validé le
+  justificatif d'exercice.
+  La connexion est bloquée
+  tant que non approuvé.
+end note
+
+@enduml

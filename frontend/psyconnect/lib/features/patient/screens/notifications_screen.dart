@@ -4,20 +4,9 @@ import '../../../core/theme/app_colors.dart';
 import '../models/notification_models.dart';
 import '../services/notification_service.dart';
 
-/// Écran "Notifications", partagé patient + psychologue — pas dans la
-/// maquette v2, mais rendu possible par un vrai backend
-/// (`notification-service`, vérifié en lisant `NotificationController.java`) :
-/// GET /notifications/user/{userId} et PUT /notifications/{id}/read.
-/// `userId` est un PatientProfile.id ou un PsychologistProfile.id selon
-/// l'appelant (cf. `NotificationService`/`OwnershipResolver` côté backend).
-///
-/// Notifications existantes aujourd'hui : RDV (création, confirmation,
-/// refus, annulation) côté patient/psychologue, et décision admin de
-/// validation/refus de profil côté psychologue.
-///
-/// Design libre par rapport à la maquette v2 (qui ne couvre pas cet écran) :
-/// regroupement par période + accent de couleur selon le type, pour une
-/// hiérarchie plus lisible qu'une simple liste plate.
+// Écran de notifications, partagé entre patient et psychologue.
+// userId correspond au PatientProfile.id ou au PsychologistProfile.id selon l'appelant.
+// Les notifications sont regroupées par période et colorées par type.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key, required this.userId});
 
@@ -33,6 +22,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _loading = true;
   String? _error;
   List<AppNotification> _notifications = [];
+  // null = "Tous" ; sinon filtre actif (cf. _FilterChips)
+  AppNotificationType? _filter;
 
   @override
   void initState() {
@@ -86,19 +77,33 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ];
       });
     } catch (_) {
-      // Best-effort : si le marquage échoue, l'utilisateur peut retenter en
-      // retouchant la notification — pas besoin d'interrompre la navigation.
+      // Échec silencieux : l'utilisateur peut retapper la notification pour réessayer.
     }
   }
 
-  /// Regroupe les notifications par période relative pour une lecture plus
-  /// naturelle qu'une longue liste plate ("Aujourd'hui", "Cette semaine"...).
+  // Notifications après filtrage par catégorie, avant regroupement par période.
+  // Le filtre "questionnaire" inclut aussi "questionnaireResult" : patient
+  // (questionnaires à remplir) et psychologue (résultats) voient tous deux
+  // leur contenu sous le même chip "Questionnaires".
+  List<AppNotification> get _filtered {
+    if (_filter == null) return _notifications;
+    if (_filter == AppNotificationType.questionnaire) {
+      return _notifications
+          .where((n) =>
+              n.type == AppNotificationType.questionnaire ||
+              n.type == AppNotificationType.questionnaireResult)
+          .toList();
+    }
+    return _notifications.where((n) => n.type == _filter).toList();
+  }
+
+  // Regroupe les notifications par période ("Aujourd'hui", "Hier", etc.).
   List<MapEntry<String, List<AppNotification>>> get _groups {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final groups = <String, List<AppNotification>>{};
 
-    for (final n in _notifications) {
+    for (final n in _filtered) {
       final day = DateTime(n.createdAt.year, n.createdAt.month, n.createdAt.day);
       final diff = today.difference(day).inDays;
       final key = diff <= 0
@@ -144,84 +149,168 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         iconTheme: const IconThemeData(color: AppColors.text),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(_error!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.muted)),
-                            const SizedBox(height: 12),
-                            OutlinedButton(onPressed: _load, child: const Text('Réessayer')),
-                          ],
-                        ),
-                      ),
-                    )
-                  : _notifications.isEmpty
-                      ? ListView(
-                          // ListView (pas Center) pour garder le pull-to-refresh.
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 100),
-                              child: Center(
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: 72,
-                                      height: 72,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.tealLight,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.notifications_none,
-                                          size: 32, color: AppColors.teal),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text('Rien de nouveau',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w700, fontSize: 15)),
-                                    const SizedBox(height: 4),
-                                    const Text('Vos notifications apparaîtront ici.',
-                                        style: TextStyle(color: AppColors.muted, fontSize: 13)),
-                                  ],
-                                ),
+        child: Column(
+          children: [
+            // Les filtres sont affichés dès qu'il y a des notifications, quel que soit
+            // le type présent : patient et psychologue voient toujours les mêmes chips.
+            if (!_loading && _error == null && _notifications.isNotEmpty)
+              _FilterChips(
+                selected: _filter,
+                onSelected: (t) => setState(() => _filter = t),
+              ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(_error!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: AppColors.muted)),
+                                  const SizedBox(height: 12),
+                                  OutlinedButton(
+                                      onPressed: _load, child: const Text('Réessayer')),
+                                ],
                               ),
                             ),
-                          ],
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                          children: [
-                            for (final group in _groups) ...[
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-                                child: Text(
-                                  group.key,
-                                  style: const TextStyle(
-                                    color: AppColors.muted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.4,
+                          )
+                        : _notifications.isEmpty
+                            ? ListView(
+                                // ListView et pas Center, pour garder le pull-to-refresh
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 100),
+                                    child: Center(
+                                      child: Column(
+                                        children: [
+                                          Container(
+                                            width: 72,
+                                            height: 72,
+                                            decoration: const BoxDecoration(
+                                              color: AppColors.tealLight,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.notifications_none,
+                                                size: 32, color: AppColors.teal),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          const Text('Rien de nouveau',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.w700, fontSize: 15)),
+                                          const SizedBox(height: 4),
+                                          const Text('Vos notifications apparaîtront ici.',
+                                              style:
+                                                  TextStyle(color: AppColors.muted, fontSize: 13)),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              for (final n in group.value) ...[
-                                _NotificationCard(
-                                  notification: n,
-                                  onTap: () => _markAsRead(n),
-                                ),
-                                const SizedBox(height: 8),
-                              ],
-                            ],
-                          ],
-                        ),
+                                ],
+                              )
+                            : _filtered.isEmpty
+                                ? ListView(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 80),
+                                        child: Center(
+                                          child: Text(
+                                            'Aucune notification dans cette catégorie.',
+                                            style: const TextStyle(color: AppColors.muted),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : ListView(
+                                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                    children: [
+                                      for (final group in _groups) ...[
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+                                          child: Text(
+                                            group.key,
+                                            style: const TextStyle(
+                                              color: AppColors.muted,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.4,
+                                            ),
+                                          ),
+                                        ),
+                                        for (final n in group.value) ...[
+                                          _NotificationCard(
+                                            notification: n,
+                                            onTap: () => _markAsRead(n),
+                                          ),
+                                          const SizedBox(height: 8),
+                                        ],
+                                      ],
+                                    ],
+                                  ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Chips horizontales de filtrage par catégorie. "Questionnaires" regroupe
+// questionnaire et questionnaireResult pour que patient et psychologue partagent le même chip.
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final AppNotificationType? selected;
+  final ValueChanged<AppNotificationType?> onSelected;
+
+  // Catégories disponibles dans les filtres. Le type questionnaireResult est
+  // exclu pour éviter le doublon : il est couvert par le filtre questionnaire.
+  static const _filters = [
+    AppNotificationType.appointment,
+    AppNotificationType.reminder,
+    AppNotificationType.payment,
+    AppNotificationType.questionnaire, // Représente aussi questionnaireResult.
+    AppNotificationType.system,
+    AppNotificationType.announcement,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.white,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            ChoiceChip(
+              label: const Text('Tous'),
+              selected: selected == null,
+              onSelected: (_) => onSelected(null),
+            ),
+            for (final t in _filters) ...[
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text(t.label),
+                // actif si le filtre = ce type OU son pendant (questionnaire ↔ result)
+                selected: selected == t ||
+                    (t == AppNotificationType.questionnaire &&
+                        selected == AppNotificationType.questionnaireResult),
+                onSelected: (_) => onSelected(t),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -240,8 +329,16 @@ class _NotificationCard extends StatelessWidget {
         return Icons.calendar_today_outlined;
       case AppNotificationType.reminder:
         return Icons.alarm_outlined;
+      case AppNotificationType.payment:
+        return Icons.account_balance_wallet_outlined;
+      case AppNotificationType.questionnaire:
+        return Icons.assignment_outlined;
+      case AppNotificationType.questionnaireResult:
+        return Icons.assignment_turned_in_outlined;
       case AppNotificationType.system:
         return Icons.info_outline;
+      case AppNotificationType.announcement:
+        return Icons.campaign_outlined;
     }
   }
 
@@ -251,8 +348,15 @@ class _NotificationCard extends StatelessWidget {
         return AppColors.teal;
       case AppNotificationType.reminder:
         return AppColors.gold;
+      case AppNotificationType.payment:
+        return AppColors.tealDark;
+      case AppNotificationType.questionnaire:
+      case AppNotificationType.questionnaireResult:
+        return AppColors.rose;
       case AppNotificationType.system:
         return AppColors.muted;
+      case AppNotificationType.announcement:
+        return const Color(0xFF7C3AED); // violet
     }
   }
 
@@ -262,8 +366,15 @@ class _NotificationCard extends StatelessWidget {
         return AppColors.tealLight;
       case AppNotificationType.reminder:
         return AppColors.goldLight;
+      case AppNotificationType.payment:
+        return AppColors.tealLight;
+      case AppNotificationType.questionnaire:
+      case AppNotificationType.questionnaireResult:
+        return AppColors.errorBg;
       case AppNotificationType.system:
         return AppColors.scaffoldOuter;
+      case AppNotificationType.announcement:
+        return const Color(0xFFEDE9FE); // violet clair
     }
   }
 

@@ -1,6 +1,5 @@
-/// Correspond à CreateJournalEntryRequest côté user-service
-/// (POST/PUT /journal[/{id}]). Le patient propriétaire est résolu côté
-/// backend depuis le JWT — pas de patientId à transmettre ici.
+// correspond a CreateJournalEntryRequest cote user-service. le patient
+// est trouve via le token cote backend, pas besoin de patientId ici
 class CreateJournalEntryRequest {
   final String content;
   final int? moodRating;
@@ -13,7 +12,7 @@ class CreateJournalEntryRequest {
       };
 }
 
-/// Correspond à JournalEntryResponse côté user-service.
+// correspond a JournalEntryResponse cote user-service
 class JournalEntry {
   final int id;
   final String content;

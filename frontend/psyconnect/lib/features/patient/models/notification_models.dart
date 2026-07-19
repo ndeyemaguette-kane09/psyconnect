@@ -1,6 +1,14 @@
-/// Reflète l'entité `Notification` de notification-service
-/// (backend/notification-service/.../entity/Notification.java).
-enum AppNotificationType { appointment, reminder, system }
+// reflete l'entite Notification de notification-service
+enum AppNotificationType {
+  appointment,
+  reminder,
+  payment,
+  questionnaire,
+  questionnaireResult,
+  system,
+  announcement, // broadcast admin → tous / patients / psys
+  session,      // fin de session (normale ou urgence) — session-service
+}
 
 extension AppNotificationTypeX on AppNotificationType {
   static AppNotificationType fromApiValue(String? value) {
@@ -9,22 +17,49 @@ extension AppNotificationTypeX on AppNotificationType {
         return AppNotificationType.appointment;
       case 'REMINDER':
         return AppNotificationType.reminder;
+      case 'PAYMENT':
+        return AppNotificationType.payment;
+      case 'QUESTIONNAIRE':
+        return AppNotificationType.questionnaire;
+      case 'QUESTIONNAIRE_RESULT':
+        return AppNotificationType.questionnaireResult;
       case 'SYSTEM':
         return AppNotificationType.system;
+      case 'ANNOUNCEMENT':
+        return AppNotificationType.announcement;
+      case 'SESSION':
+        return AppNotificationType.session;
       default:
-        // Le backend a un enum fermé, mais on reste tolérant côté client :
-        // une valeur inattendue ne doit pas faire planter tout l'écran.
+        // valeur inconnue, on plante pas l'ecran pour ca
         return AppNotificationType.system;
+    }
+  }
+
+  // utilise pour le libelle des filtres dans NotificationsScreen
+  String get label {
+    switch (this) {
+      case AppNotificationType.appointment:
+        return 'Rendez-vous';
+      case AppNotificationType.reminder:
+        return 'Rappels';
+      case AppNotificationType.payment:
+        return 'Paiements';
+      case AppNotificationType.questionnaire:
+      case AppNotificationType.questionnaireResult:
+        return 'Questionnaires';
+      case AppNotificationType.system:
+        return 'Système';
+      case AppNotificationType.announcement:
+        return 'Annonces';
+      case AppNotificationType.session:
+        return 'Sessions';
     }
   }
 }
 
-/// Correspond à l'entité `Notification` renvoyée par
-/// GET /notifications/user/{userId} et PUT /notifications/{id}/read.
-///
-/// Nommée `AppNotification` (pas `Notification`) pour éviter toute collision
-/// avec `dart:ui`/`flutter/material.dart` qui n'exposent pas ce nom
-/// aujourd'hui mais pourraient le faire — et pour rester explicite.
+// correspond a la notif renvoyee par notification-service
+// et PUT /notifications/{id}/read. nomme AppNotification (pas juste
+// Notification) pour eviter une collision avec flutter/material.dart un jour
 class AppNotification {
   final int id;
   final int userId;
