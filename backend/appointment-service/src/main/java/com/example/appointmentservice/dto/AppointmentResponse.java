@@ -20,8 +20,6 @@ public class AppointmentResponse {
     private ConsultationType consultationType;
     private AppointmentStatus status;
 
-    // Date de création (jamais modifiée par un report), pour trier "par
-    // date d'ajout" plutôt que par date du créneau — distincte de
-    // startTime.
+    // Date de création, inchangée même si le rendez-vous est reporté
     private LocalDateTime createdAt;
 }

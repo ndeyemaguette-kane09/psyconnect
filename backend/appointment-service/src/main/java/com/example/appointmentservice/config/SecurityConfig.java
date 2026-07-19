@@ -28,10 +28,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Aucune donnée d'appointment/payment/session n'est publique :
-                // tout endpoit exige un JWT valide. Les contrôles de propriété
-                // (ce rendez-vous/paiement/session m'appartient-il ?) sont faits
-                // ensuite au niveau service, via OwnershipResolver.
+                // tout est protege par JWT ici, le reste se check apres
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

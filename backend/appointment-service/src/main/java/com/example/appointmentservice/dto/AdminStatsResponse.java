@@ -1,7 +1,7 @@
 package com.example.appointmentservice.dto;
 
-import java.math.BigDecimal;
-
+// stats RDV pour l'onglet admin "Stats" ; les stats paiement/commission sont
+// dans payment-service (PaymentAdminStatsResponse), le front fusionne les deux
 public class AdminStatsResponse {
 
     private long totalAppointments;
@@ -10,18 +10,6 @@ public class AdminStatsResponse {
     private long completedAppointments;
     private long cancelledAppointments;
     private long rejectedAppointments;
-
-    private long totalPayments;
-    private long completedPayments;
-    private BigDecimal totalRevenue;
-
-    // Part de revenus de l'administrateur — demande explicite : préciser
-    // que la plateforme prélève une commission plutôt que de n'afficher
-    // que le revenu brut total. Taux réglable via
-    // PUT /admin/platform-settings/commission-rate (cf. AdminController).
-    private BigDecimal commissionRatePercent;
-    private BigDecimal platformRevenue;
-    private BigDecimal psychologistRevenue;
 
     public long getTotalAppointments() {
         return totalAppointments;
@@ -69,53 +57,5 @@ public class AdminStatsResponse {
 
     public void setRejectedAppointments(long rejectedAppointments) {
         this.rejectedAppointments = rejectedAppointments;
-    }
-
-    public long getTotalPayments() {
-        return totalPayments;
-    }
-
-    public void setTotalPayments(long totalPayments) {
-        this.totalPayments = totalPayments;
-    }
-
-    public long getCompletedPayments() {
-        return completedPayments;
-    }
-
-    public void setCompletedPayments(long completedPayments) {
-        this.completedPayments = completedPayments;
-    }
-
-    public BigDecimal getTotalRevenue() {
-        return totalRevenue;
-    }
-
-    public void setTotalRevenue(BigDecimal totalRevenue) {
-        this.totalRevenue = totalRevenue;
-    }
-
-    public BigDecimal getCommissionRatePercent() {
-        return commissionRatePercent;
-    }
-
-    public void setCommissionRatePercent(BigDecimal commissionRatePercent) {
-        this.commissionRatePercent = commissionRatePercent;
-    }
-
-    public BigDecimal getPlatformRevenue() {
-        return platformRevenue;
-    }
-
-    public void setPlatformRevenue(BigDecimal platformRevenue) {
-        this.platformRevenue = platformRevenue;
-    }
-
-    public BigDecimal getPsychologistRevenue() {
-        return psychologistRevenue;
-    }
-
-    public void setPsychologistRevenue(BigDecimal psychologistRevenue) {
-        this.psychologistRevenue = psychologistRevenue;
     }
 }

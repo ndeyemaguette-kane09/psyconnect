@@ -6,11 +6,10 @@ import '../services/psychologist_service.dart';
 import '../widgets/psychologist_card.dart';
 import 'psychologist_profile_screen.dart';
 
-/// Contenu de l'onglet "Chercher" du parcours patient (cf. maquette v2,
-/// "Recherche de Psychologue") — affiché par [PatientShell], pas de
-/// Scaffold/AppBar propre ici. Le backend ne propose pas de filtrage côté
-/// serveur (GET /psychologists ne prend aucun query param), donc la
-/// recherche/les chips de filtre opèrent côté client sur la liste complète.
+// onglet Chercher du patient (maquette v2, "Recherche de Psychologue"),
+// affiche par PatientShell. le backend filtre pas cote serveur (GET
+// /psychologists prend aucun query param) donc la recherche/les chips
+// tournent cote client sur la liste complete
 class PsychologistSearchScreen extends StatefulWidget {
   const PsychologistSearchScreen({super.key});
 
@@ -23,13 +22,10 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
   final _service = PsychologistService();
   final _searchController = TextEditingController();
 
-  /// Catégorie pensée pour les patients qui n'ont jamais consulté et ne
-  /// savent pas quelle spécialité chercher : comme `specialty` est un champ
-  /// libre côté backend (pas d'enum ni de taxonomie diagnostique), on ne
-  /// peut pas filtrer par "type de problème" de façon fiable. Cette
-  /// catégorie affiche donc tous les psychologues (comme "Tous"), mais avec
-  /// un message qui explique qu'un premier rendez-vous suffit pour faire le
-  /// point, le psychologue se chargeant ensuite d'orienter si besoin.
+  // categorie pour ceux qui savent pas trop quoi chercher
+  // specialty c'est du texte libre cote backend, pas un enum
+  // donc on peut pas vraiment filtrer par "type de probleme"
+  // ca affiche tous les psys, avec un message rassurant
   static const _unsureFilter = 'Je ne sais pas encore';
 
   static const _filters = [

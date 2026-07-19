@@ -5,15 +5,15 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
+import '../../call/screens/call_screen.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/services/appointment_service.dart';
 import '../../payment/models/payment_models.dart';
 import '../../payment/services/payment_service.dart';
+import 'session_recommendations_screen.dart';
 
-/// Contenu de l'onglet "Agenda" du parcours psychologue (cf. maquette v2) —
-/// liste complète des rendez-vous (pas seulement ceux du jour, contrairement
-/// au "Planning du jour" de l'onglet Accueil), avec actions confirmer/refuser
-/// sur les RDV en attente.
+// Onglet Agenda du psychologue : tous les rendez-vous, avec possibilité
+// de confirmer ou refuser ceux en attente.
 class AgendaTab extends StatefulWidget {
   const AgendaTab({super.key});
 
@@ -30,9 +30,7 @@ class _AgendaTabState extends State<AgendaTab> {
   List<Appointment> _appointments = [];
   Map<int, PatientProfile> _patientsById = {};
 
-  // Filtre par statut façon "balises" (même pattern que l'agenda patient,
-  // cf. appointments_tab.dart). `null` = "Tous" : affichage groupé par
-  // statut.
+  // Filtre par statut. null = "Tous" (vue groupée par statut).
   AppointmentStatus? _statusFilter;
 
   @override
@@ -59,7 +57,7 @@ class _AgendaTabState extends State<AgendaTab> {
     try {
       final appointments = await _appointmentService
           .getAppointmentsByPsychologistId(psychologistId);
-      // Plus proche d'abord (RDV passés en dernier).
+      // Les RDV les plus proches en premier.
       appointments.sort((a, b) => a.startTime.compareTo(b.startTime));
 
       final patientIds = appointments.map((a) => a.patientId).toSet();
@@ -105,9 +103,7 @@ class _AgendaTabState extends State<AgendaTab> {
     }
   }
 
-  /// Ordre d'affichage des groupes en vue "Tous" : les RDV qui demandent
-  /// encore une action du psychologue (en attente) en premier — même
-  /// principe que l'agenda patient, cf. appointments_tab.dart.
+  // Les RDV en attente apparaissent en tête de liste.
   static const _groupOrder = [
     AppointmentStatus.pending,
     AppointmentStatus.confirmed,
@@ -116,18 +112,45 @@ class _AgendaTabState extends State<AgendaTab> {
     AppointmentStatus.rejected,
   ];
 
+  void _joinCall(Appointment a) {
+    final patient = _patientsById[a.patientId];
+    // si mode anonyme : on affiche juste "Patient" pour ne pas exposer le nom
+    final name = patient?.anonymousMode == true
+        ? 'Patient'
+        : patient != null
+            ? '${patient.firstName} ${patient.lastName}'.trim()
+            : 'Patient';
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => CallScreen(
+        appointmentId: a.id,
+        peerName: name.isEmpty ? 'Patient' : name,
+        isVideo: a.consultationType == ConsultationType.video,
+      ),
+    ));
+  }
+
   Widget _buildCard(Appointment a) {
+    // bouton "Rejoindre" : RDV confirmé + video/audio + fenêtre temporelle ouverte
+    // (10 min avant le début jusqu'à 30 min après la fin, pour absorber les retards)
+    final now = DateTime.now();
+    final callWindowOpen =
+        now.isAfter(a.startTime.subtract(const Duration(minutes: 10))) &&
+        now.isBefore(a.endTime.add(const Duration(minutes: 30)));
+    final canJoinCall = a.status == AppointmentStatus.confirmed &&
+        (a.consultationType == ConsultationType.video ||
+            a.consultationType == ConsultationType.audio) &&
+        callWindowOpen;
+
     return _AgendaCard(
       appointment: a,
       patient: _patientsById[a.patientId],
       onConfirm: () => _updateStatus(a, AppointmentStatus.confirmed),
       onReject: () => _updateStatus(a, AppointmentStatus.rejected),
+      onJoinCall: canJoinCall ? () => _joinCall(a) : null,
     );
   }
 
-  /// Slivers du contenu principal (hors titre/filtres) : soit une liste
-  /// plate filtrée par balise, soit des sections groupées par statut quand
-  /// "Tous" est sélectionné — même pattern que l'agenda patient.
+  // Liste plate si un filtre est actif, sections groupées par statut sinon.
   List<Widget> _buildContentSlivers() {
     if (_statusFilter != null) {
       final filtered =
@@ -292,12 +315,15 @@ class _AgendaCard extends StatelessWidget {
     this.patient,
     required this.onConfirm,
     required this.onReject,
+    this.onJoinCall,
   });
 
   final Appointment appointment;
   final PatientProfile? patient;
   final VoidCallback onConfirm;
   final VoidCallback onReject;
+  // non-null uniquement pour les RDV confirmés video/audio
+  final VoidCallback? onJoinCall;
 
   Color get _statusColor {
     switch (appointment.status) {
@@ -421,6 +447,29 @@ class _AgendaCard extends StatelessWidget {
                 ],
               ),
             ],
+            // bouton appel video/audio pour les RDV confirmes
+            if (onJoinCall != null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onJoinCall,
+                  icon: Icon(
+                    appointment.consultationType == ConsultationType.video
+                        ? Icons.video_call_outlined
+                        : Icons.call_outlined,
+                  ),
+                  label: Text(
+                    appointment.consultationType == ConsultationType.video
+                        ? 'Rejoindre l\'appel vidéo'
+                        : 'Rejoindre l\'appel audio',
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.tealDark,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -428,9 +477,8 @@ class _AgendaCard extends StatelessWidget {
   }
 }
 
-// Détail d'un rendez-vous, ouvert au tap sur une [_AgendaCard] : nom du
-// patient (ou pseudonyme en mode anonyme) et montant payé. Le paiement est
-// chargé à la demande, pas dans [_AgendaTabState._load].
+// Fiche détail d'un rendez-vous : nom du patient (ou pseudo), date, type et paiement.
+// Le paiement est chargé à la demande pour ne pas alourdir le _load principal.
 class _AppointmentDetailSheet extends StatefulWidget {
   const _AppointmentDetailSheet({required this.appointment, this.patient});
 
@@ -580,6 +628,53 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
                 label: 'Statut',
                 value: appointment.status.label,
               ),
+              // Recommandations post-séance : uniquement disponibles après une séance terminée.
+              if (appointment.status == AppointmentStatus.completed) ...[
+                const SizedBox(height: 20),
+                const _SectionLabel('Recommandations post-séance'),
+                const SizedBox(height: 8),
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    final patName = patient != null
+                        ? (patient?.anonymousMode == true
+                            ? 'Patient'
+                            : '${patient!.firstName} ${patient!.lastName}'.trim())
+                        : 'Patient';
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => SessionRecommendationsScreen(
+                        appointmentId: appointment.id,
+                        patientName: patName.isEmpty ? null : patName,
+                      ),
+                    ));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.tealLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.assignment_outlined,
+                            color: AppColors.tealDark, size: 20),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Gérer les recommandations',
+                            style: TextStyle(
+                                color: AppColors.tealDark,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14),
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: AppColors.tealDark),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               const _SectionLabel('Paiement'),
               const SizedBox(height: 8),

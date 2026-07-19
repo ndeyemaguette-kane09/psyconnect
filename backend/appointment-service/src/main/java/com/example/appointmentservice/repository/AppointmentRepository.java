@@ -12,23 +12,39 @@ public interface AppointmentRepository
         extends JpaRepository<Appointment, Long> {
 
 
-            boolean existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThan(
-        Long psychologistId,
-        LocalDateTime endTime,
-        LocalDateTime startTime
-);
+    // Conflit psy : créneau chevauche un RDV actif (PENDING ou CONFIRMED)
+    boolean existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusIn(
+            Long psychologistId,
+            LocalDateTime endTime,
+            LocalDateTime startTime,
+            java.util.Collection<AppointmentStatus> statuses
+    );
 
-/**
- * Variante utilisée par le report de rendez-vous (reschedule) : exclut le
- * rendez-vous en cours de modification du contrôle de conflit, sinon il se
- * bloquerait toujours lui-même sur son propre ancien créneau.
- */
-boolean existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndIdNot(
-        Long psychologistId,
-        LocalDateTime endTime,
-        LocalDateTime startTime,
-        Long excludedId
-);
+    // Conflit patient : même logique, côté patient
+    boolean existsByPatientIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusIn(
+            Long patientId,
+            LocalDateTime endTime,
+            LocalDateTime startTime,
+            java.util.Collection<AppointmentStatus> statuses
+    );
+
+    // Reschedule psy : exclure le RDV en cours de modification
+    boolean existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusInAndIdNot(
+            Long psychologistId,
+            LocalDateTime endTime,
+            LocalDateTime startTime,
+            java.util.Collection<AppointmentStatus> statuses,
+            Long excludedId
+    );
+
+    // Reschedule patient : idem côté patient
+    boolean existsByPatientIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusInAndIdNot(
+            Long patientId,
+            LocalDateTime endTime,
+            LocalDateTime startTime,
+            java.util.Collection<AppointmentStatus> statuses,
+            Long excludedId
+    );
 
 List<Appointment> findByPsychologistId(Long psychologistId);
 
@@ -38,20 +54,14 @@ List<Appointment> findByStatus(AppointmentStatus status);
 
 long countByStatus(AppointmentStatus status);
 
-/**
- * Utilisé par MessagingServiceImpl : une conversation ne peut être ouverte
- * qu'entre un patient et un psychologue ayant déjà au moins un rendez-vous
- * ensemble (peu importe son statut — même un rendez-vous PENDING ou
- * CANCELLED atteste d'une mise en relation légitime).
- */
+// Conversation possible uniquement si patient et psychologue ont déjà un rendez-vous ensemble
 boolean existsByPatientIdAndPsychologistId(Long patientId, Long psychologistId);
 
-/**
- * Utilisé par AppointmentReminderScheduler : sélectionne les rendez-vous
- * confirmés dont le créneau de rappel (1h avant le début) vient d'être
- * atteint et qui n'ont pas déjà été notifiés, pour éviter les doublons à
- * chaque passage du job planifié.
- */
+// avis patient : uniquement apres une seance COMPLETED
+boolean existsByPatientIdAndPsychologistIdAndStatus(
+        Long patientId, Long psychologistId, AppointmentStatus status);
+
+// pour le rappel : RDV confirmés dans l'heure et pas encore notifiés
 List<Appointment> findByStatusAndStartTimeBetweenAndReminderSentFalse(
         AppointmentStatus status,
         LocalDateTime from,

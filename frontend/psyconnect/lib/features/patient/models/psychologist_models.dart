@@ -1,5 +1,4 @@
-/// Correspond à PsychologistProfileResponse côté user-service
-/// (GET /psychologists, GET /psychologists/{id}).
+// correspond a la reponse de user-service pour un psy
 class PsychologistProfile {
   final int id;
   final String firstName;
@@ -11,24 +10,24 @@ class PsychologistProfile {
   final int? consultationPrice;
   final String? languages;
   final String? city;
+  // adresse precise du cabinet, affichee au patient pour s'y rendre en presentiel
+  final String? address;
   final double? rating;
   final int? totalReviews;
   final bool available;
-  // Utilisé par l'écran admin de validation des psychologues (cf.
-  // AdminController#setPsychologistVerified) — sans intérêt côté patient,
-  // mais doit rester sur ce modèle partagé pour éviter une duplication.
+  // pour l'ecran admin de validation, pas utile cote patient
+  // mais reste ici pour pas dupliquer le modele
   final bool profileVerified;
-  // Distinct de profileVerified=false : un profil "rejected" a été refusé
-  // explicitement par un admin (cf. AdminController#setPsychologistRejected),
-  // alors que profileVerified=false seul peut aussi vouloir dire "jamais
-  // encore traité".
+  // rejected = refusé par un admin, c'est pas pareil que juste pas verifié
   final bool rejected;
-  // Champs ajoutés pour la validation admin "concrète" (cf. écran de détail
-  // dans admin_validation_tab.dart) : sans intérêt côté patient, mais
-  // doivent rester sur ce modèle partagé pour éviter une duplication.
+  // pour la validation admin, pas utile cote patient
   final String? licenseNumber;
   final DateTime? createdAt;
   final bool hasLicenseDocument;
+  // mode urgence : le psy est disponible maintenant pour un appel sans RDV
+  final bool availableForEmergency;
+  // consultation solidaire gratuite proposée par le psy
+  final bool offersFreeSessions;
 
   PsychologistProfile({
     required this.id,
@@ -41,6 +40,7 @@ class PsychologistProfile {
     this.consultationPrice,
     this.languages,
     this.city,
+    this.address,
     this.rating,
     this.totalReviews,
     this.available = true,
@@ -49,6 +49,8 @@ class PsychologistProfile {
     this.licenseNumber,
     this.createdAt,
     this.hasLicenseDocument = false,
+    this.availableForEmergency = false,
+    this.offersFreeSessions = false,
   });
 
   String get fullName => 'Dr. $firstName $lastName';
@@ -65,6 +67,7 @@ class PsychologistProfile {
         consultationPrice: (json['consultationPrice'] as num?)?.toInt(),
         languages: json['languages'] as String?,
         city: json['city'] as String?,
+        address: json['address'] as String?,
         rating: (json['rating'] as num?)?.toDouble(),
         totalReviews: (json['totalReviews'] as num?)?.toInt(),
         available: json['available'] as bool? ?? true,
@@ -75,5 +78,28 @@ class PsychologistProfile {
             ? null
             : DateTime.tryParse(json['createdAt'] as String),
         hasLicenseDocument: json['hasLicenseDocument'] as bool? ?? false,
+        availableForEmergency:
+            json['availableForEmergency'] as bool? ?? false,
+        offersFreeSessions: json['offersFreeSessions'] as bool? ?? false,
+      );
+}
+
+// avis anonyme sur un psychologue (note + commentaire facultatif).
+// rating == null veut dire "pas d'avis" (cas du GET /review/me sans avis
+// existant) : on differencie ce cas plutot que de mettre 0 par defaut
+class PsychologistReview {
+  final int? rating;
+  final String? comment;
+  final DateTime? updatedAt;
+
+  PsychologistReview({this.rating, this.comment, this.updatedAt});
+
+  factory PsychologistReview.fromJson(Map<String, dynamic> json) =>
+      PsychologistReview(
+        rating: (json['rating'] as num?)?.toInt(),
+        comment: json['comment'] as String?,
+        updatedAt: json['updatedAt'] == null
+            ? null
+            : DateTime.tryParse(json['updatedAt'] as String),
       );
 }

@@ -1,8 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/api_constants.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -10,23 +14,14 @@ import '../../auth/screens/splash_screen.dart';
 import '../../auth/services/profile_service.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/models/psychologist_models.dart';
+import '../../patient/screens/announcements_screen.dart';
 import '../../patient/screens/notifications_screen.dart';
 import '../../patient/services/appointment_service.dart';
 import '../../patient/services/notification_service.dart';
 import '../../patient/services/psychologist_service.dart';
 
-/// Contenu de l'onglet "Accueil" du parcours psychologue (cf. maquette v2,
-/// "Tableau de Bord Psychologue").
-///
-/// Écarts assumés par rapport à la maquette, dictés par les limites réelles
-/// du backend (aucun endpoint stats/paiement n'existe, vérifié en lisant les
-/// contrôleurs Java) :
-/// - La carte "Revenus ce mois" est omise : aucun payment-service n'existe,
-///   impossible de l'afficher sans inventer un chiffre.
-/// - Les 4 stats ("RDV aujourd'hui", "Cette semaine", "Patients actifs",
-///   "Ma note") sont calculées côté client à partir de
-///   GET /appointments/psychologist/{id} (les 3 premières) et du champ
-///   `rating` du PsychologistProfile (la 4e) — pas d'endpoint dédié.
+// Onglet Accueil du psychologue. Les revenus sont dans l'onglet Statistiques ;
+// les quatre indicateurs du tableau de bord sont calculés depuis la liste des RDV.
 class PsychologistHomeTab extends StatefulWidget {
   const PsychologistHomeTab({super.key});
 
@@ -40,12 +35,20 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
   final _profileService = ProfileService();
   final _notificationService = NotificationService();
 
+  final _api = ApiClient();
+  final _storage = const FlutterSecureStorage();
+
   bool _loading = true;
   String? _error;
   PsychologistProfile? _me;
   List<Appointment> _appointments = [];
   Map<int, PatientProfile> _patientsById = {};
   int _unreadNotifCount = 0;
+  // Badge mégaphone : annonces non vues depuis la dernière ouverture.
+  int _newBroadcastCount = 0;
+
+  // toggle urgence : état local synchronisé avec le backend
+  bool _savingEmergency = false;
 
   @override
   void initState() {
@@ -59,7 +62,7 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
       _error = null;
     });
 
-    // Lu avant tout `await` : éviter d'utiliser `context` après un gap async.
+    // Lu avant l'await pour éviter d'utiliser context après une opération asynchrone.
     final psychologistId = context.read<AuthProvider>().session?.profileId;
     if (psychologistId == null) {
       setState(() {
@@ -101,11 +104,10 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     }
 
     unawaited(_refreshUnreadNotifCount());
+    unawaited(_refreshBroadcastBadge());
   }
 
-  // Même badge "non lu" que côté patient (cf. ProfileTab) — appel
-  // best-effort séparé : une erreur réseau ici ne doit pas empêcher
-  // d'afficher le reste du tableau de bord.
+  // Chargement du badge "non lus", indépendant du reste pour ne pas bloquer l'affichage.
   Future<void> _refreshUnreadNotifCount() async {
     final psychologistId = context.read<AuthProvider>().session?.profileId;
     if (psychologistId == null) return;
@@ -115,7 +117,7 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
       final unread = notifications.where((n) => !n.isRead).length;
       if (mounted) setState(() => _unreadNotifCount = unread);
     } catch (_) {
-      // Échec silencieux : le badge garde sa dernière valeur connue.
+      // Échec silencieux : le badge conserve sa dernière valeur.
     }
   }
 
@@ -128,9 +130,41 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     if (mounted) _refreshUnreadNotifCount();
   }
 
-  // Premier rendez-vous futur, pas annulé/refusé, le plus proche — même
-  // logique que `_NextAppointmentCard` côté patient (cf.
-  // `patient_home_screen.dart`), pour équilibrer les deux parcours.
+  Future<void> _refreshBroadcastBadge() async {
+    try {
+      final json = await _api.get(ApiConstants.broadcasts);
+      final broadcasts = (json as List).cast<Map<String, dynamic>>();
+
+      final lastSeenStr = await _storage.read(key: 'psy_broadcasts_last_seen');
+      final lastSeen = lastSeenStr != null
+          ? DateTime.tryParse(lastSeenStr) ?? DateTime.fromMillisecondsSinceEpoch(0)
+          : DateTime.fromMillisecondsSinceEpoch(0);
+
+      final newCount = broadcasts.where((b) {
+        final raw = b['sentAt'] as String?;
+        if (raw == null) return false;
+        final sentAt = DateTime.tryParse(raw);
+        return sentAt != null && sentAt.isAfter(lastSeen);
+      }).length;
+
+      if (mounted) setState(() => _newBroadcastCount = newCount);
+    } catch (_) {}
+  }
+
+  Future<void> _openAnnouncements() async {
+    await _storage.write(
+      key: 'psy_broadcasts_last_seen',
+      value: DateTime.now().toIso8601String(),
+    );
+    if (mounted) setState(() => _newBroadcastCount = 0);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+    );
+    if (mounted) _refreshBroadcastBadge();
+  }
+
+  // Premier rendez-vous futur non annulé et non refusé.
   Appointment? get _nextAppointment {
     final now = DateTime.now();
     final upcoming = _activeAppointments
@@ -140,8 +174,7 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     return upcoming.isEmpty ? null : upcoming.first;
   }
 
-  /// Best-effort : un patient introuvable/erreur réseau ne doit pas faire
-  /// échouer tout le chargement du dashboard.
+  // Récupère un profil patient sans bloquer le chargement si l'appel échoue.
   Future<PatientProfile?> _safeGetPatientProfile(int patientId) async {
     try {
       return await _profileService.getPatientProfileById(patientId);
@@ -193,10 +226,52 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     }
   }
 
-  /// Absente de la maquette (pas d'onglet Profil côté psychologue), ajoutée
-  /// car `PsychologistShell` n'offrait jusqu'ici aucun moyen de se
-  /// déconnecter (5 onglets, aucun accès profil/paramètres) — cf. mémoire
-  /// projet. Même pattern que `ProfileTab`/`HomeScreen` côté patient.
+  // toggle le mode urgence : tap sur la carte → inverse l'état courant
+  Future<void> _toggleEmergency() async {
+    final me = _me;
+    if (me == null || _savingEmergency) return;
+
+    final newAvailable = !me.availableForEmergency;
+    setState(() => _savingEmergency = true);
+
+    try {
+      final updated = await _psychologistService.toggleEmergencyAvailability(
+        me.id,
+        available: newAvailable,
+        freeSession: newAvailable ? me.offersFreeSessions : false,
+      );
+      if (!mounted) return;
+      setState(() {
+        _me = updated;
+        _savingEmergency = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newAvailable
+                ? 'Mode urgence activé — les patients peuvent vous appeler.'
+                : 'Mode urgence désactivé.',
+          ),
+          backgroundColor: newAvailable
+              ? const Color(0xFFE53935)
+              : AppColors.muted,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _savingEmergency = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException
+              ? e.message
+              : 'Impossible de mettre à jour le mode urgence.'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    }
+  }
+
   Future<void> _logout() async {
     final authProvider = context.read<AuthProvider>();
     await authProvider.logout();
@@ -247,6 +322,17 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Annonces système',
+                    onPressed: _openAnnouncements,
+                    icon: Badge(
+                      isLabelVisible: _newBroadcastCount > 0,
+                      label: Text('$_newBroadcastCount'),
+                      backgroundColor: AppColors.rose,
+                      child: const Icon(Icons.campaign_outlined,
+                          color: Colors.white),
+                    ),
+                  ),
+                  IconButton(
                     tooltip: 'Notifications',
                     onPressed: session?.profileId == null
                         ? null
@@ -265,6 +351,14 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            // carte mode urgence : toujours affichée, même pendant le chargement
+            _EmergencyToggleCard(
+              isAvailable: _me?.availableForEmergency ?? false,
+              offersFreeSessions: _me?.offersFreeSessions ?? false,
+              isSaving: _savingEmergency,
+              onToggle: _me != null ? _toggleEmergency : null,
             ),
             const SizedBox(height: 20),
             if (_loading)
@@ -345,6 +439,248 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
   }
 }
 
+// Carte de disponibilité urgence, toujours visible. Un tap bascule le mode.
+class _EmergencyToggleCard extends StatefulWidget {
+  const _EmergencyToggleCard({
+    required this.isAvailable,
+    required this.offersFreeSessions,
+    required this.isSaving,
+    required this.onToggle,
+  });
+
+  final bool isAvailable;
+  final bool offersFreeSessions;
+  final bool isSaving;
+  final VoidCallback? onToggle;
+
+  @override
+  State<_EmergencyToggleCard> createState() => _EmergencyToggleCardState();
+}
+
+class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
+    if (widget.isAvailable) _pulseCtrl.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_EmergencyToggleCard old) {
+    super.didUpdateWidget(old);
+    if (widget.isAvailable && !_pulseCtrl.isAnimating) {
+      _pulseCtrl.repeat(reverse: true);
+    } else if (!widget.isAvailable && _pulseCtrl.isAnimating) {
+      _pulseCtrl.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.isAvailable;
+    final saving = widget.isSaving;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: active
+            ? const LinearGradient(
+                colors: [Color(0xFFB71C1C), Color(0xFFE53935)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: active ? null : AppColors.white,
+        border: Border.all(
+          color: active
+              ? const Color(0xFFB71C1C)
+              : AppColors.tealMid,
+          width: active ? 0 : 1,
+        ),
+        boxShadow: active
+            ? [
+                BoxShadow(
+                  color: const Color(0xFFE53935).withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                )
+              ]
+            : [
+                BoxShadow(
+                  color: AppColors.text.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                )
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: saving ? null : widget.onToggle,
+          borderRadius: BorderRadius.circular(18),
+          splashColor: active
+              ? Colors.white.withValues(alpha: 0.15)
+              : const Color(0xFFE53935).withValues(alpha: 0.08),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Indicateur pulsant quand actif
+                    if (active)
+                      AnimatedBuilder(
+                        animation: _pulse,
+                        builder: (_, __) => Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white
+                                .withValues(alpha: _pulse.value),
+                          ),
+                        ),
+                      ),
+                    if (active) const SizedBox(width: 6),
+                    Text(
+                      active ? 'EN LIGNE · URGENCES' : 'MODE URGENCE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: active
+                            ? Colors.white.withValues(alpha: 0.85)
+                            : AppColors.muted,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (saving)
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: active ? Colors.white : AppColors.teal,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? Colors.white.withValues(alpha: 0.18)
+                            : const Color(0xFFE53935).withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        active
+                            ? Icons.emergency_outlined
+                            : Icons.do_not_disturb_alt_outlined,
+                        color: active ? Colors.white : const Color(0xFFE53935),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            active
+                                ? 'Disponible maintenant'
+                                : 'Non disponible',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: active ? Colors.white : AppColors.text,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            active
+                                ? (widget.offersFreeSessions
+                                    ? 'Les patients peuvent vous appeler — consultation gratuite'
+                                    : 'Les patients peuvent vous appeler immédiatement')
+                                : 'Appuyez pour vous rendre disponible',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: active
+                                  ? Colors.white.withValues(alpha: 0.78)
+                                  : AppColors.muted,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Bouton d'action pleine largeur
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : const Color(0xFFE53935),
+                    borderRadius: BorderRadius.circular(10),
+                    border: active
+                        ? Border.all(
+                            color: Colors.white.withValues(alpha: 0.4))
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      saving
+                          ? 'Mise à jour…'
+                          : active
+                              ? 'Appuyer pour désactiver'
+                              : 'Activer le mode urgence',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DashStat extends StatelessWidget {
   const _DashStat({required this.value, required this.label});
 
@@ -380,9 +716,8 @@ class _DashStat extends StatelessWidget {
   }
 }
 
-/// Même rendu visuel que `_NextAppointmentCard` côté patient (carte
-/// dégradée en tête d'écran), avec le nom (ou pseudo, déjà résolu côté
-/// backend en mode anonyme) du patient à la place du psychologue.
+// Carte du prochain rendez-vous, côté psychologue : affiche le nom du patient
+// (ou son pseudo si le mode anonyme est activé, géré côté backend).
 class _NextPatientAppointmentCard extends StatelessWidget {
   const _NextPatientAppointmentCard({required this.appointment, this.patient});
 

@@ -63,10 +63,7 @@ class OwnershipResolverResilienceTest {
         request.setAttribute("authUserId", 42L);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
-        // Le registre est partagé entre les tests (et potentiellement
-        // réutilisé entre classes via le cache de contexte Spring) : on
-        // repart d'un état CLOSED pour ne pas dépendre de l'ordre
-        // d'exécution.
+        // le registre est partagé entre les tests, on remet a CLOSED avant chaque test
         circuitBreakerRegistry.circuitBreaker("userService").reset();
     }
 

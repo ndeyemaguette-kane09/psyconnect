@@ -2,9 +2,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../models/session_models.dart';
 
-/// Appelle les endpoints /sessions de appointment-service (via l'API
-/// Gateway) : démarrage/fin/consultation de la session simulée associée à
-/// un RDV CONFIRMED. Partagé entre parcours patient et psychologue.
+// endpoints /sessions de appointment-service : demarrer/finir/consulter
+// la session simulee liee a un RDV CONFIRMED. utilise par patient et psy
 class SessionService {
   SessionService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
@@ -19,7 +18,8 @@ class SessionService {
   }
 
   Future<CallSession> endSession(int sessionId) async {
-    final json = await _api.post(ApiConstants.sessionEnd(sessionId));
+    // le controller backend utilise @PutMapping("/{id}/end")
+    final json = await _api.put(ApiConstants.sessionEnd(sessionId));
     return CallSession.fromJson(json as Map<String, dynamic>);
   }
 
@@ -28,5 +28,17 @@ class SessionService {
     return (json as List)
         .map((e) => CallSession.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  // démarre une session d'urgence sans RDV : appel direct patient → psy dispo
+  Future<CallSession> startEmergencySession({
+    required int patientId,
+    required int psychologistId,
+  }) async {
+    final json = await _api.post(
+      ApiConstants.sessionsEmergency,
+      body: {'patientId': patientId, 'psychologistId': psychologistId},
+    );
+    return CallSession.fromJson(json as Map<String, dynamic>);
   }
 }

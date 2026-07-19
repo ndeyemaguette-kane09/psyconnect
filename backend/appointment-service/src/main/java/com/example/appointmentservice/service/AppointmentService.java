@@ -21,12 +21,8 @@ public interface AppointmentService {
             String status
     );
 
-    /**
-     * Reporte un rendez-vous encore modifiable (PENDING ou CONFIRMED) vers un
-     * nouveau créneau. Réservé au patient propriétaire du rendez-vous. Un
-     * rendez-vous déjà CONFIRMED repasse en PENDING : le psychologue doit
-     * reconfirmer explicitement le nouveau créneau.
-     */
+    // reporte un RDV vers un nouveau creneau, le patient proprietaire only
+    // Si le rendez-vous était confirmé, il repasse en attente
     AppointmentResponse rescheduleAppointment(
             Long id,
             RescheduleAppointmentRequest request
@@ -38,11 +34,16 @@ getAppointmentsByPsychologistId(Long psychologistId);
 List<AppointmentResponse>
 getAppointmentsByPatientId(Long patientId);
 
-/** Réservé à l'ADMIN : liste tous les rendez-vous, sans contrôle de propriété. */
+// Admin uniquement : tous les rendez-vous sans vérification de propriété
 List<AppointmentResponse> getAllAppointmentsForAdmin(String status);
 
-// Supprime définitivement un rendez-vous ANNULÉ ou REFUSÉ. Réservé au
-// patient propriétaire ; un PENDING/CONFIRMED/COMPLETED ne peut pas être
-// supprimé.
+// appel inter-service (user-service → appointment-service) : verifie qu'un psy
+// a au moins un rendez-vous avec un patient donné. Pas de vérification d'ownership :
+// le contrôle de rôle est fait côté user-service avant d'appeler cet endpoint.
+// requireCompleted=false → n'importe quel statut ; true → seulement COMPLETED
+boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted);
+
+// suppression definitive d'un RDV annulé/refusé. patient proprietaire only,
+// un PENDING/CONFIRMED/COMPLETED ne peut pas etre supprimé
 void deleteAppointment(Long id);
 }

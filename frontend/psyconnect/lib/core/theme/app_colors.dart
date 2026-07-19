@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Palette extraite de docs/PsyConnect Maquettes v2.html (variables CSS :root).
-/// Garder ce fichier synchronisé avec la maquette si la charte évolue.
+// palette extraite de docs/PsyConnect Maquettes v2.html (variables CSS :root)
+// a resynchroniser si la charte change
 class AppColors {
   AppColors._();
 
@@ -35,5 +35,13 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [tealDark, teal],
+  );
+
+  // utilisé pour la bannière du compagnon IA "Xalaat", pour la distinguer
+  // visuellement du journal/solde (qui utilisent headerGradient en teal)
+  static const LinearGradient goldGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFB8843A), gold],
   );
 }

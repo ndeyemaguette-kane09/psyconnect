@@ -5,19 +5,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/services/profile_service.dart';
 
-/// Écran "Paramètres" — pas dans la maquette v2 (aucun écran équivalent),
-/// pour regrouper les préférences qui ne concernent pas l'identité civile
-/// (celles-ci restent
-/// dans l'édition du Profil) : mode anonyme (champ réel du PatientProfile,
-/// persisté côté backend) et notifications (préférence purement locale,
-/// aucun endpoint d'abonnement/désabonnement n'existe).
-///
-/// La langue préférée a déménagé dans "Modifier le profil" : elle vivait
-/// ici alors que le reste des infos de profil s'édite ailleurs, ce qui
-/// forçait à naviguer à deux endroits.
-///
-/// Design libre par rapport à la maquette v2 : icônes en pastille colorée +
-/// en-tête dégradé, plutôt qu'une simple liste de réglages.
+// ecran Parametres, pas dans la maquette
+// regroupe mode anonyme (sauvegarde backend) et notifications (local)
+//
+// la langue a demenage dans "Modifier le profil"
+//
+// design libre : icones en pastille coloree + header degrade
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
@@ -175,8 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingsRow(
                   icon: Icons.info_outline,
                   title: 'PsyConnect Sénégal',
-                  // Tenu à jour manuellement avec `version:` dans pubspec.yaml
-                  // (pas de dépendance package_info_plus pour un seul affichage).
+                  // a jour a la main, pas besoin d'un package juste pour ca
                   subtitle: 'Version 1.0.0',
                 ),
               ],

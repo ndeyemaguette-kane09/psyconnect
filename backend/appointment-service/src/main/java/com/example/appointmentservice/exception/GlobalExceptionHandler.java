@@ -64,21 +64,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
     }
 
-    @ExceptionHandler(InsufficientBalanceException.class)
-    public ResponseEntity<Map<String, Object>>
-    handleInsufficientBalance(
-            InsufficientBalanceException ex
-    ) {
-        Map<String, Object> errorResponse = new HashMap<>();
-
-        errorResponse.put("timestamp", LocalDateTime.now());
-        errorResponse.put("status", HttpStatus.PAYMENT_REQUIRED.value());
-        errorResponse.put("error", "Payment Required");
-        errorResponse.put("message", ex.getMessage());
-
-        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(errorResponse);
-    }
-
     @ExceptionHandler(ServiceUnavailableException.class)
     public ResponseEntity<Map<String, Object>>
     handleServiceUnavailable(

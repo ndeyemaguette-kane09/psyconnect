@@ -32,23 +32,26 @@ public class NotificationServiceImpl
         this.ownershipResolver = ownershipResolver;
     }
 
-    /**
-     * Une notification appartient soit à un patient (userId =
-     * PatientProfile.id), soit à un psychologue (userId =
-     * PsychologistProfile.id) — ex. décision de validation de l'admin
-     * (accepté/refusé). On résout l'identité propriétaire selon le rôle du
-     * jeton courant plutôt que de supposer PATIENT dans tous les cas.
-     */
-    private void checkOwnership(Long notificationUserId) {
+    // Retourne le rôle de l'utilisateur courant ("PATIENT" ou "PSYCHOLOGIST"),
+    // ou null si aucun rôle connu.
+    private String currentRole() {
+        if (SecurityUtils.hasRole("PATIENT")) return "PATIENT";
+        if (SecurityUtils.hasRole("PSYCHOLOGIST")) return "PSYCHOLOGIST";
+        return null;
+    }
 
-        boolean owns;
+    // Une notification appartient à un profil identifié par (userId, userRole).
+    // Sans le rôle, patientProfileId=3 et psychologistProfileId=3 seraient
+    // indiscernables — un psy verrait les notifs du patient ayant le même id.
+    private void checkOwnership(Long notificationUserId, String notificationUserRole) {
 
-        if (SecurityUtils.hasRole("PATIENT")) {
+        String role = currentRole();
+        boolean owns = false;
+
+        if ("PATIENT".equals(role) && "PATIENT".equals(notificationUserRole)) {
             owns = ownershipResolver.resolveOwnPatientId().equals(notificationUserId);
-        } else if (SecurityUtils.hasRole("PSYCHOLOGIST")) {
+        } else if ("PSYCHOLOGIST".equals(role) && "PSYCHOLOGIST".equals(notificationUserRole)) {
             owns = ownershipResolver.resolveOwnPsychologistId().equals(notificationUserId);
-        } else {
-            owns = false;
         }
 
         if (!owns) {
@@ -75,10 +78,26 @@ public class NotificationServiceImpl
             Long userId
     ) {
 
-        checkOwnership(userId);
+        String role = currentRole();
+        if (role == null) {
+            throw new ForbiddenOperationException("Rôle non reconnu");
+        }
+
+        // checkOwnership implicite : on ne retourne que les notifs qui correspondent
+        // au rôle courant, donc un psy ne verra jamais les notifs d'un patient
+        // même si leurs profileId numériques coïncident.
+        Long ownId = "PATIENT".equals(role)
+                ? ownershipResolver.resolveOwnPatientId()
+                : ownershipResolver.resolveOwnPsychologistId();
+
+        if (!ownId.equals(userId)) {
+            throw new ForbiddenOperationException(
+                    "Cette notification ne vous appartient pas"
+            );
+        }
 
         return notificationRepository
-                .findByUserId(userId);
+                .findByUserIdAndUserRole(userId, role);
     }
 
     @Override
@@ -95,7 +114,7 @@ public class NotificationServiceImpl
                                 )
                         );
 
-        checkOwnership(notification.getUserId());
+        checkOwnership(notification.getUserId(), notification.getUserRole());
 
         notification.setIsRead(true);
 

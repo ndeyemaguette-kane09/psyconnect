@@ -1,4 +1,4 @@
-"""Modèles Pydantic pour les réponses du service ML."""
+# modeles pydantic pour les reponses du service ML
 
 from typing import List, Optional
 
@@ -20,7 +20,7 @@ class PsychologistRecommendation(BaseModel):
     totalReviews: Optional[int] = None
     available: Optional[bool] = None
 
-    # Champs calculés par le moteur de recommandation
+    # champs calculés par le moteur de reco
     contentSimilarity: float
     score: float
 

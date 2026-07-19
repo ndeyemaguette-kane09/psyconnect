@@ -133,7 +133,7 @@ public class PatientProfileServiceImpl
         boolean isOwner = patientProfile.getAuthUserId() != null
                 && patientProfile.getAuthUserId().equals(callerAuthUserId);
 
-        // Le propriétaire, un psychologue ou un admin peuvent lire la fiche.
+        // Propriétaire, psychologue ou administrateur peuvent lire la fiche
         if (!isOwner && !callerIsPsychologist && !callerIsAdmin) {
             throw new ForbiddenOperationException(
                     "Ce profil patient ne vous appartient pas"
@@ -279,7 +279,8 @@ public class PatientProfileServiceImpl
                 "Votre solde PsyConnect a été rechargé de " + formatAmount(amount)
                         + " F CFA" + (method != null ? " via " + method : "")
                         + ". Nouveau solde : " + formatAmount(newBalance) + " F CFA.",
-                "PAYMENT"
+                "PAYMENT",
+                "PATIENT"
         );
 
         return mapToWalletResponse(patientProfile);
@@ -316,7 +317,8 @@ public class PatientProfileServiceImpl
                 formatAmount(amount) + " F CFA ont été retirés de votre solde "
                         + "PsyConnect" + (method != null ? " vers " + method : "")
                         + ". Nouveau solde : " + formatAmount(newBalance) + " F CFA.",
-                "PAYMENT"
+                "PAYMENT",
+                "PATIENT"
         );
 
         return mapToWalletResponse(patientProfile);

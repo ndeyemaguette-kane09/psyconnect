@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import jakarta.validation.constraints.NotNull;
 
-/** Corps de PUT /appointments/{id}/reschedule — nouveau créneau proposé par le patient. */
+// body de PUT /appointments/{id}/reschedule, nouveau creneau propose par le patient
 @Getter
 @Setter
 public class RescheduleAppointmentRequest {

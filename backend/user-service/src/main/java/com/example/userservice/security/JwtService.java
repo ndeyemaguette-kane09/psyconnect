@@ -33,10 +33,17 @@ public class JwtService {
     }
 
     public Long extractUserId(String token) {
-        return extractClaim(
-                token,
-                claims -> claims.get("userId", Long.class)
-        );
+        return extractClaim(token, claims -> {
+            // jjwt désérialise les nombres JSON en Integer si la valeur
+            // tient dans un int (cas typique pour des IDs petits comme 1, 2, 3…)
+            // → claims.get("userId", Long.class) lance ClassCastException.
+            // On passe par Number pour couvrir Integer, Long et Double.
+            Object val = claims.get("userId");
+            if (val == null) return null;
+            if (val instanceof Long) return (Long) val;
+            if (val instanceof Number) return ((Number) val).longValue();
+            return Long.parseLong(val.toString());
+        });
     }
 
     public <T> T extractClaim(

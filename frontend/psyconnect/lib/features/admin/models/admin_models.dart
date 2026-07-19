@@ -1,7 +1,6 @@
-/// Correspond à UserAdminResponse côté auth-service (GET /admin/users).
-/// C'est le compte d'authentification brut (un par utilisateur, quel que
-/// soit son rôle) — distinct du PatientProfile/PsychologistProfile (qui,
-/// eux, contiennent le nom/la ville/etc. côté user-service).
+// correspond a UserAdminResponse du backend (GET /admin/users).
+// c'est le compte brut (un par user, peu importe le role), different de
+// PatientProfile/PsychologistProfile qui eux ont le nom/ville/etc
 class UserAccount {
   final int id;
   final String email;
@@ -37,7 +36,7 @@ class UserAccount {
       );
 }
 
-/// Correspond à AdminStatsResponse côté auth-service (GET /admin/stats/accounts).
+// correspond a AdminStatsResponse cote auth-service (GET /admin/stats/accounts)
 class AdminAccountStats {
   final int totalUsers;
   final int totalPatients;
@@ -66,7 +65,7 @@ class AdminAccountStats {
       );
 }
 
-/// Correspond à AdminStatsResponse côté user-service (GET /admin/stats/profiles).
+// correspond a AdminStatsResponse cote user-service (GET /admin/stats/profiles)
 class AdminProfileStats {
   final int totalPatients;
   final int totalPsychologists;
@@ -95,8 +94,9 @@ class AdminProfileStats {
       );
 }
 
-/// Correspond à AdminStatsResponse côté appointment-service
-/// (GET /admin/stats/appointments).
+// fusion de AdminStatsResponse cote appointment-service (GET
+// /admin/stats/appointments) et PaymentAdminStatsResponse cote
+// payment-service (GET /admin/stats/payments), assemblee par AdminService
 class AdminAppointmentStats {
   final int totalAppointments;
   final int pendingAppointments;
@@ -107,9 +107,8 @@ class AdminAppointmentStats {
   final int totalPayments;
   final int completedPayments;
   final double totalRevenue;
-  // Part de revenus de l'administrateur — taux réglable depuis l'onglet
-  // Config (cf. AdminService.setCommissionRate), pas figé en dur côté
-  // frontend : ces 3 champs reflètent le taux courant côté backend.
+  // part de revenus de l'admin, le taux peut changer depuis l'onglet Config
+  // c'est pas fixe en dur, ces 3 champs montrent le taux actuel du backend
   final double commissionRatePercent;
   final double platformRevenue;
   final double psychologistRevenue;
@@ -153,8 +152,8 @@ class AdminAppointmentStats {
       );
 }
 
-/// Correspond à PlatformSettingsResponse côté appointment-service
-/// (GET/PUT /admin/platform-settings).
+// correspond a PlatformSettingsResponse cote appointment-service
+// (GET/PUT /admin/platform-settings)
 class PlatformSettings {
   final double commissionRatePercent;
 
@@ -167,7 +166,7 @@ class PlatformSettings {
       );
 }
 
-/// Reflète l'enum `PaymentStatus` de appointment-service.
+// reflete l'enum PaymentStatus de payment-service
 enum PaymentStatus { pending, completed, failed, refunded }
 
 extension PaymentStatusX on PaymentStatus {
@@ -200,8 +199,8 @@ extension PaymentStatusX on PaymentStatus {
   }
 }
 
-/// Reflète l'enum `PaymentMethod` de appointment-service — tous les moyens
-/// sont simulés (pas de vraie intégration Orange Money/Wave/carte).
+// reflete l'enum PaymentMethod de payment-service — tous simules, pas
+// de vraie integration Orange Money/Wave/carte
 enum PaymentMethod { orangeMoney, wave, card }
 
 extension PaymentMethodX on PaymentMethod {
@@ -230,7 +229,7 @@ extension PaymentMethodX on PaymentMethod {
   }
 }
 
-/// Correspond à PaymentResponse côté appointment-service (GET /admin/payments).
+// correspond a PaymentResponse cote payment-service (GET /admin/payments)
 class Payment {
   final int id;
   final int appointmentId;

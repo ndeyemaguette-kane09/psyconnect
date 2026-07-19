@@ -13,7 +13,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     Optional<Message> findFirstByConversationIdOrderBySentAtDesc(Long conversationId);
 
-    /** Messages non envoyés par moi et pas encore lus — utilisé pour le badge "non lu". */
+    // messages pas lus, pas de moi : pour le badge
     long countByConversationIdAndSenderAuthUserIdNotAndReadAtIsNull(
             Long conversationId,
             Long senderAuthUserId

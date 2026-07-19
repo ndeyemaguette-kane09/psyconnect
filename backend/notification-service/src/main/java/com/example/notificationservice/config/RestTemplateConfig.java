@@ -9,11 +9,7 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 public class RestTemplateConfig {
 
-    // Construit via le RestTemplateBuilder auto-configuré par Spring Boot
-    // (plutôt qu'un "new RestTemplate()" manuel) afin de bénéficier de ses
-    // ObservationRestTemplateCustomizer : c'est ce qui propage l'id de trace
-    // (B3/Brave) vers user-service. Voir appointment-service/RestTemplateConfig
-    // pour le même correctif appliqué là-bas.
+    // via RestTemplateBuilder (pas new RestTemplate) pour garder le traçage (B3/Brave)
     @Bean
     @LoadBalanced
     public RestTemplate restTemplate(RestTemplateBuilder builder) {

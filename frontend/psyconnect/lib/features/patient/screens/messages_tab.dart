@@ -11,14 +11,11 @@ import '../models/psychologist_models.dart';
 import '../services/appointment_service.dart';
 import '../services/psychologist_service.dart';
 
-/// Contenu de l'onglet "Messages" du parcours patient (cf. maquette v2).
-///
-/// Messagerie réelle (appointment-service, routée via /messages/**) : une
-/// conversation n'est proposée qu'avec un psychologue avec lequel le
-/// patient a déjà au moins un rendez-vous (cf. MessagingService côté
-/// backend). `GET /messages/conversations` ne renvoie que des ids bruts : les
-/// noms sont résolus côté client via `GET /psychologists`, comme déjà fait
-/// pour les rendez-vous (cf. AppointmentsTab).
+// onglet Messages du patient
+//
+// une conversation existe que si y'a deja eu un RDV avec ce psy
+// l'api renvoie que des ids, les noms sont resolus a part
+// comme pour AppointmentsTab
 class MessagesTab extends StatefulWidget {
   const MessagesTab({super.key});
 

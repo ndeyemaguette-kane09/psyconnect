@@ -13,12 +13,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Endpoints réservés au rôle ADMIN : validation des profils psychologue,
- * vue d'ensemble des comptes patients/psychologues, statistiques.
- * Protégés par {@code SecurityConfig} : {@code /admin/**} exige
- * {@code hasRole("ADMIN")}.
- */
+// Routes admin : validation des psychologues, vue d'ensemble patients/psys, statistiques.
+// Protégées via SecurityConfig (/admin/** = ADMIN uniquement)
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -57,11 +53,7 @@ public class AdminController {
         );
     }
 
-    /**
-     * Refuse (ou remet en attente) une demande de validation — distinct de
-     * {@code /verify?verified=false}, qui est un no-op sur un profil déjà en
-     * attente (profileVerified vaut déjà false).
-     */
+    // Refus explicite : distinct de verify=false qui signifie "en attente de validation"
     @PatchMapping("/psychologists/{id}/reject")
     public ResponseEntity<PsychologistProfileResponse> setPsychologistRejected(
             @PathVariable Long id,
@@ -79,10 +71,7 @@ public class AdminController {
         );
     }
 
-    // Renommé /stats -> /stats/profiles : auth-service et appointment-service
-    // exposent chacun leur propre /admin/stats, ce qui rendrait le routage
-    // gateway ambigu si les 3 chemins restaient identiques (cf. api-gateway
-    // application.properties, routes admin-*).
+    // /stats/profiles et non /stats : évite les conflits de routage entre services
     @GetMapping("/stats/profiles")
     public ResponseEntity<AdminStatsResponse> getStats() {
 
@@ -93,9 +82,7 @@ public class AdminController {
         stats.setVerifiedPsychologists(
                 psychologistProfileRepository.countByProfileVerified(true)
         );
-        // "En attente" exclut désormais les profils explicitement refusés
-        // (rejected=true) : avant l'ajout de ce champ, un refus n'était pas
-        // distinguable d'une demande jamais traitée.
+        // "en attente" exclut les profils déjà refusés
         stats.setPendingPsychologists(
                 psychologistProfileRepository
                         .countByProfileVerifiedAndRejected(false, false)

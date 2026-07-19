@@ -2,27 +2,63 @@ PODS:
   - Flutter (1.0.0)
   - flutter_secure_storage (6.0.0):
     - Flutter
+  - Giphy (2.2.12):
+    - libwebp
+  - jitsi_meet_flutter_sdk (10.3.0):
+    - Flutter
+    - JitsiMeetSDK (= 10.3.0)
+  - JitsiMeetSDK (10.3.0):
+    - Giphy (= 2.2.12)
+    - JitsiWebRTC (~> 124.0)
+  - JitsiWebRTC (124.0.2)
+  - libwebp (1.5.0):
+    - libwebp/demux (= 1.5.0)
+    - libwebp/mux (= 1.5.0)
+    - libwebp/sharpyuv (= 1.5.0)
+    - libwebp/webp (= 1.5.0)
+  - libwebp/demux (1.5.0):
+    - libwebp/webp
+  - libwebp/mux (1.5.0):
+    - libwebp/demux
+  - libwebp/sharpyuv (1.5.0)
+  - libwebp/webp (1.5.0):
+    - libwebp/sharpyuv
   - open_filex (0.0.2):
     - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
+  - jitsi_meet_flutter_sdk (from `.symlinks/plugins/jitsi_meet_flutter_sdk/ios`)
   - open_filex (from `.symlinks/plugins/open_filex/ios`)
+
+SPEC REPOS:
+  trunk:
+    - Giphy
+    - JitsiMeetSDK
+    - JitsiWebRTC
+    - libwebp
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
   flutter_secure_storage:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
+  jitsi_meet_flutter_sdk:
+    :path: ".symlinks/plugins/jitsi_meet_flutter_sdk/ios"
   open_filex:
     :path: ".symlinks/plugins/open_filex/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
+  Giphy: 83628960ed04e1c3428ff1b4fb2b027f65e82f50
+  jitsi_meet_flutter_sdk: b0a19056a202d0832d6be51a3ef160ad8cbd74ed
+  JitsiMeetSDK: 439fc3e45870c5ebf7b371fa038719bf70ef76d9
+  JitsiWebRTC: b47805ab5668be38e7ee60e2258f49badfe8e1d0
+  libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   open_filex: 432f3cd11432da3e39f47fcc0df2b1603854eff1
 
-PODFILE CHECKSUM: 4f1c12611da7338d21589c0b2ecd6bd20b109694
+PODFILE CHECKSUM: 5e9e3e666aa50ca7f1e5a63dc83dad3a924e62e1
 
 COCOAPODS: 1.16.2

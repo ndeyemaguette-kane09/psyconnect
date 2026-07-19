@@ -22,14 +22,8 @@ import com.example.appointmentservice.security.SecurityUtils;
 import com.example.appointmentservice.service.MessagingService;
 import com.example.appointmentservice.service.OwnershipResolver;
 
-/**
- * Messagerie patient ↔ psychologue. Pas de messagerie libre : une
- * conversation ne peut être créée qu'entre deux profils ayant déjà au moins
- * un rendez-vous en commun (cf. {@link #startOrGetConversation}), et chaque
- * conversation est strictement réservée à ses deux participants (cf.
- * {@link #checkParticipant}) — même garde-fou que {@code AppointmentServiceImpl}/
- * {@code PaymentServiceImpl}/{@code SessionServiceImpl}.
- */
+// Conversation possible uniquement si patient et psychologue ont déjà un rendez-vous ensemble
+// chaque conversation reservee a ses 2 participants
 @Service
 public class MessagingServiceImpl implements MessagingService {
 

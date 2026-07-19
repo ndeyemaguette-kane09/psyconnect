@@ -5,12 +5,10 @@ import '../models/admin_models.dart';
 import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
 
-/// Écran de "drill-down" ouvert depuis l'onglet Stats (tap sur "Paiements"
-/// ou sur la carte de revenu) — pas dans la maquette v2. Liste complète des
-/// paiements (GET /admin/payments). Contrairement aux rendez-vous, le
-/// backend n'a pas de filtre par statut pour les paiements (vérifié dans
-/// AdminController#listPayments côté appointment-service) : le filtre ci-
-/// dessous est donc appliqué côté client.
+// ecran qui s'ouvre depuis Stats (clic sur "Paiements" ou la carte
+// de revenu) — pas dans la maquette v2. liste complete des paiements
+// (GET /admin/payments). y'a pas de filtre par statut cote backend
+// pour les paiements, donc on filtre nous meme cote client
 class AdminPaymentsListScreen extends StatefulWidget {
   const AdminPaymentsListScreen({super.key, this.initialStatus});
 

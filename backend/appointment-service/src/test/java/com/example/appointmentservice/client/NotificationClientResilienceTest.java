@@ -67,7 +67,7 @@ class NotificationClientResilienceTest {
                 .thenThrow(new RestClientException("notification-service indisponible"));
 
         assertDoesNotThrow(() ->
-                notificationClient.send(1L, "Titre", "Message", "TYPE")
+                notificationClient.send(1L, "Titre", "Message", "TYPE", "PATIENT")
         );
 
         // max-attempts=3 (application.properties de test).
@@ -93,7 +93,7 @@ class NotificationClientResilienceTest {
         clearInvocations(restTemplate);
 
         assertDoesNotThrow(() ->
-                notificationClient.send(1L, "Titre", "Message", "TYPE")
+                notificationClient.send(1L, "Titre", "Message", "TYPE", "PATIENT")
         );
 
         verify(restTemplate, never())

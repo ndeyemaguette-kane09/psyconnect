@@ -6,12 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Fil de discussion entre UN patient et UN psychologue. Une seule
- * conversation par paire (patientId, psychologistId) — cf. contrainte
- * d'unicité ci-dessous et {@code findByPatientIdAndPsychologistId} dans
- * {@link com.example.appointmentservice.repository.ConversationRepository}.
- */
+// fil de discussion entre un patient et un psy, une seule par paire
 @Entity
 @Table(
         name = "conversations",
@@ -34,11 +29,7 @@ public class Conversation {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    /**
-     * Horodatage du dernier message envoyé (ou de la création si aucun
-     * message encore) — sert uniquement à trier la liste des conversations
-     * par activité récente, cf. ConversationRepository.
-     */
+    // date du dernier message, pour trier les conversations
     @Column(nullable = false)
     private LocalDateTime lastMessageAt;
 

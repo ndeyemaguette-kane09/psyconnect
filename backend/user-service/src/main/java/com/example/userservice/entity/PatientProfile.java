@@ -48,9 +48,7 @@ public class PatientProfile {
 
     private String preferredLanguage;
 
-    // Solde interne (F CFA), type "Yassir Pay" : rechargé via Wave/Orange
-    // Money simulé, dépensé pour les rendez-vous, remboursable en cas
-    // d'annulation.
+    // le solde du patient, en F CFA
     @Column(columnDefinition = "double precision default 0")
     private Double walletBalance = 0.0;
 

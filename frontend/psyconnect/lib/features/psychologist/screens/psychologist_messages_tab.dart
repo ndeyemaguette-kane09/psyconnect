@@ -11,12 +11,9 @@ import '../../messaging/services/messaging_service.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/services/appointment_service.dart';
 
-/// Contenu de l'onglet "Messages" du parcours psychologue (cf. maquette v2).
-///
-/// Même principe que [MessagesTab] côté patient : une conversation n'est
-/// proposée qu'avec un patient ayant déjà au moins un rendez-vous avec ce
-/// psychologue (cf. MessagingService côté backend). Les noms sont résolus
-/// côté client via `GET /patients/{id}`, comme déjà fait dans `PatientsTab`.
+// onglet "Messages" cote psy, meme principe que cote patient
+// une conversation existe que si y'a deja eu un RDV avec ce patient
+// noms resolus a part, comme dans PatientsTab
 class PsychologistMessagesTab extends StatefulWidget {
   const PsychologistMessagesTab({super.key});
 
@@ -201,9 +198,8 @@ class _PsychologistMessagesTabState extends State<PsychologistMessagesTab> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          // Pas "confirmé" : côté backend, un rendez-vous
-                          // suffit quel que soit son statut (cf.
-                          // MessagingService#startOrGetConversation).
+                          // pas "confirme" : un RDV suffit quel que soit son
+                          // statut cote backend
                           'La messagerie s\'ouvre automatiquement avec un '
                           'patient dès sa première demande de rendez-vous '
                           'avec vous — pas besoin de le contacter ailleurs.',

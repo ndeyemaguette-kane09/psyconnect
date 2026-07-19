@@ -7,10 +7,8 @@ import '../models/wallet_models.dart';
 import '../services/wallet_service.dart';
 import 'wallet_transactions_screen.dart';
 
-// Écran "Mon solde PsyConnect" : le patient dépose de l'argent (simulation
-// Wave/Orange Money/Carte) sur un solde interne, le dépense pour payer ses
-// rendez-vous (cf. PaymentScreen), et peut le retirer. Tout reste simulé,
-// mais le solde est un vrai nombre qui bouge à chaque opération.
+// Écran "Mon solde PsyConnect" : dépôt, paiement de RDV et retrait.
+// Les moyens de paiement sont simulés, mais le solde est bien persisté en base.
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key, required this.patientId});
 
@@ -232,9 +230,8 @@ String _formatAmount(double amount) {
       : amount.toStringAsFixed(2);
 }
 
-/// Feuille modale partagée par "Recharger" et "Retirer" : choix du moyen
-/// (Wave/Orange Money/Carte) + montant. [maxAmount] borne le retrait au
-/// solde actuel ; absent (illimité) pour un dépôt.
+// Feuille partagée par "Recharger" et "Retirer" : saisie du montant et du moyen.
+// maxAmount plafonne le retrait au solde disponible ; nul pour un dépôt.
 class _WalletAmountSheet extends StatefulWidget {
   const _WalletAmountSheet({
     required this.title,

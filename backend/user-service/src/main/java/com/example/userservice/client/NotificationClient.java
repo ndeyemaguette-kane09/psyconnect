@@ -14,19 +14,10 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.userservice.security.SecurityUtils;
 
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
-/**
- * Point d'entrée vers notification-service depuis user-service — sur le
- * même modèle que appointment-service.client.NotificationClient. Utilisé
- * pour informer un psychologue de la décision de l'admin sur sa demande de
- * validation (accepté/refusé), ce qui n'existait pas avant : seul le statut
- * du profil changeait, sans qu'aucune notification ne soit émise.
- *
- * "Best effort" : une notification non envoyée ne doit jamais faire échouer
- * la décision de l'admin elle-même.
- */
+// prevenu le psy de la decision admin
+// Si ça échoue, ça ne bloque pas la décision admin
 @Component
 public class NotificationClient {
 
@@ -44,15 +35,17 @@ public class NotificationClient {
         this.notificationServiceUrl = notificationServiceUrl;
     }
 
-    @CircuitBreaker(name = "notificationService")
+    // @CircuitBreaker retiré : il bloquait définitivement les appels après quelques
+    // échecs (état OPEN persistant). @Retry seul suffit pour la résilience interne.
     @Retry(name = "notificationService", fallbackMethod = "fallbackSend")
-    public void send(Long userId, String title, String message, String type) {
+    public void send(Long userId, String title, String message, String type, String userRole) {
 
         Map<String, Object> notification = new HashMap<>();
         notification.put("userId", userId);
         notification.put("title", title);
         notification.put("message", message);
         notification.put("type", type);
+        notification.put("userRole", userRole);
 
         HttpHeaders headers = new HttpHeaders();
         String authorization = SecurityUtils.currentAuthorizationHeader();
@@ -68,10 +61,11 @@ public class NotificationClient {
         );
     }
 
-    private void fallbackSend(Long userId, String title, String message, String type, Throwable t) {
+    private void fallbackSend(Long userId, String title, String message, String type, String userRole, Throwable t) {
         LOGGER.warn(
-                "Notification non envoyée au psychologue {} (\"{}\") : notification-service indisponible "
+                "Notification non envoyée au {} {} (\"{}\") : notification-service indisponible "
                         + "(retry épuisé ou circuit ouvert)",
+                userRole,
                 userId,
                 title,
                 t

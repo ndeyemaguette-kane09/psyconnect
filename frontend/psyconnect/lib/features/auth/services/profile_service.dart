@@ -1,10 +1,9 @@
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
+import '../../patient/models/psychologist_models.dart';
 import '../models/profile_models.dart';
 
-/// Appelle les endpoints de user-service (via l'API Gateway) pour créer le
-/// profil métier d'un utilisateur déjà authentifié :
-/// POST /users, POST /patients, POST /psychologists.
+// appelle user-service pour creer le profil d'un utilisateur deja connecte
 class ProfileService {
   ProfileService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
@@ -20,8 +19,8 @@ class ProfileService {
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Retourne l'id du PatientProfile créé (pas le userProfileId) : c'est ce
-  /// "patientId" qu'attend ensuite appointment-service.
+  // renvoie l'id du PatientProfile cree (pas le userProfileId), c'est ce
+  // "patientId" qu'attend appointment-service ensuite
   Future<int> createPatientProfile(
     CreatePatientProfileRequest request,
   ) async {
@@ -32,7 +31,7 @@ class ProfileService {
     return ((json as Map<String, dynamic>)['id'] as num).toInt();
   }
 
-  /// Retourne l'id du PsychologistProfile créé (pas le userProfileId).
+  // renvoie l'id du PsychologistProfile cree (pas le userProfileId)
   Future<int> createPsychologistProfile(
     CreatePsychologistProfileRequest request,
   ) async {
@@ -43,42 +42,45 @@ class ProfileService {
     return ((json as Map<String, dynamic>)['id'] as num).toInt();
   }
 
-  /// Envoie/remplace le justificatif (diplôme, carte professionnelle) joint
-  /// à l'inscription d'un psychologue — appelé juste après
-  /// [createPsychologistProfile] dans le flux d'onboarding (cf.
-  /// AuthProvider#completePsychologistOnboarding). Best-effort volontaire :
-  /// si l'upload échoue, le profil existe déjà (créé à l'étape précédente),
-  /// donc on ne veut pas faire échouer tout l'onboarding pour ça — le
-  /// psychologue pourra renvoyer son justificatif plus tard.
+  // envoie ou remplace le justificatif du psy. si ca rate, le profil
+  // existe deja donc ca bloque pas, le psy pourra renvoyer plus tard
   Future<void> uploadPsychologistLicenseDocument(
     int psychologistProfileId,
-    String filePath,
-  ) async {
+    String filePath, {
+    // nom ORIGINAL du fichier (avant file_picker ne le copie dans un
+    // chemin temporaire potentiellement sans extension sur iOS) : sert a
+    // deviner le bon Content-Type cote ApiClient. Sans lui, un fichier
+    // PNG/JPEG peut etre envoye en "application/octet-stream" et rejete
+    // par user-service ("Format non supporté").
+    String? fileName,
+  }) async {
     await _api.postMultipart(
       ApiConstants.psychologistLicenseDocument(psychologistProfileId),
       fieldName: 'file',
       filePath: filePath,
+      fileNameOverride: fileName,
+      // photo/PDF de diplome jusqu'a 20MB (cf. backend) : le timeout par
+      // defaut de 15s est trop court sur un reseau lent, d'ou ce timeout
+      // dedie (meme principe que companionChatTimeout)
+      timeout: ApiConstants.licenseUploadTimeout,
     );
   }
 
-  /// Lit le UserProfile "civil" (nom, téléphone, ville…) — utilisé par
-  /// l'onglet Profil de l'accueil patient.
+  // lit le UserProfile "civil" (nom, tel, ville...), utilise par l'onglet
+  // Profil de l'accueil patient
   Future<UserProfile> getUserProfileById(int id) async {
     final json = await _api.get('${ApiConstants.userProfiles}/$id');
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Lit le PatientProfile (contact d'urgence, langue préférée…).
+  // lit le PatientProfile (contact d'urgence, langue preferee...)
   Future<PatientProfile> getPatientProfileById(int id) async {
     final json = await _api.get('${ApiConstants.patientProfiles}/$id');
     return PatientProfile.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Résout le UserProfile.id (pas le PatientProfile.id/PsychologistProfile.id)
-  /// à partir de l'authUserId du JWT — nécessaire pour l'onglet Profil
-  /// (édition des infos civiles) lors d'une simple reconnexion, puisque
-  /// login() ne le connaît pas non plus. Best-effort comme les méthodes
-  /// ci-dessous : renvoie null si pas encore de UserProfile.
+  // resout UserProfile.id a partir de l'authUserId (login() le connait pas).
+  // best-effort : null si pas encore de UserProfile
   Future<int?> getUserProfileIdByAuthUserId(int authUserId) async {
     try {
       final json = await _api.get(
@@ -90,12 +92,8 @@ class ProfileService {
     }
   }
 
-  /// Résout le PatientProfile.id à partir de l'authUserId du JWT, pour le cas
-  /// d'un utilisateur déjà onboardé qui se reconnecte simplement (login()
-  /// n'appelle jamais user-service, donc ne connaît pas ce id autrement).
-  /// Renvoie null si l'utilisateur n'a pas (encore) de PatientProfile
-  /// (ex. compte créé mais onboarding jamais terminé) plutôt que de
-  /// propager l'erreur 404 : ce n'est pas bloquant pour login().
+  // trouve PatientProfile.id a partir de l'authUserId, renvoie null si pas
+  // encore de profil (inscription pas finie) au lieu de faire planter avec un 404
   Future<int?> getPatientProfileIdByAuthUserId(int authUserId) async {
     try {
       final json = await _api.get(
@@ -107,10 +105,7 @@ class ProfileService {
     }
   }
 
-  /// Équivalent psychologue de [getPatientProfileIdByAuthUserId] — le
-  /// backend expose le même endpoint en miroir (`GET
-  /// /psychologists/by-auth-user/{authUserId}`, vérifié dans
-  /// PsychologistProfileController). Best-effort comme pour le patient.
+  // equivalent psy de getPatientProfileIdByAuthUserId
   Future<int?> getPsychologistProfileIdByAuthUserId(int authUserId) async {
     try {
       final json = await _api.get(
@@ -122,8 +117,7 @@ class ProfileService {
     }
   }
 
-  /// Met à jour le UserProfile "civil" (nom, téléphone, ville…) — utilisé
-  /// par l'édition de l'onglet Profil.
+  // met a jour le UserProfile "civil", utilise par l'edition du Profil
   Future<UserProfile> updateUserProfile(
     int id,
     UpdateUserProfileRequest request,
@@ -135,10 +129,8 @@ class ProfileService {
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Met à jour le PatientProfile (contact d'urgence, langue préférée, mode
-  /// anonyme…). Utilisé par l'édition du Profil ET par l'écran Paramètres :
-  /// dans les deux cas, l'appelant doit fournir l'état complet connu (pas
-  /// seulement le champ qu'il modifie), cf. doc de [CreatePatientProfileRequest].
+  // met a jour PatientProfile, utilise par edition Profil et Parametres :
+  // faut renvoyer toutes les infos connues, pas juste le champ change
   Future<PatientProfile> updatePatientProfile(
     int id,
     CreatePatientProfileRequest request,
@@ -148,5 +140,20 @@ class ProfileService {
       body: request.toJson(),
     );
     return PatientProfile.fromJson(json as Map<String, dynamic>);
+  }
+
+  // met a jour PsychologistProfile. reutilise CreatePsychologistProfileRequest
+  // cote backend (pas de DTO d'update dedie) : faut renvoyer toutes les
+  // infos connues, pas juste le champ change. seul le proprietaire du
+  // profil peut le faire (verifie cote backend via authUserId)
+  Future<PsychologistProfile> updatePsychologistProfile(
+    int id,
+    CreatePsychologistProfileRequest request,
+  ) async {
+    final json = await _api.put(
+      '${ApiConstants.psychologistProfiles}/$id',
+      body: request.toJson(),
+    );
+    return PsychologistProfile.fromJson(json as Map<String, dynamic>);
   }
 }

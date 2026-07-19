@@ -6,15 +6,15 @@ import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
 import '../../patient/models/appointment_models.dart';
+import '../../patient/screens/medical_history_screen.dart';
 import '../../patient/services/appointment_service.dart';
+import '../services/psy_patient_link_service.dart';
+import 'clinical_notes_screen.dart';
+import 'patient_questionnaires_screen.dart';
 
-/// Contenu de l'onglet "Patients" du parcours psychologue (cf. maquette v2).
-///
-/// Aucun endpoint backend ne liste "les patients d'un psychologue" : la liste
-/// est déduite côté client en dédupliquant les `patientId` présents dans
-/// `GET /appointments/psychologist/{id}` (vérifié en lisant
-/// AppointmentController — pas d'endpoint dédié), puis en résolvant chaque
-/// nom via `GET /patients/{id}`.
+// Onglet "Patients" du psychologue. Il n'existe pas d'endpoint dédié :
+// la liste est déduite des patientId présents dans les rendez-vous,
+// puis chaque profil est chargé individuellement.
 class PatientsTab extends StatefulWidget {
   const PatientsTab({super.key});
 
@@ -25,10 +25,13 @@ class PatientsTab extends StatefulWidget {
 class _PatientsTabState extends State<PatientsTab> {
   final _appointmentService = AppointmentService();
   final _profileService = ProfileService();
+  final _linkService = PsyPatientLinkService();
 
   bool _loading = true;
   String? _error;
   List<_PatientEntry> _patients = [];
+  // patientProfileIds actuellement dans la liste de suivi du psy
+  Set<int> _followedIds = {};
 
   @override
   void initState() {
@@ -85,6 +88,13 @@ class _PatientsTabState extends State<PatientsTab> {
         _patients = entries;
         _loading = false;
       });
+
+      // charge les patients "suivis" indépendamment pour que l'erreur ne cache pas la liste
+      try {
+        final followed = await _linkService.getFollowedPatientIds(psychologistId);
+        if (!mounted) return;
+        setState(() => _followedIds = followed.toSet());
+      } catch (_) {}
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -158,7 +168,27 @@ class _PatientsTabState extends State<PatientsTab> {
                 sliver: SliverList.separated(
                   itemCount: _patients.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => _PatientCard(entry: _patients[i]),
+                  itemBuilder: (context, i) {
+                    final entry = _patients[i];
+                    return _PatientCard(
+                      entry: entry,
+                      isFollowed: _followedIds.contains(entry.patientId),
+                      psychologistId: context
+                              .read<AuthProvider>()
+                              .session
+                              ?.profileId ??
+                          0,
+                      onFollowChanged: (followed) => setState(() {
+                        if (followed) {
+                          _followedIds = {..._followedIds, entry.patientId};
+                        } else {
+                          _followedIds = _followedIds
+                              .where((id) => id != entry.patientId)
+                              .toSet();
+                        }
+                      }),
+                    );
+                  },
                 ),
               ),
           ],
@@ -185,9 +215,17 @@ class _PatientEntry {
 }
 
 class _PatientCard extends StatelessWidget {
-  const _PatientCard({required this.entry});
+  const _PatientCard({
+    required this.entry,
+    required this.isFollowed,
+    required this.psychologistId,
+    required this.onFollowChanged,
+  });
 
   final _PatientEntry entry;
+  final bool isFollowed;
+  final int psychologistId;
+  final ValueChanged<bool> onFollowChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +243,12 @@ class _PatientCard extends StatelessWidget {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => _PatientDetailSheet(entry: entry),
+        builder: (_) => _PatientDetailSheet(
+          entry: entry,
+          isFollowed: isFollowed,
+          psychologistId: psychologistId,
+          onFollowChanged: onFollowChanged,
+        ),
       ),
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -225,8 +268,30 @@ class _PatientCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name.isEmpty ? 'Patient' : name,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(name.isEmpty ? 'Patient' : name,
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      if (isFollowed)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.tealLight,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Suivi',
+                            style: TextStyle(
+                                color: AppColors.tealDark,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     '${entry.appointmentCount} consultation'
@@ -246,21 +311,71 @@ class _PatientCard extends StatelessWidget {
   }
 }
 
-/// Fiche détail d'un patient, ouverte au tap sur une [_PatientCard].
-///
-/// N'affiche que ce qui existe déjà côté backend (`PatientProfile` +
-/// historique des rendez-vous déjà chargé par [_PatientsTabState._load]) —
-/// pas de nouvel endpoint nécessaire. Mêmes infos que celles saisies à
-/// l'inscription patient (cf. CreatePatientProfileRequest) : antécédents
-/// médicaux, contact d'urgence, langue préférée, mode anonyme.
-class _PatientDetailSheet extends StatelessWidget {
-  const _PatientDetailSheet({required this.entry});
+// Fiche détail d'un patient, ouverte en tap depuis la liste.
+// Le toggle "Marquer comme suivi" crée ou supprime le PsyPatientLink dans user-service.
+// Un patient suivi débloque l'accès aux notes cliniques.
+class _PatientDetailSheet extends StatefulWidget {
+  const _PatientDetailSheet({
+    required this.entry,
+    required this.isFollowed,
+    required this.psychologistId,
+    required this.onFollowChanged,
+  });
 
   final _PatientEntry entry;
+  final bool isFollowed;
+  final int psychologistId;
+  final ValueChanged<bool> onFollowChanged;
+
+  @override
+  State<_PatientDetailSheet> createState() => _PatientDetailSheetState();
+}
+
+class _PatientDetailSheetState extends State<_PatientDetailSheet> {
+  final _linkService = PsyPatientLinkService();
+  late bool _followed;
+  bool _toggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _followed = widget.isFollowed;
+  }
+
+  Future<void> _toggleFollow() async {
+    if (_toggling) return;
+    setState(() => _toggling = true);
+    try {
+      if (_followed) {
+        await _linkService.unfollowPatient(
+            widget.psychologistId, widget.entry.patientId);
+        if (!mounted) return;
+        setState(() => _followed = false);
+        widget.onFollowChanged(false);
+      } else {
+        await _linkService.followPatient(
+            widget.psychologistId, widget.entry.patientId);
+        if (!mounted) return;
+        setState(() => _followed = true);
+        widget.onFollowChanged(true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur : $e'),
+          backgroundColor: AppColors.rose,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _toggling = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final profile = entry.profile;
+    final profile = widget.entry.profile;
+    final entry = widget.entry;
     final name = profile != null
         ? '${profile.firstName} ${profile.lastName}'.trim()
         : 'Patient';
@@ -321,19 +436,131 @@ class _PatientDetailSheet extends StatelessWidget {
                     ),
                 ],
               ),
+              const SizedBox(height: 16),
+              // bouton toggle suivi — crée ou supprime le PsyPatientLink
+              _toggling
+                  ? const Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _toggleFollow,
+                        icon: Icon(
+                          _followed
+                              ? Icons.person_remove_outlined
+                              : Icons.person_add_outlined,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _followed ? 'Retirer du suivi' : 'Marquer comme suivi',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor:
+                              _followed ? AppColors.rose : AppColors.tealDark,
+                          side: BorderSide(
+                            color:
+                                _followed ? AppColors.rose : AppColors.tealDark,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
               const SizedBox(height: 20),
               const _SectionLabel('Informations médicales'),
               const SizedBox(height: 8),
-              _InfoRow(
-                icon: Icons.medical_information_outlined,
-                label: 'Antécédents médicaux',
-                value: profile?.medicalHistory,
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MedicalHistoryScreen(
+                      patientId: entry.patientId,
+                      patientName: name.isEmpty ? null : name,
+                    ),
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.medical_information_outlined,
+                          size: 18, color: AppColors.tealDark),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('Antécédents médicaux',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                      const Icon(Icons.chevron_right, color: AppColors.muted),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ClinicalNotesScreen(
+                      patientId: entry.patientId,
+                      patientName: name.isEmpty ? null : name,
+                    ),
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit_note_outlined,
+                          size: 18, color: AppColors.tealDark),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('Mes notes cliniques (privées)',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                      const Icon(Icons.chevron_right, color: AppColors.muted),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               _InfoRow(
                 icon: Icons.language_outlined,
                 label: 'Langue préférée',
                 value: profile?.preferredLanguage,
+              ),
+              const SizedBox(height: 20),
+              const _SectionLabel('Questionnaires PHQ-9 / GAD-7'),
+              const SizedBox(height: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PatientQuestionnairesScreen(
+                      patientId: entry.patientId,
+                      patientName: name.isEmpty ? null : name,
+                    ),
+                  ),
+                ),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.assignment_outlined,
+                          size: 18, color: Color(0xFF7C4DFF)),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('Voir l\'historique & envoyer',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                      const Icon(Icons.chevron_right, color: AppColors.muted),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               const _SectionLabel("Contact d'urgence"),

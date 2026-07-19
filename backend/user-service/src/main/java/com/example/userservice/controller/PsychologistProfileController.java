@@ -91,6 +91,36 @@ public class PsychologistProfileController {
         );
     }
 
+    /**
+     * Liste des psys disponibles pour urgence (vérifiés + availableForEmergency=true).
+     * Endpoint public (comme GET /psychologists), pas besoin d'être connecté.
+     */
+    @GetMapping("/emergency")
+    public ResponseEntity<List<PsychologistProfileResponse>> getEmergencyPsychologists() {
+        return ResponseEntity.ok(
+                psychologistProfileService.getEmergencyPsychologists()
+        );
+    }
+
+    /**
+     * Le psy active ou désactive son mode urgence.
+     * ?available=true/false  &freeSession=true/false
+     * Seul le propriétaire du profil peut le faire.
+     */
+    @PutMapping("/{id}/emergency")
+    public ResponseEntity<PsychologistProfileResponse> setEmergencyAvailability(
+            HttpServletRequest httpRequest,
+            @PathVariable Long id,
+            @RequestParam boolean available,
+            @RequestParam(defaultValue = "false") boolean freeSession
+    ) {
+        return ResponseEntity.ok(
+                psychologistProfileService.setEmergencyAvailability(
+                        id, available, freeSession, currentAuthUserId(httpRequest)
+                )
+        );
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<PsychologistProfileResponse>
     updatePsychologistProfile(
@@ -111,11 +141,7 @@ public class PsychologistProfileController {
         );
     }
 
-    /**
-     * Réservé au propriétaire du profil (vérifié côté service via
-     * callerAuthUserId) : envoie ou remplace le justificatif joint à
-     * l'inscription (diplôme, carte professionnelle).
-     */
+    // envoie ou remplace le justificatif, que le proprietaire du profil
     @PostMapping(
             value = "/{id}/license-document",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
@@ -137,11 +163,7 @@ public class PsychologistProfileController {
         );
     }
 
-    /**
-     * Accessible au propriétaire du profil OU à un ADMIN (cf.
-     * SecurityConfig : ce chemin précis exige authenticated(), contrairement
-     * au GET /psychologists/** générique qui est public).
-     */
+    // ici faut etre connecté, contrairement au GET generique qui est public
     @GetMapping("/{id}/license-document")
     public ResponseEntity<byte[]> getLicenseDocument(
             HttpServletRequest httpRequest,

@@ -38,15 +38,13 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+                        // annonces accessibles à tout utilisateur authentifié
+                        // (utilise /users/broadcasts pour réutiliser la route gateway /users/**)
+                        .requestMatchers(HttpMethod.GET, "/users/broadcasts").authenticated()
                         .requestMatchers(
                                 "/psychologists/by-auth-user/**"
                         ).authenticated()
-                        // Doit précéder la règle GET permitAll ci-dessous :
-                        // le justificatif (diplôme, carte pro) ne doit
-                        // jamais être téléchargeable sans authentification.
-                        // L'autorisation fine (propriétaire OU ADMIN) est
-                        // ensuite vérifiée dans PsychologistProfileServiceImpl
-                        // #getLicenseDocument.
+                        // le justificatif doit jamais etre public
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/psychologists/*/license-document"
@@ -56,8 +54,23 @@ public class SecurityConfig {
                                 "/psychologists",
                                 "/psychologists/**"
                         ).permitAll()
+                        // laisser un avis : réservé au patient (vérification supplémentaire
+                        // d'avoir eu une seance terminee faite dans ReviewServiceImpl)
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/psychologists/*/review"
+                        ).hasRole("PATIENT")
                         .requestMatchers("/psychologists/**")
                         .hasRole("PSYCHOLOGIST")
+                        // notes cliniques privees : reservees au psychologue (jamais
+                        // au patient, controle fin refait dans ClinicalNoteServiceImpl)
+                        .requestMatchers("/patients/*/clinical-notes", "/clinical-notes/**")
+                        .hasRole("PSYCHOLOGIST")
+                        // signalements : déposer = PATIENT uniquement
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/patients/*/reports"
+                        ).hasRole("PATIENT")
                         .requestMatchers("/users/**", "/patients/**", "/journal/**")
                         .authenticated()
                         .anyRequest().denyAll()
