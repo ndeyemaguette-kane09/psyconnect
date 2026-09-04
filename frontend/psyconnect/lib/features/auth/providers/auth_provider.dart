@@ -351,14 +351,15 @@ class AuthProvider extends ChangeNotifier {
   // d'envoi d'e-mail réel) pour le pré-remplir à l'écran, null sinon.
   // Le message générique est intentionnel côté backend : on ne révèle pas
   // si l'adresse e-mail est connue du système.
-  Future<String?> forgotPassword({required String email}) async {
+  Future<bool> forgotPassword({required String email}) async {
     clearError();
     _setLoading(true);
     try {
-      return await _authService.forgotPassword(email: email);
+      await _authService.forgotPassword(email: email);
+      return true;
     } catch (e) {
       _setError(e);
-      return null;
+      return false;
     } finally {
       _setLoading(false);
     }

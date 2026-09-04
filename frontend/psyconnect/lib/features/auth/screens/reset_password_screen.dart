@@ -5,15 +5,10 @@ import '../providers/auth_provider.dart';
 import '../widgets/error_banner.dart';
 import 'login_screen.dart';
 
-// etape 2 : code recu (saisi manuellement, pas de lien) + nouveau mot de
-// passe. devCode est rempli tant que le backend n'envoie pas de vrai email
-// (mode dev) -- on le pre-remplit a l'ecran pour rester testable, a retirer
-// avec le reste du mode dev une fois l'envoi d'email reel branche.
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key, required this.email, this.devCode});
+  const ResetPasswordScreen({super.key, required this.email});
 
   final String email;
-  final String? devCode;
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -21,7 +16,7 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final _codeController = TextEditingController(text: widget.devCode);
+  final _codeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _obscurePassword = true;
@@ -74,25 +69,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Un code à 6 chiffres a été envoyé pour ${widget.email}. '
-                  'Saisissez-le ci-dessous avec votre nouveau mot de passe.',
+                  'Un code à 6 chiffres vient d\'être envoyé à ${widget.email}. '
+                  'Il est valable 15 minutes. Pensez à vérifier vos spams.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
-                if (widget.devCode != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.15),
-                      border: Border.all(color: Colors.amber),
-                    ),
-                    child: Text(
-                      "Mode démo (pas d'envoi d'email réel pour l'instant) : "
-                      'votre code est ${widget.devCode}.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 28),
                 if (auth.errorMessage != null) ...[
                   ErrorBanner(message: auth.errorMessage!),

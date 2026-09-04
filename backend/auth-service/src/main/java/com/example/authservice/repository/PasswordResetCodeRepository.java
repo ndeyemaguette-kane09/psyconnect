@@ -9,8 +9,7 @@ import com.example.authservice.entity.PasswordResetCode;
 
 public interface PasswordResetCodeRepository extends JpaRepository<PasswordResetCode, Long> {
 
-    Optional<PasswordResetCode> findByUserIdAndCodeAndUsedFalse(Long userId, String code);
+    Optional<PasswordResetCode> findFirstByUserIdAndUsedFalseOrderByCreatedAtDesc(Long userId);
 
-    // Pour invalider les anciens codes non utilisés lorsqu'un nouveau est demandé
     List<PasswordResetCode> findByUserIdAndUsedFalse(Long userId);
 }

@@ -43,6 +43,12 @@ class AuthServiceTest {
     @Mock
     private PasswordResetCodeRepository passwordResetCodeRepository;
 
+    @Mock
+    private PasswordResetMailer passwordResetMailer;
+
+    @Mock
+    private ResetRequestThrottle resetRequestThrottle;
+
     private AuthService authService;
 
     @BeforeEach
@@ -51,7 +57,9 @@ class AuthServiceTest {
                 userRepository,
                 passwordResetCodeRepository,
                 passwordEncoder,
-                jwtService
+                jwtService,
+                passwordResetMailer,
+                resetRequestThrottle
         );
     }
 

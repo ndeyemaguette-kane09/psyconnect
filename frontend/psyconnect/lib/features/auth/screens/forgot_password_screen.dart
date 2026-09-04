@@ -29,14 +29,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _submit(AuthProvider auth) async {
     if (!_formKey.currentState!.validate()) return;
     final email = _emailController.text.trim();
-    final devCode = await auth.forgotPassword(email: email);
+    final sent = await auth.forgotPassword(email: email);
 
-    if (!mounted) return;
-    if (auth.errorMessage != null) return;
+    if (!mounted || !sent) return;
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ResetPasswordScreen(email: email, devCode: devCode),
+        builder: (_) => ResetPasswordScreen(email: email),
       ),
     );
   }

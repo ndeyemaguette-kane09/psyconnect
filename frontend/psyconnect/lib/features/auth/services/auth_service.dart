@@ -36,17 +36,12 @@ class AuthService {
     return AuthSession.fromJson(json as Map<String, dynamic>);
   }
 
-  // renvoie le code de dev (devCode) tant qu'aucun envoi d'email reel n'est
-  // branche cote backend ; null une fois ce mode desactive (voir
-  // AuthService.forgotPassword cote auth-service)
-  Future<String?> forgotPassword({required String email}) async {
-    final json = await _api.post(
+  Future<void> forgotPassword({required String email}) async {
+    await _api.post(
       ApiConstants.forgotPassword,
       body: {'email': email},
       withAuth: false,
     );
-    final map = json as Map<String, dynamic>;
-    return map['devCode'] as String?;
   }
 
   Future<void> resetPassword({
