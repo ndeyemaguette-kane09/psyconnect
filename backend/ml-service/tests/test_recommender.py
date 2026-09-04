@@ -12,6 +12,7 @@ from app.recommender import (  # noqa: E402
     build_psychologist_content,
     cosine_similarity,
     rank_psychologists,
+    same_city_bonus,
     tokenize,
 )
 
@@ -119,6 +120,57 @@ def test_build_psychologist_content_and_patient_query_are_strings():
     query = build_patient_query({"preferredLanguage": "Français", "medicalHistory": "stress"})
     assert isinstance(content, str) and "Anxiété" in content
     assert isinstance(query, str) and "stress" in query
+
+
+CITY_PSYCHOLOGISTS = [
+    {
+        "id": 10,
+        "specialty": "Anxiété",
+        "bio": "Gestion de l'anxiété.",
+        "languages": "Français",
+        "city": "Dakar",
+        "rating": 4.0,
+        "available": True,
+    },
+    {
+        "id": 11,
+        "specialty": "Anxiété",
+        "bio": "Gestion de l'anxiété.",
+        "languages": "Français",
+        "city": "Thiès",
+        "rating": 4.0,
+        "available": True,
+    },
+]
+
+
+def test_same_city_bonus_ignores_case_and_accents():
+    assert same_city_bonus({"city": "dakar"}, {"city": "Dakar"}) == 1.0
+    assert same_city_bonus({"city": "Thiès"}, {"city": "thies"}) == 1.0
+    assert same_city_bonus({"city": "Dakar"}, {"city": "Saint-Louis"}) == 0.0
+    assert same_city_bonus({}, {"city": "Dakar"}) == 0.0
+
+
+def test_same_city_breaks_the_tie_between_identical_psychologists():
+    # profils identiques : seule la ville doit les départager
+    patient = {
+        "preferredLanguage": "Français",
+        "medicalHistory": "anxiété",
+        "city": "dakar",
+    }
+    results = rank_psychologists(patient, CITY_PSYCHOLOGISTS, top_n=10)
+    assert results[0]["id"] == 10
+    assert results[0]["cityMatch"] == 1.0
+    assert results[1]["cityMatch"] == 0.0
+    assert results[0]["score"] > results[1]["score"]
+
+
+def test_missing_patient_city_penalizes_nobody():
+    # sans ville côté patient, le terme vaut 0 pour tout le monde
+    patient = {"preferredLanguage": "Français", "medicalHistory": "anxiété"}
+    results = rank_psychologists(patient, CITY_PSYCHOLOGISTS, top_n=10)
+    assert all(r["cityMatch"] == 0.0 for r in results)
+    assert results[0]["score"] == results[1]["score"]
 
 
 def _run_all_tests():

@@ -113,15 +113,34 @@ def build_patient_query(patient: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def same_city_bonus(patient: Dict[str, Any], psychologist: Dict[str, Any]) -> float:
+    # la ville est un bonus, jamais un filtre : les seances peuvent se faire
+    # en visio, donc un psy d'une autre ville reste recommandable.
+    # ville absente d'un cote ou de l'autre = 0, sans penalite supplementaire
+
+    patient_city = normalize_text(patient.get("city") or "").strip()
+    psychologist_city = normalize_text(psychologist.get("city") or "").strip()
+
+    if not patient_city or not psychologist_city:
+        return 0.0
+
+    return 1.0 if patient_city == psychologist_city else 0.0
+
+
 def rank_psychologists(
     patient: Dict[str, Any],
     psychologists: Sequence[Dict[str, Any]],
     top_n: int = 5,
-    content_weight: float = 0.7,
-    rating_weight: float = 0.3,
+    content_weight: float = 0.6,
+    rating_weight: float = 0.25,
+    city_weight: float = 0.15,
 ) -> List[Dict[str, Any]]:
     # classe les psy dispos pour un patient.
-    # score = content_weight * similarité + rating_weight * (note/5)
+    # score = content_weight * similarité
+    #       + rating_weight * (note/5)
+    #       + city_weight * meme_ville
+    # la ville sort volontairement du TF-IDF : c'est un signal de contexte,
+    # pas de contenu, sinon elle concurrence le vocabulaire thematique
     # si le patient a rien renseigné, la similarité vaut 0 partout
     # et ca retombe juste sur la note, les mieux notés en premier
 
@@ -148,15 +167,19 @@ def rank_psychologists(
         rating = psychologist.get("rating") or 0.0
         rating_normalized = max(0.0, min(rating / 5.0, 1.0))
 
+        city_match = same_city_bonus(patient, psychologist)
+
         score = (
             content_weight * similarity
             + rating_weight * rating_normalized
+            + city_weight * city_match
         )
 
         ranked.append(
             {
                 **psychologist,
                 "contentSimilarity": round(similarity, 4),
+                "cityMatch": city_match,
                 "score": round(score, 4),
             }
         )
