@@ -20,6 +20,7 @@ class ApiConstants {
   static const String me = '/auth/me';
   static const String forgotPassword = '/auth/forgot-password';
   static const String resetPassword = '/auth/reset-password';
+  static const String updatePseudo = '/auth/pseudo';
 
   // --- user-service (routé via /users/**, /patients/**, /psychologists/**) ---
   static const String userProfiles = '/users';
@@ -245,6 +246,17 @@ class ApiConstants {
   static String adminReport(int reportId) => '/admin/reports/$reportId';
   static String adminReportEvidence(int reportId) =>
       '/admin/reports/$reportId/evidence';
+
+  // --- messages "Contacter l'administrateur" (user-service via
+  // /patients|psychologists/**/support-messages, /admin/support-messages/**) ---
+  static String patientSupportMessages(int patientId) =>
+      '/patients/$patientId/support-messages';
+  static String psychologistSupportMessages(int psychologistId) =>
+      '/psychologists/$psychologistId/support-messages';
+  static const String adminSupportMessages = '/admin/support-messages';
+  static String adminSupportMessage(int id) => '/admin/support-messages/$id';
+  static String adminSupportMessageReply(int id) =>
+      '/admin/support-messages/$id/reply';
 
   // --- broadcast admin (annonces vers tous / patients / psys) ---
   // audience = 'ALL' | 'PATIENTS' | 'PSYCHOLOGISTS'

@@ -5,8 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-// @EnableScheduling requis par AppointmentReminderScheduler (rappel 1h
-// avant chaque rendez-vous confirmé).
+
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableScheduling

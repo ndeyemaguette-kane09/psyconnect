@@ -14,9 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-// Routes admin pour les rendez-vous, sans vérification de propriété
-// paiements/commission/stats paiement -> payment-service (GET /admin/payments,
-// /admin/platform-settings, /admin/stats/payments)
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -41,8 +38,6 @@ public class AdminController {
         );
     }
 
-    // /stats/appointments, le front fusionne avec /admin/stats/payments
-    // (payment-service) pour reconstituer l'écran statistiques complet
     @GetMapping("/stats/appointments")
     public ResponseEntity<AdminStatsResponse> getStats() {
 

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,18 +57,17 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 
         QuestionnaireResponseDto saved = mapToResponse(questionnaireRepository.save(q));
 
-        // Notifier le patient qu'il a un nouveau questionnaire à remplir
         String typeName = q.getType() == QuestionnaireType.PHQ9 ? "PHQ-9 (dépression)" : "GAD-7 (anxiété)";
         try {
             notificationClient.send(
                     q.getPatientId(),
                     "Nouveau questionnaire",
-                    "Votre psychologue vous a envoyé le questionnaire " + typeName
+                    psychologistLabel(psyId) + " vous a envoyé un questionnaire " + typeName
                             + ". Répondez dès que possible.",
                     "QUESTIONNAIRE",
                     "PATIENT"
             );
-        } catch (Exception ignored) { /* best-effort, jamais bloquant */ }
+        } catch (Exception ignored) {  }
 
         return saved;
     }
@@ -147,7 +147,6 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             );
         }
 
-        // Validation du nombre de réponses
         int expected = q.getType() == QuestionnaireType.PHQ9 ? 9 : 7;
         List<Integer> answers = request.getAnswers();
 
@@ -158,7 +157,6 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             );
         }
 
-        // Chaque réponse doit être entre 0 et 3
         for (Integer a : answers) {
             if (a == null || a < 0 || a > 3) {
                 throw new IllegalArgumentException(
@@ -179,27 +177,51 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 
         QuestionnaireResponseDto result = mapToResponse(questionnaireRepository.save(q));
 
-        // Notifier le psychologue avec le score et l'interprétation clinique
         String typeName = q.getType() == QuestionnaireType.PHQ9 ? "PHQ-9" : "GAD-7";
-        int maxScore   = q.getType() == QuestionnaireType.PHQ9 ? 27 : 21;
+        int maxScore = q.getType() == QuestionnaireType.PHQ9 ? 27 : 21;
         String severity = computeSeverity(q.getType(), score);
         try {
             notificationClient.send(
                     q.getPsychologistId(),
                     "Résultats questionnaire " + typeName,
-                    "Un patient a complété le " + typeName
-                            + " — Score : " + score + "/" + maxScore
+                    patientLabel(q.getPatientId()) + " vous a envoyé les réponses du questionnaire "
+                            + typeName + " — Score : " + score + "/" + maxScore
                             + " (" + severity + ")",
                     "QUESTIONNAIRE_RESULT",
                     "PSYCHOLOGIST"
             );
-        } catch (Exception ignored) { /* best-effort, jamais bloquant */ }
+        } catch (Exception ignored) {  }
 
         return result;
     }
 
-    // PHQ-9 : 0-4 minimal | 5-9 leger | 10-14 modere | 15-19 moderement severe | 20-27 severe
-    // GAD-7 : 0-4 minimal | 5-9 leger | 10-14 modere | 15-21 severe
+    private String psychologistLabel(Long psychologistId) {
+        try {
+            Map<String, Object> profile = ownershipResolver.getPsychologistProfile(psychologistId);
+            Object firstName = profile.get("firstName");
+            Object lastName = profile.get("lastName");
+            String full = ((firstName == null ? "" : firstName.toString())
+                    + " " + (lastName == null ? "" : lastName.toString())).trim();
+            return full.isEmpty() ? "Votre psychologue" : "Dr. " + full;
+        } catch (Exception ignored) {
+            return "Votre psychologue";
+        }
+    }
+
+    private String patientLabel(Long patientId) {
+        try {
+            Map<String, Object> profile = ownershipResolver.getPatientProfile(patientId);
+            if (Boolean.TRUE.equals(profile.get("anonymousMode"))) {
+                return "Votre patient(e)";
+            }
+            Object firstName = profile.get("firstName");
+            String name = firstName == null ? "" : firstName.toString().trim();
+            return name.isEmpty() ? "Votre patient(e)" : name;
+        } catch (Exception ignored) {
+            return "Votre patient(e)";
+        }
+    }
+
     private String computeSeverity(QuestionnaireType type, int score) {
         if (type == QuestionnaireType.PHQ9) {
             if (score <= 4)  return "Dépression minimale";
@@ -207,7 +229,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             if (score <= 14) return "Dépression modérée";
             if (score <= 19) return "Dépression modérément sévère";
             return "Dépression sévère";
-        } else { // GAD7
+        } else {
             if (score <= 4)  return "Anxiété minimale";
             if (score <= 9)  return "Anxiété légère";
             if (score <= 14) return "Anxiété modérée";

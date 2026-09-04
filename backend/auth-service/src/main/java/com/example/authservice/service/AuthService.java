@@ -3,8 +3,6 @@ package com.example.authservice.service;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 
-import com.example.authservice.client.PsychologistApprovalClient;
-import com.example.authservice.client.PsychologistApprovalClient.ApprovalStatus;
 import com.example.authservice.dto.AuthResponse;
 import com.example.authservice.dto.ForgotPasswordRequest;
 import com.example.authservice.dto.ForgotPasswordResponse;
@@ -37,26 +35,19 @@ public class AuthService {
     private final PasswordResetCodeRepository passwordResetCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final PsychologistApprovalClient psychologistApprovalClient;
 
-    // Tant qu'aucun envoi d'email réel n'est branché, le code de réinitialisation est
-    // renvoyé dans la réponse HTTP (en plus d'être loggué) pour rester
-    // testable. À désactiver (false) dès qu'un vrai envoi d'email existe :
-    // sinon n'importe qui connaissant un email peut réinitialiser ce compte
     @Value("${app.password-reset.expose-code-in-response:true}")
     private boolean exposeCodeInResponse;
 
     public AuthService(UserRepository userRepository,
                        PasswordResetCodeRepository passwordResetCodeRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtService jwtService,
-                       PsychologistApprovalClient psychologistApprovalClient) {
+                       JwtService jwtService) {
 
         this.userRepository = userRepository;
         this.passwordResetCodeRepository = passwordResetCodeRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.psychologistApprovalClient = psychologistApprovalClient;
     }
 
     public MessageResponse register(RegisterRequest request) {
@@ -91,6 +82,22 @@ public class AuthService {
         return new MessageResponse("Inscription réussie");
     }
 
+    public MessageResponse updatePseudo(String email, String newPseudo) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
+
+        if (!newPseudo.equals(user.getPseudo())
+                && userRepository.findByPseudo(newPseudo).isPresent()) {
+            throw new RuntimeException("Ce pseudo est déjà utilisé");
+        }
+
+        user.setPseudo(newPseudo);
+        userRepository.save(user);
+
+        return new MessageResponse("Pseudo mis à jour");
+    }
+
     public AuthResponse login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
@@ -115,34 +122,6 @@ public class AuthService {
                 user.getId()
         );
 
-        // Un psychologue non encore approuvé par un administrateur ne doit
-        // pas pouvoir se connecter. On utilise le token qui vient d'être
-        // généré (jamais renvoyé si on bloque ici) pour interroger
-        // user-service sur le statut du profil. NO_PROFILE = inscription
-        // en cours (étape 2 du flux d'inscription n'a pas encore créé le
-        // profil) → on laisse passer, sinon le compte ne pourrait jamais
-        // finir son inscription
-        if (user.getRole() == Role.PSYCHOLOGIST) {
-            ApprovalStatus status = psychologistApprovalClient.checkApprovalStatus(
-                    user.getId(),
-                    "Bearer " + token
-            );
-
-            if (status == ApprovalStatus.REJECTED) {
-                throw new RuntimeException(
-                        "Votre demande d'inscription en tant que psychologue a été refusée. "
-                                + "Contactez le support PsyConnect pour plus d'informations."
-                );
-            }
-
-            if (status == ApprovalStatus.PENDING) {
-                throw new RuntimeException(
-                        "Votre profil est en attente de validation par un administrateur. "
-                                + "Vous pourrez vous connecter dès qu'il sera approuvé."
-                );
-            }
-        }
-
         return new AuthResponse(
                 token,
                 user.getRole().name(),
@@ -163,10 +142,6 @@ public class AuthService {
         );
     }
 
-    // Réponse volontairement identique que l'email existe ou non, pour ne
-    // pas révéler quels emails ont un compte. Si le compte existe, on génère
-    // un code et on invalide les codes précédents non utilisés (un seul code
-    // valide à la fois par utilisateur)
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
 
         String generic = "Si un compte existe avec cet email, "
@@ -191,8 +166,6 @@ public class AuthService {
         resetCode.setUsed(false);
         passwordResetCodeRepository.save(resetCode);
 
-        // Tant qu'aucun envoi d'email réel n'existe, c'est la seule trace du
-        // code. Utile pour le suivi une fois exposeCodeInResponse désactivé
         LOGGER.info(
                 "Code de réinitialisation pour {} (userId={}) : {} (valable {} min)",
                 user.getEmail(), user.getId(), code, CODE_VALIDITY_MINUTES

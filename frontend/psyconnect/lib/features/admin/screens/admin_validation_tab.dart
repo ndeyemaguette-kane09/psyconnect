@@ -5,6 +5,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/psychologist_models.dart';
 import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
@@ -156,13 +158,10 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                               fontWeight: FontWeight.w700, fontSize: 15)),
                       const SizedBox(height: 8),
                       if (_pending.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.tealMid),
-                          ),
+                        AppCard(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          borderColor: AppColors.tealMid,
+                          shadow: const [],
                           child: const Row(
                             children: [
                               Icon(Icons.check_circle_outline, color: AppColors.teal),
@@ -329,7 +328,7 @@ class _PsychologistCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppRadius.mdAll,
         border: Border.all(color: AppColors.tealMid),
       ),
       clipBehavior: Clip.antiAlias,
@@ -443,7 +442,6 @@ class _PsychologistDetailSheetState extends State<_PsychologistDetailSheet> {
       child: Container(
         decoration: const BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: SingleChildScrollView(
@@ -458,7 +456,6 @@ class _PsychologistDetailSheetState extends State<_PsychologistDetailSheet> {
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: AppColors.tealMid,
-                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),

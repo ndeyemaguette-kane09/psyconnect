@@ -64,7 +64,11 @@ class AuthProvider extends ChangeNotifier {
           userProfileId: userProfileId,
           profileId: profileId,
         );
-        status = AuthStatus.authenticated;
+        // Un psychologue non encore validé (ou refusé) garde l'accès à
+      // l'app comme n'importe quel utilisateur — il est juste invisible
+      // des patients et ne peut pas recevoir de rendez-vous (filtré et
+      // vérifié côté backend). Pas de restriction de session ici.
+      status = AuthStatus.authenticated;
       } else {
         status = AuthStatus.unauthenticated;
       }
@@ -297,6 +301,12 @@ class AuthProvider extends ChangeNotifier {
         }
       }
 
+      // Le psychologue reste connecté après l'inscription : son profil est
+      // en attente de validation, mais il peut déjà utiliser l'app (complétée
+      // son profil, consulter les annonces...). Il est simplement invisible
+      // des patients et ne peut recevoir aucun rendez-vous tant que
+      // l'admin ne l'a pas approuvé (filtré et vérifié côté backend).
+
       return true;
     } catch (e) {
       _setError(e);
@@ -367,6 +377,23 @@ class AuthProvider extends ChangeNotifier {
         code: code,
         newPassword: newPassword,
       );
+      return true;
+    } catch (e) {
+      _setError(e);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updatePseudo(String newPseudo) async {
+    final current = session;
+    if (current == null) return false;
+    clearError();
+    _setLoading(true);
+    try {
+      await _authService.updatePseudo(newPseudo);
+      await _persistSession(current.copyWith(pseudo: newPseudo));
       return true;
     } catch (e) {
       _setError(e);

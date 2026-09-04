@@ -98,7 +98,6 @@ public class JwtAuthenticationFilter
                     Long authUserId = jwtService.extractUserId(jwt);
                     request.setAttribute("authUserId", authUserId);
                 } catch (RuntimeException ex) {
-                    // Ancien token sans userId — attribut laissé vide intentionnellement
                 }
             } else {
                 log.warn("JWT filter [{}] {} — token INVALID (expired or bad signature)", method, uri);

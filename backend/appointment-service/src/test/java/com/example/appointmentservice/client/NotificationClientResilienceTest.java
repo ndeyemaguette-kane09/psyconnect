@@ -83,7 +83,7 @@ class NotificationClientResilienceTest {
 
         for (int i = 0; i < 4; i++) {
             assertDoesNotThrow(() ->
-                    notificationClient.send(1L, "Titre", "Message", "TYPE")
+                    notificationClient.send(1L, "Titre", "Message", "TYPE", "PATIENT")
             );
         }
 

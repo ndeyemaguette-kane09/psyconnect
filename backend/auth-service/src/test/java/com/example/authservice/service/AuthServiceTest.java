@@ -15,6 +15,7 @@ import com.example.authservice.dto.MessageResponse;
 import com.example.authservice.dto.RegisterRequest;
 import com.example.authservice.entity.Role;
 import com.example.authservice.entity.User;
+import com.example.authservice.repository.PasswordResetCodeRepository;
 import com.example.authservice.repository.UserRepository;
 import com.example.authservice.security.JwtService;
 
@@ -39,11 +40,19 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private PasswordResetCodeRepository passwordResetCodeRepository;
+
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, passwordEncoder, jwtService);
+        authService = new AuthService(
+                userRepository,
+                passwordResetCodeRepository,
+                passwordEncoder,
+                jwtService
+        );
     }
 
     private RegisterRequest buildRegisterRequest(Role role) {
@@ -70,8 +79,6 @@ class AuthServiceTest {
         return user;
     }
 
-    // --- register ---
-
     @Test
     void register_validPatientRequest_savesUserAndReturnsMessage() {
 
@@ -83,7 +90,7 @@ class AuthServiceTest {
 
         MessageResponse response = authService.register(request);
 
-        assertEquals("User registered successfully", response.getMessage());
+        assertEquals("Inscription réussie", response.getMessage());
         verify(userRepository).save(any(User.class));
     }
 
@@ -97,7 +104,7 @@ class AuthServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.register(request));
 
-        assertEquals("Email already exists", ex.getMessage());
+        assertEquals("Cet email est déjà utilisé", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -112,7 +119,7 @@ class AuthServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.register(request));
 
-        assertEquals("Pseudo already exists", ex.getMessage());
+        assertEquals("Ce pseudo est déjà utilisé", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -126,7 +133,7 @@ class AuthServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.register(request));
 
-        assertEquals("Role is required", ex.getMessage());
+        assertEquals("Le rôle est requis", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -140,11 +147,9 @@ class AuthServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.register(request));
 
-        assertEquals("Cannot register as admin", ex.getMessage());
+        assertEquals("Impossible de s'inscrire en tant qu'administrateur", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
-
-    // --- login ---
 
     @Test
     void login_validCredentials_returnsTokenAndRole() {
@@ -178,7 +183,7 @@ class AuthServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.login(request));
 
-        assertEquals("User not found", ex.getMessage());
+        assertEquals("Aucun compte ne correspond à cet email", ex.getMessage());
     }
 
     @Test
@@ -194,7 +199,11 @@ class AuthServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.login(request));
 
-        assertEquals("User account is disabled", ex.getMessage());
+        assertEquals(
+                "Votre compte a été suspendu par l'administrateur. "
+                        + "Contactez-nous pour plus d'informations.",
+                ex.getMessage()
+        );
     }
 
     @Test
@@ -211,10 +220,26 @@ class AuthServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.login(request));
 
-        assertEquals("Invalid password", ex.getMessage());
+        assertEquals("Mot de passe incorrect", ex.getMessage());
     }
 
-    // --- getCurrentUser ---
+    @Test
+    void login_unapprovedPsychologist_stillReturnsToken() {
+
+        LoginRequest request = new LoginRequest();
+        request.setEmail("psy@psyconnect.sn");
+        request.setPassword("password123");
+        User user = buildUser(7L, request.getEmail(), "psy1", Role.PSYCHOLOGIST, true);
+
+        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(request.getPassword(), user.getPassword())).thenReturn(true);
+        when(jwtService.generateToken(anyString(), anyString(), anyLong())).thenReturn("temporary-token");
+
+        AuthResponse response = authService.login(request);
+
+        assertEquals("temporary-token", response.getToken());
+        assertEquals("PSYCHOLOGIST", response.getRole());
+    }
 
     @Test
     void getCurrentUser_existingEmail_returnsResponseWithoutToken() {
@@ -239,6 +264,6 @@ class AuthServiceTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> authService.getCurrentUser("inconnu@psyconnect.sn"));
 
-        assertEquals("User not found", ex.getMessage());
+        assertEquals("Aucun compte ne correspond à cet email", ex.getMessage());
     }
 }

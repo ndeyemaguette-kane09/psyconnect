@@ -22,8 +22,6 @@ public class ReportController {
         this.reportService = reportService;
     }
 
-    // soumission : POST /patients/{patientId}/reports?psychologistId=X
-    // multipart : reason (String), description (String), file (optionnel)
     @PostMapping(
             value = "/patients/{patientId}/reports",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
@@ -48,7 +46,6 @@ public class ReportController {
                 ));
     }
 
-    // liste des signalements pour l'admin, filtre optionnel ?status=PENDING
     @GetMapping("/admin/reports")
     public ResponseEntity<List<ReportResponse>> listReports(
             @RequestParam(required = false) String status
@@ -56,7 +53,6 @@ public class ReportController {
         return ResponseEntity.ok(reportService.listReports(status));
     }
 
-    // téléchargement de la preuve par l'admin
     @GetMapping("/admin/reports/{id}/evidence")
     public ResponseEntity<byte[]> getEvidence(@PathVariable Long id) {
         byte[] data = reportService.getEvidenceBytes(id);
@@ -67,7 +63,6 @@ public class ReportController {
                 .body(data);
     }
 
-    // traitement du signalement par l'admin (REVIEWED ou DISMISSED)
     @PatchMapping("/admin/reports/{id}")
     public ResponseEntity<ReportResponse> reviewReport(
             @PathVariable Long id,

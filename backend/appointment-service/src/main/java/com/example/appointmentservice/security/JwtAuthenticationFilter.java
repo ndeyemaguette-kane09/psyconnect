@@ -68,7 +68,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     Long authUserId = jwtService.extractUserId(jwt);
                     request.setAttribute("authUserId", authUserId);
                 } catch (RuntimeException ex) {
-                    // vieux token sans userId, on laisse vide
                 }
             }
         }

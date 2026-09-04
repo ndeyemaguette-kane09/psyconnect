@@ -13,8 +13,6 @@ import com.example.appointmentservice.entity.Appointment;
 import com.example.appointmentservice.entity.AppointmentStatus;
 import com.example.appointmentservice.repository.AppointmentRepository;
 
-// envoie un rappel 10 min avant le RDV, au patient et au psy
-// tourne toutes les 5 min, que pour les RDV confirmés
 @Component
 public class AppointmentReminderScheduler {
 
@@ -72,7 +70,6 @@ public class AppointmentReminderScheduler {
                 appointment.setReminderSent(true);
                 appointmentRepository.save(appointment);
             } catch (Exception e) {
-                // Si ça échoue, on continue avec les autres rendez-vous
                 LOGGER.warn(
                         "Échec de l'envoi du rappel pour le rendez-vous {}",
                         appointment.getId(),

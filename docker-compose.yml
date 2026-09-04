@@ -88,6 +88,8 @@ services:
       DB_PASSWORD: postgres
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
       JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      # Vérification obligatoire du statut du profil psychologue au login.
+      USER_SERVICE_URL: http://user-service:8082
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,6 +138,7 @@ services:
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
       JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
       NOTIFICATION_SERVICE_URL: http://notification-service:8086
+      USER_SERVICE_URL: http://user-service:8082
     depends_on:
       postgres:
         condition: service_healthy

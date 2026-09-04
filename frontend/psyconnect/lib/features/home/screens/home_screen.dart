@@ -42,8 +42,7 @@ class HomeScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: AppColors.headerGradient,
-                  borderRadius: BorderRadius.circular(20),
+                  color: AppColors.teal,
                 ),
                 width: double.infinity,
                 child: Column(

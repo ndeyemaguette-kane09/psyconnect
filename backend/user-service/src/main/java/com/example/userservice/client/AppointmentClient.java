@@ -12,8 +12,6 @@ import com.example.userservice.security.SecurityUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
-// Vérifie qu'un psychologue a déjà eu au moins un rendez-vous avec un patient
-// donne, avant de lui ouvrir l'acces aux antecedents medicaux de ce patient
 @Component
 public class AppointmentClient {
 
@@ -28,9 +26,6 @@ public class AppointmentClient {
         this.appointmentServiceUrl = appointmentServiceUrl;
     }
 
-    // Endpoint dédié inter-service : pas de contrôle de rôle côté appointment-service,
-    // on evite le 403 qui se produisait quand le psy appelait /appointments/patient/{id}
-    // (endpoint reserve au patient) pour verifier sa relation avec le patient.
     @CircuitBreaker(name = "appointmentService")
     @Retry(name = "appointmentService", fallbackMethod = "fallbackHasAppointment")
     public boolean hasAppointmentBetween(Long psychologistId, Long patientId) {
@@ -53,15 +48,10 @@ public class AppointmentClient {
         return Boolean.TRUE.equals(result);
     }
 
-    // appointment-service indisponible : on refuse prudemment l'acces plutot
-    // que de l'accorder par defaut, donnees medicales sensibles
     private boolean fallbackHasAppointment(Long psychologistId, Long patientId, Throwable t) {
         return false;
     }
 
-    // pareil que hasAppointmentBetween, mais exige un rendez-vous COMPLETED :
-    // un patient ne peut noter un psy qu'apres avoir reellement eu une seance.
-    // Utilise le même endpoint inter-service dédié, avec le filtre completed.
     @CircuitBreaker(name = "appointmentService")
     @Retry(name = "appointmentService", fallbackMethod = "fallbackHasCompletedAppointment")
     public boolean hasCompletedAppointmentBetween(Long psychologistId, Long patientId) {

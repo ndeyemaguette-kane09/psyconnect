@@ -161,7 +161,6 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.tealLight.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Row(
                         children: [
@@ -183,7 +182,6 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: AppColors.errorBg,
-                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(_error!, style: const TextStyle(color: AppColors.rose)),
                       ),
@@ -229,7 +227,6 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.teal,
                         minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       icon: _saving
                           ? const SizedBox(
@@ -258,14 +255,6 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,7 +276,6 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
               filled: true,
               fillColor: AppColors.background,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
             ),

@@ -5,12 +5,12 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../patient/models/psychologist_models.dart';
 import '../../patient/models/report_models.dart';
 import '../services/admin_service.dart';
 
-// onglet "Signalements" : liste des signalements psychologues soumis par
-// des patients. GET /admin/reports + PATCH /admin/reports/{id} pour traiter.
-// Filtre par statut (Tous / En attente / Traités / Rejetés).
 class AdminReportsTab extends StatefulWidget {
   const AdminReportsTab({super.key});
 
@@ -24,7 +24,7 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
   bool _loading = true;
   String? _error;
   List<ReportModel> _reports = [];
-  // filtre local (null = tous)
+  Map<int, PsychologistProfile> _psyById = {};
   String? _statusFilter; // null | 'PENDING' | 'REVIEWED' | 'DISMISSED'
 
   @override
@@ -40,6 +40,14 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
     });
     try {
       final list = await _service.listReports(status: _statusFilter);
+      if (_psyById.isEmpty) {
+        try {
+          final psys = await _service.listPsychologists();
+          _psyById = {for (final p in psys) p.id: p};
+        } catch (_) {
+          _psyById = {};
+        }
+      }
       if (!mounted) return;
       setState(() => _reports = list);
     } catch (_) {
@@ -50,13 +58,24 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
     }
   }
 
+  String _psychologistLabel(ReportModel report) {
+    final psy = _psyById[report.psychologistProfileId];
+    if (psy == null) {
+      return 'Psychologue #${report.psychologistProfileId}';
+    }
+    final details = [
+      if (psy.specialty.trim().isNotEmpty) psy.specialty.trim(),
+      if (psy.city != null && psy.city!.trim().isNotEmpty) psy.city!.trim(),
+    ].join(' · ');
+    return details.isEmpty ? psy.fullName : '${psy.fullName} — $details';
+  }
+
   void _applyFilter(String? status) {
     if (_statusFilter == status) return;
     setState(() => _statusFilter = status);
     _load();
   }
 
-  // ouvre la fiche détail + actions
   void _showDetail(ReportModel report) {
     showModalBottomSheet(
       context: context,
@@ -64,6 +83,7 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ReportDetailSheet(
         report: report,
+        psychologistLabel: _psychologistLabel(report),
         adminService: _service,
         onUpdated: (updated) {
           setState(() {
@@ -83,7 +103,6 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
         onRefresh: _load,
         child: Column(
           children: [
-            // en-tête + filtres
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Column(
@@ -129,7 +148,6 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
               ),
             ),
 
-            // contenu
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -177,6 +195,8 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
                                   const SizedBox(height: 10),
                               itemBuilder: (_, i) => _ReportCard(
                                 report: _reports[i],
+                                psychologistLabel:
+                                    _psychologistLabel(_reports[i]),
                                 onTap: () => _showDetail(_reports[i]),
                               ),
                             ),
@@ -188,11 +208,15 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
   }
 }
 
-// carte résumée d'un signalement dans la liste
 class _ReportCard extends StatelessWidget {
-  const _ReportCard({required this.report, required this.onTap});
+  const _ReportCard({
+    required this.report,
+    required this.psychologistLabel,
+    required this.onTap,
+  });
 
   final ReportModel report;
+  final String psychologistLabel;
   final VoidCallback onTap;
 
   @override
@@ -204,29 +228,15 @@ class _ReportCard extends StatelessWidget {
       _ => AppColors.muted,
     };
 
-    return InkWell(
+    return AppCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Row(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      borderColor: AppColors.tealMid,
+      shadow: const [],
+      child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // icône signalement
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.tealLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.flag, color: AppColors.tealDark, size: 20),
-            ),
+            const Icon(Icons.flag, color: AppColors.tealDark, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -246,10 +256,9 @@ class _ReportCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          color: statusColor.withValues(alpha: 0.1),
                           border: Border.all(
-                              color: statusColor.withOpacity(0.4)),
+                              color: statusColor.withValues(alpha: 0.4)),
                         ),
                         child: Text(
                           report.statusLabel,
@@ -263,9 +272,16 @@ class _ReportCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Psy #${report.psychologistProfileId} · Patient #${report.patientProfileId}',
+                    psychologistLabel,
                     style: const TextStyle(
-                        color: AppColors.muted, fontSize: 12),
+                        color: AppColors.text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Signalé par #anonyme',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                   if (report.description != null &&
                       report.description!.isNotEmpty) ...[
@@ -305,7 +321,6 @@ class _ReportCard extends StatelessWidget {
             const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
           ],
         ),
-      ),
     );
   }
 
@@ -328,15 +343,16 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
-// fiche détail + actions admin (traiter / rejeter + note)
 class _ReportDetailSheet extends StatefulWidget {
   const _ReportDetailSheet({
     required this.report,
+    required this.psychologistLabel,
     required this.adminService,
     required this.onUpdated,
   });
 
   final ReportModel report;
+  final String psychologistLabel;
   final AdminService adminService;
   final ValueChanged<ReportModel> onUpdated;
 
@@ -425,12 +441,10 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final isPending = _report.status == 'PENDING';
-    // remonte le contenu au-dessus du clavier virtuel
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 24),
       child: SingleChildScrollView(
@@ -438,7 +452,6 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // poignée
               Center(
                 child: Container(
                   width: 36,
@@ -446,12 +459,10 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: AppColors.tealMid,
-                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
 
-              // titre
               Row(
                 children: [
                   const Icon(Icons.flag, color: AppColors.tealDark, size: 22),
@@ -466,9 +477,8 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
               ),
               const SizedBox(height: 12),
 
-              // infos
-              _InfoRow('Psychologue', 'ID #${_report.psychologistProfileId}'),
-              _InfoRow('Patient', 'ID #${_report.patientProfileId}'),
+              _InfoRow('Psychologue', widget.psychologistLabel),
+              _InfoRow('Patient', '#anonyme'),
               _InfoRow('Statut', _report.statusLabel),
               if (_report.createdAt != null)
                 _InfoRow('Soumis le', _fmtDate(_report.createdAt!)),
@@ -482,7 +492,6 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                     style: Theme.of(context).textTheme.bodyMedium),
               ],
 
-              // pièce jointe
               if (_report.hasEvidence) ...[
                 const SizedBox(height: 16),
                 if (_evidenceError != null)
@@ -507,15 +516,12 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                     label: const Text('Voir la preuve jointe'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
                       side: const BorderSide(color: AppColors.tealMid),
                     ),
                   ),
                 ),
               ],
 
-              // note admin
               const SizedBox(height: 20),
               Text('Note admin (optionnel)',
                   style: Theme.of(context).textTheme.titleMedium),
@@ -530,7 +536,6 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                   filled: true,
                   fillColor: AppColors.background,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: AppColors.tealMid),
                   ),
                   contentPadding: const EdgeInsets.all(12),
@@ -547,7 +552,6 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                 ),
               ],
 
-              // erreur d'action
               if (_actionError != null) ...[
                 const SizedBox(height: 12),
                 Text(_actionError!,
@@ -555,7 +559,6 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                         const TextStyle(color: AppColors.rose, fontSize: 12)),
               ],
 
-              // actions
               const SizedBox(height: 20),
               if (isPending) ...[
                 Row(
@@ -591,7 +594,6 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                   ],
                 ),
               ] else ...[
-                // déjà traité : juste mettre à jour la note
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
@@ -600,8 +602,7 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
                         : () => _doAction(_report.status),
                     style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(44),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
+),
                     child: _busy
                         ? const SizedBox(
                             width: 18,
@@ -678,9 +679,8 @@ class _FilterChip extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: selected
-              ? activeColor.withOpacity(0.12)
+              ? activeColor.withValues(alpha: 0.12)
               : AppColors.white,
-          borderRadius: BorderRadius.circular(20),
           border: Border.all(
               color: selected ? activeColor : AppColors.tealMid),
         ),

@@ -149,13 +149,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (ok && mounted) {
-      if (_isPsychologist && auth.licenseUploadWarning) {
+      if (_isPsychologist) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            duration: Duration(seconds: 5),
+          SnackBar(
+            duration: const Duration(seconds: 6),
             content: Text(
-              "Compte créé, mais l'envoi du justificatif a échoué. "
-              'Vous pourrez le renvoyer depuis votre profil.',
+              auth.licenseUploadWarning
+                  ? "Compte créé, mais l'envoi du justificatif a échoué. "
+                      "Vous pourrez le renvoyer depuis votre profil."
+                  : 'Compte créé ! Votre profil est en cours de validation '
+                      "par un administrateur — vous ne serez visible des "
+                      'patients qu\'une fois approuvé.',
             ),
           ),
         );
@@ -537,7 +541,8 @@ class _ProfileStep extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               "Requis pour que l'administrateur puisse valider votre compte. "
-              'Sans approbation, vous ne pourrez pas vous connecter.',
+              "Sans approbation, votre profil n'est pas visible des "
+              'patients et vous ne pouvez recevoir aucun rendez-vous.',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall

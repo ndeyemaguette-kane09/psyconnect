@@ -3,6 +3,7 @@ import '../../../core/network/api_client.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/models/psychologist_models.dart';
 import '../../patient/models/report_models.dart';
+import '../../patient/models/support_message_models.dart';
 import '../models/admin_models.dart';
 
 export '../../../core/network/api_client.dart' show DownloadedFile;
@@ -161,6 +162,49 @@ class AdminService {
   // télécharge la pièce jointe (photo/PDF) d'un signalement
   Future<DownloadedFile> downloadReportEvidence(int reportId) {
     return _api.getFile(ApiConstants.adminReportEvidence(reportId));
+  }
+
+  // --- Messages "Contacter l'administrateur" (user-service) ---
+
+  // status = 'PENDING' | 'RESOLVED' | null (tous)
+  Future<List<SupportMessageModel>> listSupportMessages({String? status}) async {
+    final path = status == null
+        ? ApiConstants.adminSupportMessages
+        : '${ApiConstants.adminSupportMessages}?status=$status';
+    final json = await _api.get(path);
+    return (json as List)
+        .map((e) => SupportMessageModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // status = 'RESOLVED' pour marquer comme traité, 'PENDING' pour rouvrir
+  Future<SupportMessageModel> resolveSupportMessage(
+    int messageId, {
+    required String status,
+    String? adminNote,
+  }) async {
+    final json = await _api.patch(
+      ApiConstants.adminSupportMessage(messageId),
+      body: {
+        'status': status,
+        if (adminNote != null && adminNote.isNotEmpty) 'adminNote': adminNote,
+      },
+    );
+    return SupportMessageModel.fromJson(json as Map<String, dynamic>);
+  }
+
+  // envoie une vraie réponse à l'expéditeur : elle est stockée sur le ticket
+  // ET déclenche une notification (via NotificationClient côté user-service)
+  // à destination du patient/psychologue concerné. Passe le ticket en RESOLVED.
+  Future<SupportMessageModel> replyToSupportMessage(
+    int messageId, {
+    required String reply,
+  }) async {
+    final json = await _api.post(
+      ApiConstants.adminSupportMessageReply(messageId),
+      body: {'reply': reply},
+    );
+    return SupportMessageModel.fromJson(json as Map<String, dynamic>);
   }
 
   // --- Communication admin → utilisateurs (broadcast) ---

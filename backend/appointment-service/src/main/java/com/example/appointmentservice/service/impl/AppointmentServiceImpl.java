@@ -59,7 +59,6 @@ public class AppointmentServiceImpl
         this.paymentClient = paymentClient;
     }
 
-    // Vérifie que l'appelant est bien le patient ou le psychologue du rendez-vous
     private void checkParticipant(Appointment appointment) {
 
         if (SecurityUtils.hasRole("PATIENT")) {
@@ -100,6 +99,13 @@ public class AppointmentServiceImpl
             );
         }
 
+        if (!ownershipResolver.isPsychologistVerified(request.getPsychologistId())) {
+            throw new ForbiddenOperationException(
+                    "Ce psychologue n'a pas encore été approuvé par un "
+                            + "administrateur et ne peut pas recevoir de rendez-vous"
+            );
+        }
+
         if (
             !request.getEndTime()
                     .isAfter(request.getStartTime())
@@ -122,8 +128,6 @@ public class AppointmentServiceImpl
             );
         }
 
-        // seuls les RDV actifs (en attente ou confirmés) bloquent le créneau ;
-        // les RDV annulés/refusés/terminés libèrent le créneau immédiatement
         Set<AppointmentStatus> activeStatuses =
                 EnumSet.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED);
 
@@ -190,7 +194,6 @@ public class AppointmentServiceImpl
                         appointment
                 );
 
-        // le message doit pas faire croire que le RDV est déjà confirmé
         notifyPatient(
                 savedAppointment.getId(),
                 request.getPatientId(),
@@ -200,7 +203,6 @@ public class AppointmentServiceImpl
                         + "d'être effective."
         );
 
-        // notifie aussi le psy, sinon il voit la demande que dans son agenda
         notifyPsychologist(
                 savedAppointment.getId(),
                 request.getPsychologistId(),
@@ -213,7 +215,6 @@ public class AppointmentServiceImpl
         return mapToResponse(savedAppointment);
     }
 
-    // Notification au patient — un échec ici ne bloque pas le rendez-vous
     private void notifyPatient(
             Long appointmentId,
             Long patientId,
@@ -230,7 +231,6 @@ public class AppointmentServiceImpl
         );
     }
 
-    // pareil que notifyPatient mais pour le psy
     private void notifyPsychologist(
             Long appointmentId,
             Long psychologistId,
@@ -284,7 +284,6 @@ public class AppointmentServiceImpl
         AppointmentStatus newStatus =
                 AppointmentStatus.valueOf(status.toUpperCase());
 
-        // seul le psy confirme ou refuse, seul le patient annule
         boolean callerIsPsychologist = SecurityUtils.hasRole("PSYCHOLOGIST");
         if (
             (newStatus == AppointmentStatus.CONFIRMED
@@ -301,7 +300,6 @@ public class AppointmentServiceImpl
             );
         }
 
-        // annulation +48h avant = remboursement auto, sinon rien
         boolean refunded = false;
 
         if (newStatus == AppointmentStatus.CANCELLED) {
@@ -595,7 +593,6 @@ public class AppointmentServiceImpl
                                 )
                         );
 
-        // Seul le patient peut supprimer, jamais le psychologue
         if (!SecurityUtils.hasRole("PATIENT")
                 || !ownershipResolver.resolveOwnPatientId().equals(appointment.getPatientId())) {
             throw new ForbiddenOperationException(
@@ -603,7 +600,6 @@ public class AppointmentServiceImpl
             );
         }
 
-        // que annulé ou refusé peut etre supprimé, le reste reste visible
         if (appointment.getStatus() != AppointmentStatus.CANCELLED
                 && appointment.getStatus() != AppointmentStatus.REJECTED) {
             throw new ForbiddenOperationException(
@@ -614,10 +610,6 @@ public class AppointmentServiceImpl
         appointmentRepository.delete(appointment);
     }
 
-    // Appel inter-service uniquement : user-service vérifie que le psychologue a déjà
-    // eu un RDV avec ce patient avant d'ouvrir l'acces aux notes cliniques /
-    // antecedents medicaux. Pas de check de role ici : la protection est faite
-    // en amont (endpoint /patients/*/clinical-notes exige PSYCHOLOGIST).
     @Override
     public boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted) {
         if (requireCompleted) {

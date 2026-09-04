@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// Routes admin : validation des psychologues, vue d'ensemble patients/psys, statistiques.
-// Protégées via SecurityConfig (/admin/** = ADMIN uniquement)
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -53,7 +51,6 @@ public class AdminController {
         );
     }
 
-    // Refus explicite : distinct de verify=false qui signifie "en attente de validation"
     @PatchMapping("/psychologists/{id}/reject")
     public ResponseEntity<PsychologistProfileResponse> setPsychologistRejected(
             @PathVariable Long id,
@@ -71,7 +68,6 @@ public class AdminController {
         );
     }
 
-    // /stats/profiles et non /stats : évite les conflits de routage entre services
     @GetMapping("/stats/profiles")
     public ResponseEntity<AdminStatsResponse> getStats() {
 
@@ -82,7 +78,6 @@ public class AdminController {
         stats.setVerifiedPsychologists(
                 psychologistProfileRepository.countByProfileVerified(true)
         );
-        // "en attente" exclut les profils déjà refusés
         stats.setPendingPsychologists(
                 psychologistProfileRepository
                         .countByProfileVerifiedAndRejected(false, false)

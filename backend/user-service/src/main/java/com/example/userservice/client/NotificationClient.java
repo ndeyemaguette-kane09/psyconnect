@@ -16,8 +16,6 @@ import com.example.userservice.security.SecurityUtils;
 
 import io.github.resilience4j.retry.annotation.Retry;
 
-// prevenu le psy de la decision admin
-// Si ça échoue, ça ne bloque pas la décision admin
 @Component
 public class NotificationClient {
 
@@ -35,8 +33,6 @@ public class NotificationClient {
         this.notificationServiceUrl = notificationServiceUrl;
     }
 
-    // @CircuitBreaker retiré : il bloquait définitivement les appels après quelques
-    // échecs (état OPEN persistant). @Retry seul suffit pour la résilience interne.
     @Retry(name = "notificationService", fallbackMethod = "fallbackSend")
     public void send(Long userId, String title, String message, String type, String userRole) {
 
@@ -48,9 +44,12 @@ public class NotificationClient {
         notification.put("userRole", userRole);
 
         HttpHeaders headers = new HttpHeaders();
-        String authorization = SecurityUtils.currentAuthorizationHeader();
-        if (authorization != null) {
-            headers.set("Authorization", authorization);
+        try {
+            String authorization = SecurityUtils.currentAuthorizationHeader();
+            if (authorization != null) {
+                headers.set("Authorization", authorization);
+            }
+        } catch (IllegalStateException ignored) {
         }
 
         restTemplate.exchange(

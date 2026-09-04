@@ -8,6 +8,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/splash_screen.dart';
@@ -20,8 +22,6 @@ import '../../patient/services/appointment_service.dart';
 import '../../patient/services/notification_service.dart';
 import '../../patient/services/psychologist_service.dart';
 
-// Onglet Accueil du psychologue. Les revenus sont dans l'onglet Statistiques ;
-// les quatre indicateurs du tableau de bord sont calculés depuis la liste des RDV.
 class PsychologistHomeTab extends StatefulWidget {
   const PsychologistHomeTab({super.key});
 
@@ -44,10 +44,8 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
   List<Appointment> _appointments = [];
   Map<int, PatientProfile> _patientsById = {};
   int _unreadNotifCount = 0;
-  // Badge mégaphone : annonces non vues depuis la dernière ouverture.
   int _newBroadcastCount = 0;
 
-  // toggle urgence : état local synchronisé avec le backend
   bool _savingEmergency = false;
 
   @override
@@ -62,7 +60,6 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
       _error = null;
     });
 
-    // Lu avant l'await pour éviter d'utiliser context après une opération asynchrone.
     final psychologistId = context.read<AuthProvider>().session?.profileId;
     if (psychologistId == null) {
       setState(() {
@@ -107,7 +104,6 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     unawaited(_refreshBroadcastBadge());
   }
 
-  // Chargement du badge "non lus", indépendant du reste pour ne pas bloquer l'affichage.
   Future<void> _refreshUnreadNotifCount() async {
     final psychologistId = context.read<AuthProvider>().session?.profileId;
     if (psychologistId == null) return;
@@ -117,7 +113,6 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
       final unread = notifications.where((n) => !n.isRead).length;
       if (mounted) setState(() => _unreadNotifCount = unread);
     } catch (_) {
-      // Échec silencieux : le badge conserve sa dernière valeur.
     }
   }
 
@@ -152,19 +147,26 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
   }
 
   Future<void> _openAnnouncements() async {
+    final lastSeenStr = await _storage.read(key: 'psy_broadcasts_last_seen');
+    final lastSeen =
+        lastSeenStr == null ? null : DateTime.tryParse(lastSeenStr);
+
+    if (!mounted) return;
+    setState(() => _newBroadcastCount = 0);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AnnouncementsScreen(lastSeen: lastSeen),
+      ),
+    );
+
     await _storage.write(
       key: 'psy_broadcasts_last_seen',
       value: DateTime.now().toIso8601String(),
     );
-    if (mounted) setState(() => _newBroadcastCount = 0);
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
-    );
     if (mounted) _refreshBroadcastBadge();
   }
 
-  // Premier rendez-vous futur non annulé et non refusé.
   Appointment? get _nextAppointment {
     final now = DateTime.now();
     final upcoming = _activeAppointments
@@ -174,7 +176,6 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     return upcoming.isEmpty ? null : upcoming.first;
   }
 
-  // Récupère un profil patient sans bloquer le chargement si l'appel échoue.
   Future<PatientProfile?> _safeGetPatientProfile(int patientId) async {
     try {
       return await _profileService.getPatientProfileById(patientId);
@@ -226,7 +227,6 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     }
   }
 
-  // toggle le mode urgence : tap sur la carte → inverse l'état courant
   Future<void> _toggleEmergency() async {
     final me = _me;
     if (me == null || _savingEmergency) return;
@@ -249,11 +249,12 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
         SnackBar(
           content: Text(
             newAvailable
-                ? 'Mode urgence activé — les patients peuvent vous appeler.'
+                ? 'Mode urgence activé — vous apparaissez dans la liste '
+                    'd\'aide immédiate.'
                 : 'Mode urgence désactivé.',
           ),
           backgroundColor: newAvailable
-              ? const Color(0xFFE53935)
+              ? AppColors.emergency
               : AppColors.muted,
           duration: const Duration(seconds: 3),
         ),
@@ -287,151 +288,222 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     final session = context.watch<AuthProvider>().session;
     final name = _me != null ? _me!.fullName : (session?.pseudo ?? '');
 
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppColors.teal,
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          _PsyHero(
+            name: name,
+            specialty: _me?.specialty,
+            verified: _me?.profileVerified ?? false,
+            broadcastCount: _newBroadcastCount,
+            notifCount: _unreadNotifCount,
+            onOpenAnnouncements: _openAnnouncements,
+            onOpenNotifications: session?.profileId == null
+                ? null
+                : () => _openNotifications(session!.profileId!),
+            onLogout: _logout,
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_me != null && !_me!.profileVerified) ...[
+                  _ApprovalStatusBanner(rejected: _me!.rejected),
+                  const SizedBox(height: 16),
+                ],
+
+                _EmergencyToggleCard(
+                  isAvailable: _me?.availableForEmergency ?? false,
+                  offersFreeSessions: _me?.offersFreeSessions ?? false,
+                  isSaving: _savingEmergency,
+                  onToggle: (_me != null && _me!.profileVerified)
+                      ? _toggleEmergency
+                      : null,
+                ),
+                const SizedBox(height: 26),
+
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_error != null)
+                  AppErrorState(
+                    title: 'Tableau de bord indisponible',
+                    message: _error!,
+                    onRetry: _load,
+                  )
+                else ...[
+                  const SectionHeader(title: 'Mon activité'),
+                  const SizedBox(height: 6),
+                  StatBand(
+                    children: [
+                      StatTile(
+                        value: '${_todayAppointments.length}',
+                        label: "Aujourd'hui",
+                      ),
+                      StatTile(
+                        value: '$_thisWeekCount',
+                        label: 'Cette semaine',
+                      ),
+                      StatTile(
+                        value: '$_activePatientsCount',
+                        label: 'Patients actifs',
+                      ),
+                      StatTile(
+                        value: _me?.rating != null && _me!.rating! > 0
+                            ? _me!.rating!.toStringAsFixed(1)
+                            : '—',
+                        label: 'Ma note',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 26),
+
+                  if (_nextAppointment != null) ...[
+                    const SectionHeader(title: 'Prochain rendez-vous'),
+                    const SizedBox(height: 12),
+                    _NextPatientAppointmentCard(
+                      appointment: _nextAppointment!,
+                      patient: _patientsById[_nextAppointment!.patientId],
+                    ),
+                    const SizedBox(height: 26),
+                  ],
+
+                  SectionHeader(
+                    title: 'Planning du jour',
+                    subtitle: _todayAppointments.isEmpty
+                        ? null
+                        : '${_todayAppointments.length} séance(s) prévue(s)',
+                  ),
+                  const SizedBox(height: 12),
+                  if (_todayAppointments.isEmpty)
+                    const AppEmptyState(
+                      icon: Icons.event_available_outlined,
+                      title: 'Journée libre',
+                      message: "Aucun rendez-vous aujourd'hui. "
+                          'Profitez-en pour mettre à jour vos disponibilités.',
+                    )
+                  else
+                    ..._todayAppointments.map((a) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _PlanningCard(
+                            appointment: a,
+                            patient: _patientsById[a.patientId],
+                            onConfirm: () =>
+                                _updateStatus(a, AppointmentStatus.confirmed),
+                            onReject: () =>
+                                _updateStatus(a, AppointmentStatus.rejected),
+                          ),
+                        )),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PsyHero extends StatelessWidget {
+  const _PsyHero({
+    required this.name,
+    required this.specialty,
+    required this.verified,
+    required this.broadcastCount,
+    required this.notifCount,
+    required this.onOpenAnnouncements,
+    required this.onOpenNotifications,
+    required this.onLogout,
+  });
+
+  final String name;
+  final String? specialty;
+  final bool verified;
+  final int broadcastCount;
+  final int notifCount;
+  final VoidCallback onOpenAnnouncements;
+  final VoidCallback? onOpenNotifications;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
     return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 10, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: AppColors.headerGradient,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              width: double.infinity,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Bonjour',
-                            style: TextStyle(
-                                color: Colors.white70, fontSize: 12)),
-                        const SizedBox(height: 4),
                         Text(
-                          name.isEmpty ? '' : name,
+                          [
+                            name.isEmpty ? 'Praticien' : name,
+                            if (verified) 'Vérifiée',
+                          ].join(' · ').toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
+                            color: AppColors.goldDark,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                          ),
                         ),
+                        const SizedBox(height: 7),
+                        Text(
+                          'Tableau de bord',
+                          style: Theme.of(context).textTheme.displayMedium,
+                        ),
+                        if (specialty?.isNotEmpty ?? false) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            specialty!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Annonces système',
-                    onPressed: _openAnnouncements,
-                    icon: Badge(
-                      isLabelVisible: _newBroadcastCount > 0,
-                      label: Text('$_newBroadcastCount'),
-                      backgroundColor: AppColors.rose,
-                      child: const Icon(Icons.campaign_outlined,
-                          color: Colors.white),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Notifications',
-                    onPressed: session?.profileId == null
-                        ? null
-                        : () => _openNotifications(session!.profileId!),
-                    icon: Badge(
-                      isLabelVisible: _unreadNotifCount > 0,
-                      label: Text('$_unreadNotifCount'),
-                      child: const Icon(Icons.notifications_outlined,
-                          color: Colors.white),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Se déconnecter',
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // carte mode urgence : toujours affichée, même pendant le chargement
-            _EmergencyToggleCard(
-              isAvailable: _me?.availableForEmergency ?? false,
-              offersFreeSessions: _me?.offersFreeSessions ?? false,
-              isSaving: _savingEmergency,
-              onToggle: _me != null ? _toggleEmergency : null,
-            ),
-            const SizedBox(height: 20),
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Text(_error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.muted)),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                          onPressed: _load, child: const Text('Réessayer')),
-                    ],
-                  ),
                 ),
-              )
-            else ...[
-              Row(
-                children: [
-                  _DashStat(
-                      value: '${_todayAppointments.length}',
-                      label: "RDV aujourd'hui"),
-                  _DashStat(value: '$_thisWeekCount', label: 'Cette semaine'),
-                  _DashStat(
-                      value: '$_activePatientsCount',
-                      label: 'Patients actifs'),
-                  _DashStat(
-                      value: _me?.rating != null && _me!.rating! > 0
-                          ? _me!.rating!.toStringAsFixed(1)
-                          : '—',
-                      label: 'Ma note'),
-                ],
-              ),
-              const SizedBox(height: 24),
-              if (_nextAppointment != null) ...[
-                Text('Prochain rendez-vous',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 10),
-                _NextPatientAppointmentCard(
-                  appointment: _nextAppointment!,
-                  patient: _patientsById[_nextAppointment!.patientId],
+                _PsyHeroButton(
+                  icon: Icons.campaign_outlined,
+                  tooltip: 'Annonces système',
+                  badge: broadcastCount,
+                  onTap: onOpenAnnouncements,
                 ),
-                const SizedBox(height: 24),
+                _PsyHeroButton(
+                  icon: Icons.notifications_none_rounded,
+                  tooltip: 'Notifications',
+                  badge: notifCount,
+                  onTap: onOpenNotifications,
+                ),
+                _PsyHeroButton(
+                  icon: Icons.logout_rounded,
+                  tooltip: 'Se déconnecter',
+                  badge: 0,
+                  onTap: onLogout,
+                ),
               ],
-              Text('Planning du jour',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 10),
-              if (_todayAppointments.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text("Aucun rendez-vous aujourd'hui.",
-                      style: const TextStyle(color: AppColors.muted)),
-                )
-              else
-                ..._todayAppointments.map((a) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _PlanningCard(
-                        appointment: a,
-                        patient: _patientsById[a.patientId],
-                        onConfirm: () =>
-                            _updateStatus(a, AppointmentStatus.confirmed),
-                        onReject: () =>
-                            _updateStatus(a, AppointmentStatus.rejected),
-                      ),
-                    )),
-            ],
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, thickness: 1),
           ],
         ),
       ),
@@ -439,7 +511,46 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
   }
 }
 
-// Carte de disponibilité urgence, toujours visible. Un tap bascule le mode.
+class _PsyHeroButton extends StatelessWidget {
+  const _PsyHeroButton({
+    required this.icon,
+    required this.tooltip,
+    required this.badge,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final int badge;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Center(
+            child: Badge(
+              isLabelVisible: badge > 0,
+              label: Text('$badge'),
+              child: Icon(
+                icon,
+                size: 20,
+                color: onTap == null ? AppColors.faint : AppColors.text,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmergencyToggleCard extends StatefulWidget {
   const _EmergencyToggleCard({
     required this.isAvailable,
@@ -500,46 +611,18 @@ class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: active
-            ? const LinearGradient(
-                colors: [Color(0xFFB71C1C), Color(0xFFE53935)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: active ? null : AppColors.white,
+        color: active ? AppColors.emergency : AppColors.white,
         border: Border.all(
-          color: active
-              ? const Color(0xFFB71C1C)
-              : AppColors.tealMid,
-          width: active ? 0 : 1,
+          color: active ? AppColors.emergency : AppColors.border,
         ),
-        boxShadow: active
-            ? [
-                BoxShadow(
-                  color: const Color(0xFFE53935).withValues(alpha: 0.35),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                )
-              ]
-            : [
-                BoxShadow(
-                  color: AppColors.text.withValues(alpha: 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                )
-              ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: saving ? null : widget.onToggle,
-          borderRadius: BorderRadius.circular(18),
           splashColor: active
               ? Colors.white.withValues(alpha: 0.15)
-              : const Color(0xFFE53935).withValues(alpha: 0.08),
+              : AppColors.emergency.withValues(alpha: 0.08),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             child: Column(
@@ -547,7 +630,6 @@ class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
               children: [
                 Row(
                   children: [
-                    // Indicateur pulsant quand actif
                     if (active)
                       AnimatedBuilder(
                         animation: _pulse,
@@ -589,21 +671,12 @@ class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(11),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? Colors.white.withValues(alpha: 0.18)
-                            : const Color(0xFFE53935).withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        active
-                            ? Icons.emergency_outlined
-                            : Icons.do_not_disturb_alt_outlined,
-                        color: active ? Colors.white : const Color(0xFFE53935),
-                        size: 24,
-                      ),
+                    Icon(
+                      active
+                          ? Icons.emergency_outlined
+                          : Icons.do_not_disturb_alt_outlined,
+                      color: active ? Colors.white : AppColors.emergency,
+                      size: 24,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -625,9 +698,9 @@ class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
                           Text(
                             active
                                 ? (widget.offersFreeSessions
-                                    ? 'Les patients peuvent vous appeler — consultation gratuite'
-                                    : 'Les patients peuvent vous appeler immédiatement')
-                                : 'Appuyez pour vous rendre disponible',
+                                    ? 'Visible dans l\'aide immédiate — consultation gratuite'
+                                    : 'Visible dans la liste d\'aide immédiate')
+                                : 'Appuyez pour apparaître dans l\'aide immédiate',
                             style: TextStyle(
                               fontSize: 11.5,
                               color: active
@@ -642,7 +715,6 @@ class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
                   ],
                 ),
                 const SizedBox(height: 14),
-                // Bouton d'action pleine largeur
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   width: double.infinity,
@@ -650,8 +722,7 @@ class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
                   decoration: BoxDecoration(
                     color: active
                         ? Colors.white.withValues(alpha: 0.2)
-                        : const Color(0xFFE53935),
-                    borderRadius: BorderRadius.circular(10),
+                        : AppColors.emergency,
                     border: active
                         ? Border.all(
                             color: Colors.white.withValues(alpha: 0.4))
@@ -681,87 +752,191 @@ class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
   }
 }
 
-class _DashStat extends StatelessWidget {
-  const _DashStat({required this.value, required this.label});
+class _ApprovalStatusBanner extends StatelessWidget {
+  const _ApprovalStatusBanner({required this.rejected});
 
-  final String value;
-  final String label;
+  final bool rejected;
+
+  static const _adminEmail = 'admin@psyconnect.sn';
+  static const _adminPhone = '+221 78 000 00 00';
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+    if (rejected) {
+      return Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
+          color: AppColors.dangerBg,
+          borderRadius: AppRadius.mdAll,
+          border: Border.all(color: AppColors.rose.withValues(alpha: 0.5)),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value,
+            const Row(
+              children: [
+                Icon(Icons.block_outlined, color: AppColors.rose, size: 20),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Profil refusé par l\'administrateur',
+                    style: TextStyle(
+                      color: AppColors.rose,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Votre profil n'est pas visible des patients et vous ne "
+              'pouvez recevoir aucun rendez-vous. Contactez '
+              "l'administration si vous pensez qu'il s'agit d'une erreur :",
+              style: TextStyle(color: AppColors.text, fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 8),
+            Text('$_adminEmail · $_adminPhone',
                 style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: AppColors.tealDark)),
-            const SizedBox(height: 4),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 10)),
+                    color: AppColors.rose,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.goldLight,
+        borderRadius: AppRadius.mdAll,
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.hourglass_top_outlined, color: AppColors.gold, size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profil en cours de validation',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  "Vous n'êtes pas encore visible des patients et ne pouvez "
+                  'recevoir de rendez-vous. Vous serez notifié dès que '
+                  "l'administrateur aura validé votre profil.",
+                  style: TextStyle(color: AppColors.muted, fontSize: 12.5, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// Carte du prochain rendez-vous, côté psychologue : affiche le nom du patient
-// (ou son pseudo si le mode anonyme est activé, géré côté backend).
 class _NextPatientAppointmentCard extends StatelessWidget {
   const _NextPatientAppointmentCard({required this.appointment, this.patient});
 
   final Appointment appointment;
   final PatientProfile? patient;
 
+  static const _months = [
+    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+  ];
+
   @override
   Widget build(BuildContext context) {
     final start = appointment.startTime;
-    final date = '${start.day.toString().padLeft(2, '0')}/'
-        '${start.month.toString().padLeft(2, '0')} à '
-        '${start.hour.toString().padLeft(2, '0')}h'
+    final time = '${start.hour.toString().padLeft(2, '0')}h'
         '${start.minute.toString().padLeft(2, '0')}';
     final name = patient != null
         ? '${patient!.firstName} ${patient!.lastName}'.trim()
         : 'Patient';
+    final daysAway = start.difference(DateTime.now()).inDays;
+    final relative = daysAway <= 0
+        ? "Aujourd'hui"
+        : daysAway == 1
+            ? 'Demain'
+            : 'Dans $daysAway jours';
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: AppColors.headerGradient,
-        borderRadius: BorderRadius.circular(16),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(
+          top: BorderSide(color: AppColors.border),
+          right: BorderSide(color: AppColors.border),
+          bottom: BorderSide(color: AppColors.border),
+          left: BorderSide(color: AppColors.teal, width: 3),
+        ),
       ),
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
       child: Row(
         children: [
-          const CircleAvatar(
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.event_available, color: Colors.white),
+          SizedBox(
+            width: 54,
+            child: Column(
+              children: [
+                Text(
+                  start.day.toString().padLeft(2, '0'),
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontSize: 24,
+                        color: AppColors.tealDeep,
+                        height: 1,
+                      ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _months[start.month - 1].toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.4,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 14),
+          Container(width: 1, height: 48, color: AppColors.border),
+          const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name.isEmpty ? 'Patient' : name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: AppColors.text,
+                  ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 5),
                 Text(
-                  '$date · ${appointment.consultationType.label} · '
-                  '${appointment.status.label}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  '$time · ${relative.toLowerCase()}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                AppPill(
+                  label: '${appointment.consultationType.label} · '
+                      '${appointment.status.label}',
+                  dense: true,
                 ),
               ],
             ),
@@ -794,75 +969,89 @@ class _PlanningCard extends StatelessWidget {
         ? '${patient!.firstName} ${patient!.lastName}'.trim()
         : 'Patient';
 
-    return Container(
+    final pending = appointment.status == AppointmentStatus.pending;
+
+    return AppCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.tealMid),
-      ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            alignment: Alignment.center,
-            child: Text(time,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, color: AppColors.tealDark)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 56,
+                child: Text(
+                  time,
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontSize: 17,
+                        color: AppColors.tealDeep,
+                        height: 1,
+                      ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Patient' : name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    AppPill(
+                      label: appointment.consultationType.label,
+                      icon: Icons.videocam_outlined,
+                      dense: true,
+                      color: AppColors.textSecondary,
+                      background: AppColors.surfaceAlt,
+                    ),
+                  ],
+                ),
+              ),
+              if (!pending)
+                AppPill(
+                  label: appointment.status.label,
+                  color: AppColors.teal,
+                  background: AppColors.tealLight,
+                  dense: true,
+                ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          if (pending) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            Row(
               children: [
-                Text(name.isEmpty ? 'Patient' : name,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text(appointment.consultationType.label,
-                    style:
-                        const TextStyle(color: AppColors.muted, fontSize: 12)),
-                if (appointment.status == AppointmentStatus.pending) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: onReject,
-                        style: TextButton.styleFrom(
-                            foregroundColor: AppColors.rose,
-                            padding: EdgeInsets.zero),
-                        child: const Text('Refuser'),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: onConfirm,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.teal,
-                          minimumSize: const Size(0, 32),
-                        ),
-                        child: const Text('Confirmer'),
-                      ),
-                    ],
+                Expanded(
+                  child: TextButton(
+                    onPressed: onReject,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                      backgroundColor: AppColors.dangerBg,
+                      minimumSize: const Size(0, 40),
+                    ),
+                    child: const Text('Refuser'),
                   ),
-                ],
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onConfirm,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.teal,
+                      minimumSize: const Size(0, 40),
+                    ),
+                    child: const Text('Confirmer'),
+                  ),
+                ),
               ],
             ),
-          ),
-          if (appointment.status != AppointmentStatus.pending)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.teal.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                appointment.status.label,
-                style: const TextStyle(
-                    color: AppColors.teal,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600),
-              ),
-            ),
+          ],
         ],
       ),
     );

@@ -11,9 +11,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-// Crée un compte administrateur par défaut si aucun n'existe en base.
-// register() bloque l'inscription directe avec le rôle ADMIN.
-
 @Component
 public class AdminBootstrap implements CommandLineRunner {
 

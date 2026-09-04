@@ -51,8 +51,6 @@ public class UserProfileController {
         return ResponseEntity.ok(response);
     }
 
-    // pareil que pour patient/psy mais pour UserProfile.id
-    // utile si l'inscription s'est arretée avant la creation du profil
     @GetMapping("/by-auth-user/{authUserId}")
     public ResponseEntity<UserProfileResponse>
     getProfileByAuthUserId(

@@ -4,6 +4,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/questionnaire_models.dart';
 import '../services/questionnaire_service.dart';
+import 'emergency_screen.dart';
 
 // patient remplit un questionnaire PHQ-9 ou GAD-7
 // toutes les questions sur un ecran scrollable, radio buttons 0-3
@@ -109,7 +110,6 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppColors.tealLight,
-                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
                     'Au cours des 2 dernières semaines, combien de jours avez-vous '
@@ -125,12 +125,27 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
                 ...q.questions.asMap().entries.map((entry) {
                   final idx = entry.key;
                   final item = entry.value;
-                  return _QuestionCard(
+                  final card = _QuestionCard(
                     index: idx,
                     question: item.question,
                     selectedAnswer: _answers[idx],
                     onAnswerSelected: (v) =>
                         setState(() => _answers[idx] = v),
+                  );
+
+                  final flagged = q.type == QuestionnaireType.PHQ9 &&
+                      idx == kPhq9RiskItemIndex &&
+                      _answers[idx] >= kRiskThreshold;
+
+                  if (!flagged) return card;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      card,
+                      const _ImmediateSupportCard(),
+                      const SizedBox(height: 14),
+                    ],
                   );
                 }),
               ],
@@ -192,7 +207,6 @@ class _QuestionCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: answered ? AppColors.teal : AppColors.tealMid,
           width: answered ? 1.5 : 1,
@@ -324,7 +338,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
               fontSize: 15),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -335,7 +349,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
               height: 130,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 border: Border.all(color: color, width: 4),
               ),
               child: Column(
@@ -369,10 +383,14 @@ class QuestionnaireResultScreen extends StatelessWidget {
               questionnaire.typeDescription,
               style: const TextStyle(color: AppColors.muted, fontSize: 14),
             ),
+            if (questionnaire.signalsImmediateRisk) ...[
+              const SizedBox(height: 24),
+              const _ImmediateSupportCard(),
+            ],
             const SizedBox(height: 32),
             // echelle de reference
             _ScaleReference(type: questionnaire.type, score: score),
-            const Spacer(),
+            const SizedBox(height: 28),
             const Text(
               'Vos réponses ont été transmises à votre psychologue. '
               'Ces résultats sont un outil d\'évaluation, pas un diagnostic.',
@@ -394,6 +412,64 @@ class QuestionnaireResultScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Proposition d'aide immédiate, affichée lorsqu'un patient signale des idées
+// suicidaires à l'item 9 du PHQ-9. Volontairement non bloquante : c'est une
+// porte ouverte, pas une alerte.
+class _ImmediateSupportCard extends StatelessWidget {
+  const _ImmediateSupportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.emergency, width: 1.4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Vous n'avez pas à traverser ça seul(e)",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Ce que vous venez d'indiquer mérite d'être entendu maintenant, "
+            "et pas seulement à votre prochain rendez-vous. Un psychologue "
+            "disponible peut vous répondre tout de suite.",
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const EmergencyScreen()),
+              ),
+              icon: const Icon(Icons.phone_in_talk_outlined, size: 18),
+              label: const Text('Parler à quelqu\'un maintenant'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.emergency,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -427,7 +503,6 @@ class _ScaleReference extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

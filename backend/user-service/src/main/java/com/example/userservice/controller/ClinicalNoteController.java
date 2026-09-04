@@ -11,10 +11,6 @@ import com.example.userservice.service.ClinicalNoteService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-// Notes cliniques privées du psychologue : jamais d'endpoint côté patient ni
-// admin ici, et le service refuse l'accès à un psychologue "étranger" au patient
-// (cf. ClinicalNoteServiceImpl) — voir CDC section 6 "jamais visibles par
-// des tiers non autorisés"
 @RestController
 public class ClinicalNoteController {
 

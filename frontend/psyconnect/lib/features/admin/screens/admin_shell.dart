@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../services/admin_service.dart';
 import 'admin_config_tab.dart';
 import 'admin_dashboard_tab.dart';
 import 'admin_stats_tab.dart';
 import 'admin_users_tab.dart';
 import 'admin_validation_tab.dart';
 
-// Conteneur principal admin — navigation style Lyynk :
-// BottomAppBar avec 4 items (2 gauche, 2 droite) + FAB central (Validation)
-//
-// Layout : Dashboard · Utilisateurs   [FAB Validation]   Stats · Paramètres
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
 
@@ -21,10 +18,46 @@ class AdminShell extends StatefulWidget {
 const _fabTabIndex = 2; // Validation
 
 class _AdminShellState extends State<AdminShell> {
+  final _adminService = AdminService();
+
   int _index = 0;
+  int _pendingValidations = 0;
+  int _pendingReports = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounters();
+  }
+
+  Future<void> _loadCounters() async {
+    var validations = 0;
+    var reports = 0;
+    try {
+      final stats = await _adminService.getProfileStats();
+      validations = stats.pendingPsychologists;
+    } catch (_) {
+      validations = 0;
+    }
+    try {
+      final list = await _adminService.listReports(status: 'PENDING');
+      reports = list.length;
+    } catch (_) {
+      reports = 0;
+    }
+    if (!mounted) return;
+    setState(() {
+      _pendingValidations = validations;
+      _pendingReports = reports;
+    });
+  }
 
   void _goToValidation() => _selectTab(_fabTabIndex);
-  void _selectTab(int i) => setState(() => _index = i);
+
+  void _selectTab(int i) {
+    setState(() => _index = i);
+    _loadCounters();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,19 +72,24 @@ class _AdminShellState extends State<AdminShell> {
     return Scaffold(
       body: IndexedStack(index: _index, children: tabs),
 
-      // ── FAB central : Validation ─────────────────────────────────────────
       floatingActionButton: FloatingActionButton(
         onPressed: () => _selectTab(_fabTabIndex),
         backgroundColor:
             _index == _fabTabIndex ? AppColors.tealDark : AppColors.teal,
         elevation: 4,
         shape: const CircleBorder(),
-        tooltip: 'Validation',
-        child: const Icon(Icons.fact_check_rounded, color: Colors.white, size: 28),
+        tooltip: _pendingValidations > 0
+            ? 'Validation · $_pendingValidations en attente'
+            : 'Validation',
+        child: Badge(
+          isLabelVisible: _pendingValidations > 0,
+          label: Text('$_pendingValidations'),
+          child: const Icon(Icons.fact_check_rounded,
+              color: Colors.white, size: 28),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // ── BottomAppBar : Dashboard · Utilisateurs   [FAB]   Stats · Paramètres
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
@@ -92,6 +130,7 @@ class _AdminShellState extends State<AdminShell> {
                 icon: Icons.settings_outlined,
                 selectedIcon: Icons.settings,
                 label: 'Paramètres',
+                badge: _pendingReports,
                 onTap: () => _selectTab(4),
               ),
             ],
@@ -101,8 +140,6 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 }
-
-// ── Widget item de navigation ────────────────────────────────────────────────
 
 class _NavItem extends StatelessWidget {
   final int index;

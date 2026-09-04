@@ -51,8 +51,10 @@ async def fetch_patient_profile(
 
 
 async def fetch_psychologists(authorization: Optional[str] = None) -> List[Dict[str, Any]]:
-    # GET /psychologists est public, mais on relaie le jeton quand meme
-    url = f"{config.GATEWAY_URL}/psychologists"
+    # GET /psychologists est public, mais on relaie le jeton quand meme.
+    # verifiedOnly=true : un psy pas encore approuve (ou refuse) par l'admin
+    # ne doit jamais etre recommande a un patient, meme via le scoring ML
+    url = f"{config.GATEWAY_URL}/psychologists?verifiedOnly=true"
 
     try:
         async with httpx.AsyncClient(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
