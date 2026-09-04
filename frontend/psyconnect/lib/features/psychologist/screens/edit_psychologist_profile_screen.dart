@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -178,13 +179,12 @@ class _EditPsychologistProfileScreenState
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppColors.errorBg,
-                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(_error!, style: const TextStyle(color: AppColors.rose)),
                 ),
                 const SizedBox(height: 16),
               ],
-              _SectionLabel('Informations professionnelles'),
+              SectionHeader(title: 'Informations professionnelles'),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
@@ -199,7 +199,7 @@ class _EditPsychologistProfileScreenState
                 ],
               ),
               const SizedBox(height: 22),
-              _SectionLabel('Localisation'),
+              SectionHeader(title: 'Localisation'),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
@@ -213,7 +213,7 @@ class _EditPsychologistProfileScreenState
                 ],
               ),
               const SizedBox(height: 22),
-              _SectionLabel('À propos'),
+              SectionHeader(title: 'À propos'),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
@@ -221,7 +221,7 @@ class _EditPsychologistProfileScreenState
                 ],
               ),
               const SizedBox(height: 22),
-              _SectionLabel('Justificatif'),
+              SectionHeader(title: 'Justificatif'),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
@@ -285,7 +285,6 @@ class _EditPsychologistProfileScreenState
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
                   minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 icon: _saving
                     ? const SizedBox(
@@ -324,32 +323,12 @@ class _EditPsychologistProfileScreenState
           filled: true,
           fillColor: AppColors.background,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none,
           ),
         ),
         validator: required
             ? (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null
             : null,
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: AppColors.muted,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.4,
       ),
     );
   }
@@ -366,14 +345,6 @@ class _FormCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(children: children),
     );

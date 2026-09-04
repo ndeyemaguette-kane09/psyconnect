@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/user_role.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/splash_screen.dart';
 import '../services/admin_service.dart';
 import 'admin_reports_tab.dart';
+import 'admin_support_messages_tab.dart';
 
 // onglet "Paramètres" — 3 sections :
 //   1. Réglages plateforme (taux commission)
@@ -149,13 +152,10 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
           const SizedBox(height: 16),
 
           // carte profil admin
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.tealMid),
-            ),
+          AppCard(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            borderColor: AppColors.tealMid,
+            shadow: const [],
             child: Row(
               children: [
                 const CircleAvatar(
@@ -197,13 +197,10 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
                 color: AppColors.muted, fontSize: 12, height: 1.3),
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.tealMid),
-            ),
+          AppCard(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            borderColor: AppColors.tealMid,
+            shadow: const [],
             child: _loadingRate
                 ? const Center(
                     child: Padding(
@@ -254,7 +251,8 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
           const SizedBox(height: 4),
           const Text(
             'Consultez et traitez les signalements soumis par les patients '
-            'à l\'encontre de psychologues.',
+            'à l\'encontre de psychologues, ainsi que les messages envoyés '
+            'directement par les patients et les psychologues.',
             style: TextStyle(
                 color: AppColors.muted, fontSize: 12, height: 1.3),
           ),
@@ -265,6 +263,15 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                   builder: (_) => const _ReportsPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.support_agent_outlined,
+            label: 'Messages des utilisateurs',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const _SupportMessagesPage()),
             ),
           ),
           const SizedBox(height: 28),
@@ -319,7 +326,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
               filled: true,
               fillColor: AppColors.white,
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.tealMid)),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -341,7 +347,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
               filled: true,
               fillColor: AppColors.white,
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.tealMid)),
               contentPadding: const EdgeInsets.all(14),
             ),
@@ -360,7 +365,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppColors.errorBg,
-                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(_sendError!,
                     style: const TextStyle(
@@ -374,7 +378,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppColors.tealLight,
-                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
@@ -448,6 +451,20 @@ class _ReportsPage extends StatelessWidget {
   }
 }
 
+// page plein écran messages "Contacter l'administrateur", accessible depuis
+// la section Modération
+class _SupportMessagesPage extends StatelessWidget {
+  const _SupportMessagesPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Messages')),
+      body: const AdminSupportMessagesTab(),
+    );
+  }
+}
+
 // ── widgets locaux ────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
@@ -483,17 +500,12 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AppCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      borderColor: AppColors.tealMid,
+      shadow: const [],
+      child: Row(
           children: [
             Icon(icon, color: AppColors.teal, size: 22),
             const SizedBox(width: 12),
@@ -506,7 +518,6 @@ class _ActionTile extends StatelessWidget {
                 color: AppColors.muted, size: 20),
           ],
         ),
-      ),
     );
   }
 }
@@ -534,7 +545,6 @@ class _AudienceChip extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? AppColors.teal : AppColors.white,
-          borderRadius: BorderRadius.circular(20),
           border: Border.all(
               color: selected ? AppColors.teal : AppColors.tealMid),
         ),

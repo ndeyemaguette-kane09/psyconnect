@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/models/psychologist_models.dart';
@@ -167,8 +169,7 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                       Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          gradient: AppColors.headerGradient,
-                          borderRadius: BorderRadius.circular(18),
+                          color: AppColors.teal,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,13 +234,10 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                       ),
                       const SizedBox(height: 8),
                       if (_pendingPsychologists.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.tealMid),
-                          ),
+                        AppCard(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          borderColor: AppColors.tealMid,
+                          shadow: const [],
                           child: const Row(
                             children: [
                               Icon(Icons.check_circle_outline,
@@ -270,13 +268,10 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                             style: TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 15)),
                         const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.tealMid),
-                          ),
+                        AppCard(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          borderColor: AppColors.tealMid,
+                          shadow: const [],
                           child: Column(
                             children: [
                               for (final type in ConsultationType.values)
@@ -320,13 +315,10 @@ class _Kpi extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
-        ),
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.sm),
+        borderColor: AppColors.tealMid,
+        shadow: const [],
         child: Column(
           children: [
             Text(value,
@@ -358,13 +350,10 @@ class _ValidationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.tealMid),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      borderColor: AppColors.tealMid,
+      shadow: const [],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -457,7 +446,6 @@ class _TypeBar extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           ClipRRect(
-            borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: ratio,
               minHeight: 6,

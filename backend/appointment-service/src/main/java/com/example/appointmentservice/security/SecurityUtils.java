@@ -8,11 +8,11 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.example.appointmentservice.exception.ForbiddenOperationException;
 
-// pour recuperer les infos du JWT (id, role, header) depuis les services
 public final class SecurityUtils {
 
     private SecurityUtils() {
     }
+    
 
     private static HttpServletRequest currentRequest() {
         return ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())

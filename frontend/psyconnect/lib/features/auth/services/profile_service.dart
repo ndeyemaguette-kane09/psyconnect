@@ -117,6 +117,21 @@ class ProfileService {
     }
   }
 
+  // Sert à vérifier le statut de validation lors de la restauration d'une
+  // session psychologue déjà stockée sur l'appareil.
+  Future<PsychologistProfile?> getPsychologistProfileByAuthUserId(
+    int authUserId,
+  ) async {
+    try {
+      final json = await _api.get(
+        ApiConstants.psychologistProfileByAuthUser(authUserId),
+      );
+      return PsychologistProfile.fromJson(json as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // met a jour le UserProfile "civil", utilise par l'edition du Profil
   Future<UserProfile> updateUserProfile(
     int id,

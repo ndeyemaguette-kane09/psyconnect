@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../messaging/models/messaging_models.dart';
 import '../../messaging/screens/chat_screen.dart';
@@ -117,7 +119,8 @@ class _MessagesTabState extends State<MessagesTab> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible de démarrer la conversation.')),
+        const SnackBar(
+            content: Text('Impossible de démarrer la conversation.')),
       );
     }
   }
@@ -139,7 +142,8 @@ class _MessagesTabState extends State<MessagesTab> {
             if (_loading)
               const SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
+                child:
+                    AppLoadingState(label: 'Chargement de vos conversations…'),
               )
             else if (_error != null)
               SliverFillRemaining(
@@ -164,7 +168,8 @@ class _MessagesTabState extends State<MessagesTab> {
                   ),
                 ),
               )
-            else if (_conversations.isEmpty && _contactsWithoutConversation.isEmpty)
+            else if (_conversations.isEmpty &&
+                _contactsWithoutConversation.isEmpty)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
@@ -186,7 +191,8 @@ class _MessagesTabState extends State<MessagesTab> {
                           'Vous pourrez échanger avec votre psychologue dès '
                           'votre premier rendez-vous confirmé.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.muted, fontSize: 12),
+                          style:
+                              TextStyle(color: AppColors.muted, fontSize: 12),
                         ),
                       ],
                     ),
@@ -195,57 +201,54 @@ class _MessagesTabState extends State<MessagesTab> {
               )
             else ...[
               if (_conversations.isNotEmpty)
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                  sliver: SliverList.separated(
-                    itemCount: _conversations.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) {
-                      final conversation = _conversations[i];
-                      final psychologist =
-                          _psychologistsById[conversation.psychologistId];
-                      return _ConversationCard(
-                        title: psychologist?.fullName ?? 'Psychologue',
-                        lastMessagePreview: conversation.lastMessagePreview,
-                        unreadCount: conversation.unreadCount,
-                        onTap: () => _openConversation(
-                          conversation.id,
-                          psychologist?.fullName ?? 'Psychologue',
-                        ),
-                      );
-                    },
-                  ),
+                SliverList.builder(
+                  itemCount: _conversations.length,
+                  itemBuilder: (context, i) {
+                    final conversation = _conversations[i];
+                    final psychologist =
+                        _psychologistsById[conversation.psychologistId];
+                    final name = psychologist?.fullName ?? 'Psychologue';
+                    return _ConversationRow(
+                      title: name,
+                      preview: conversation.lastMessagePreview,
+                      time: conversation.lastMessageAt,
+                      unreadCount: conversation.unreadCount,
+                      showDivider: i != _conversations.length - 1,
+                      onTap: () => _openConversation(conversation.id, name),
+                    );
+                  },
                 ),
               if (_contactsWithoutConversation.isNotEmpty) ...[
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                   sliver: SliverToBoxAdapter(
                     child: Text(
-                      'Démarrer une conversation',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: AppColors.muted),
+                      'DÉMARRER UNE CONVERSATION',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.muted,
+                            letterSpacing: 0.9,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-                  sliver: SliverList.separated(
-                    itemCount: _contactsWithoutConversation.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) {
-                      final psychologist = _contactsWithoutConversation[i];
-                      return _ConversationCard(
-                        title: psychologist.fullName,
-                        lastMessagePreview: null,
-                        unreadCount: 0,
-                        onTap: () => _startConversation(psychologist),
-                      );
-                    },
-                  ),
+                SliverList.builder(
+                  itemCount: _contactsWithoutConversation.length,
+                  itemBuilder: (context, i) {
+                    final psychologist = _contactsWithoutConversation[i];
+                    return _ConversationRow(
+                      title: psychologist.fullName,
+                      preview: null,
+                      time: null,
+                      unreadCount: 0,
+                      showDivider:
+                          i != _contactsWithoutConversation.length - 1,
+                      onTap: () => _startConversation(psychologist),
+                    );
+                  },
                 ),
               ],
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
             ],
           ],
         ),
@@ -254,66 +257,149 @@ class _MessagesTabState extends State<MessagesTab> {
   }
 }
 
-class _ConversationCard extends StatelessWidget {
-  const _ConversationCard({
+class _ConversationRow extends StatelessWidget {
+  const _ConversationRow({
     required this.title,
-    required this.lastMessagePreview,
+    required this.preview,
+    required this.time,
     required this.unreadCount,
+    required this.showDivider,
     required this.onTap,
   });
 
   final String title;
-  final String? lastMessagePreview;
+  final String? preview;
+  final DateTime? time;
   final int unreadCount;
+  final bool showDivider;
   final VoidCallback onTap;
+
+  static const _weekdays = [
+    'lun.',
+    'mar.',
+    'mer.',
+    'jeu.',
+    'ven.',
+    'sam.',
+    'dim.',
+  ];
+
+  String get _timeLabel {
+    final t = time;
+    if (t == null) return '';
+    final now = DateTime.now();
+    final day = DateTime(t.year, t.month, t.day);
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(day).inDays;
+
+    if (diff <= 0) {
+      return '${t.hour.toString().padLeft(2, '0')}:'
+          '${t.minute.toString().padLeft(2, '0')}';
+    }
+    if (diff == 1) return 'Hier';
+    if (diff < 7) return _weekdays[t.weekday - 1];
+    return '${t.day.toString().padLeft(2, '0')}/'
+        '${t.month.toString().padLeft(2, '0')}/${t.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Row(
+    final unread = unreadCount > 0;
+    final timeLabel = _timeLabel;
+
+    return Material(
+      color: AppColors.white,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
           children: [
-            const CircleAvatar(
-              backgroundColor: AppColors.tealLight,
-              child: Icon(Icons.person, color: AppColors.tealDark),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Row(
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(
-                    lastMessagePreview ?? 'Démarrer la discussion',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                  AppAvatar(name: title, size: 48, showRing: false),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight:
+                                unread ? FontWeight.w700 : FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          preview ?? 'Démarrer la discussion',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.3,
+                            color: unread
+                                ? AppColors.textSecondary
+                                : AppColors.muted,
+                            fontWeight:
+                                unread ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (timeLabel.isNotEmpty)
+                        Text(
+                          timeLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight:
+                                unread ? FontWeight.w700 : FontWeight.w500,
+                            color: unread ? AppColors.teal : AppColors.faint,
+                          ),
+                        ),
+                      if (unread) ...[
+                        const SizedBox(height: 7),
+                        Container(
+                          constraints: const BoxConstraints(minWidth: 20),
+                          height: 20,
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.teal,
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : '$unreadCount',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-            if (unreadCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.teal,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '$unreadCount',
-                  style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600),
+            if (showDivider)
+              const Padding(
+                padding: EdgeInsets.only(left: 82),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.border,
                 ),
               ),
           ],

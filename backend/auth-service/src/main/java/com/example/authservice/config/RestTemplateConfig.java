@@ -8,10 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
-// premier client HTTP sortant de auth-service (vers user-service), pour
-// Vérifie au login si un psychologue est approuvé. Même config que
-// appointment-service : RestTemplateBuilder (pas new RestTemplate) pour
-// garder le tracage B3/Brave, timeouts courts pour ne pas bloquer le login
 @Configuration
 public class RestTemplateConfig {
 

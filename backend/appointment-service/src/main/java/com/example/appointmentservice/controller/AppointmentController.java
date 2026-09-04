@@ -120,10 +120,6 @@ public class AppointmentController {
         return ResponseEntity.noContent().build();
     }
 
-    // Endpoint inter-service : user-service vérifie si un psychologue a déjà un rendez-vous
-    // avec un patient (pour l'acces aux notes cliniques / antecedents medicaux).
-    // requireCompleted=true : exige un RDV COMPLETED (pour les avis patient).
-    // Accessible a tout utilisateur authentifié.
     @GetMapping("/exists/between")
     public ResponseEntity<Boolean> hasAnyAppointmentBetween(
             @RequestParam Long psychologistId,

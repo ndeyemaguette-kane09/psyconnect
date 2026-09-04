@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/appointment_models.dart';
 import '../models/admin_models.dart';
 import '../services/admin_service.dart';
@@ -129,8 +131,7 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: AppColors.headerGradient,
-                  borderRadius: BorderRadius.circular(14),
+                  color: AppColors.teal,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,14 +153,12 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
               const SizedBox(height: 12),
               // part de revenus de l'admin — taux reglable depuis l'onglet
               // Config, pas une valeur figee en dur
-              Container(
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.tealMid),
-                ),
+                child: AppCard(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                borderColor: AppColors.tealMid,
+                shadow: const [],
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -194,6 +193,7 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
                     ),
                   ],
                 ),
+              ),
               ),
               const SizedBox(height: 24),
               Text('Répartition des rendez-vous',
@@ -242,22 +242,13 @@ class _StatBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
-              child: Column(
+      child: AppCard(
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        onTap: onTap,
+        borderColor: AppColors.tealMid,
+        shadow: const [],
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: AppSpacing.sm),
+        child: Column(
                 children: [
                   Text(value,
                       style: const TextStyle(
@@ -268,9 +259,6 @@ class _StatBox extends StatelessWidget {
                       style: const TextStyle(color: AppColors.muted, fontSize: 12)),
                 ],
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -288,8 +276,7 @@ class _RevenueShare extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.08),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,7 +310,6 @@ class _StatusRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(

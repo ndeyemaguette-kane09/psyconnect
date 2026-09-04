@@ -37,6 +37,13 @@ const kGad7Questions = [
   QuestionnaireItem(id: 6, question: 'Avoir peur que quelque chose de terrible puisse arriver'),
 ];
 
+// Item d'idéation suicidaire du PHQ-9 (« Pensées que vous seriez mieux mort(e)
+// ou idées de vous faire du mal »). Il est traité à part de la somme : une
+// réponse >= kRiskThreshold déclenche une proposition d'aide immédiate côté
+// patient et une mise en avant côté psychologue, quel que soit le score total.
+const int kPhq9RiskItemIndex = 8;
+const int kRiskThreshold = 2;
+
 // Options identiques pour les deux questionnaires (echelle de Likert 0-3)
 const kAnswerLabels = [
   'Jamais',
@@ -73,6 +80,16 @@ class Questionnaire {
   final DateTime? completedAt;
 
   bool get isPending => status == QuestionnaireStatus.SENT;
+
+  // Vrai lorsque le patient a signalé des idées suicidaires à l'item 9 du
+  // PHQ-9. Indépendant du score total : un score global faible peut masquer
+  // une réponse positive sur ce seul item.
+  bool get signalsImmediateRisk {
+    if (type != QuestionnaireType.PHQ9) return false;
+    final a = answers;
+    if (a == null || a.length <= kPhq9RiskItemIndex) return false;
+    return a[kPhq9RiskItemIndex] >= kRiskThreshold;
+  }
 
   // max possible selon le type
   int get maxScore => type == QuestionnaireType.PHQ9 ? 27 : 21;

@@ -16,8 +16,6 @@ import com.example.userservice.security.SecurityUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
-// va chercher le pseudo du patient pour le mode anonyme
-// Si ça ne répond pas, on affiche un label générique
 @Component
 public class AuthServiceClient {
 

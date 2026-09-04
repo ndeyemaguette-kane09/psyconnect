@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../models/psychologist_models.dart';
 
-// carte compacte pour la section "Recommandé pour vous" de l'accueil
 class PsychologistMiniCard extends StatelessWidget {
   const PsychologistMiniCard({
     super.key,
@@ -16,171 +16,151 @@ class PsychologistMiniCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            const _Avatar(size: 44),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(psychologist.fullName,
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 2),
-                  Text(
-                    psychologist.specialty,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  _RatingRow(
-                      rating: psychologist.rating,
-                      totalReviews: psychologist.totalReviews),
-                ],
-              ),
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(13),
+      child: Row(
+        children: [
+          AppAvatar(name: psychologist.fullName, size: 46),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  psychologist.fullName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  psychologist.specialty,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                _RatingRow(
+                  rating: psychologist.rating,
+                  totalReviews: psychologist.totalReviews,
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: onTap,
-              // le theme global met minimumSize: Size.fromHeight(48), donc
-              // une largeur infinie (pensee pour un bouton pleine largeur
-              // dans un SizedBox/Expanded) ; ici le bouton est nu dans un
-              // Row, il faut une largeur bornee sous peine de crash layout
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(64, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-              ),
-              child: const Text('Voir'),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.chevron_right_rounded,
+              color: AppColors.faint, size: 22),
+        ],
       ),
     );
   }
 }
 
-// carte complete utilisee dans la liste de recherche (.psy-card)
 class PsychologistCard extends StatelessWidget {
   const PsychologistCard({
     super.key,
     required this.psychologist,
-    required this.onViewProfile,
-    required this.onBook,
+    required this.onTap,
   });
 
   final PsychologistProfile psychologist;
-  final VoidCallback onViewProfile;
-  final VoidCallback onBook;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final priceLabel = psychologist.consultationPrice != null
-        ? '${psychologist.consultationPrice} F'
-        : null;
+    final theme = Theme.of(context);
+    final price = psychologist.consultationPrice;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(15),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppAvatar(name: psychologist.fullName, size: 54),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _Avatar(size: 52),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(psychologist.fullName,
-                          style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          _RatingRow(
-                              rating: psychologist.rating,
-                              totalReviews: psychologist.totalReviews),
-                          if (psychologist.city != null) ...[
-                            const Text('  ·  ',
-                                style: TextStyle(color: AppColors.muted)),
-                            Icon(Icons.place_outlined,
-                                size: 13, color: AppColors.muted),
-                            Text(' ${psychologist.city}',
-                                style: const TextStyle(
-                                    color: AppColors.muted, fontSize: 12)),
-                          ],
-                          if (priceLabel != null) ...[
-                            const Text('  ·  ',
-                                style: TextStyle(color: AppColors.muted)),
-                            Text(priceLabel,
-                                style: const TextStyle(
-                                    color: AppColors.muted, fontSize: 12)),
-                          ],
-                        ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        psychologist.fullName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
+                    ),
+                    if (price != null) ...[
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          _Chip(label: psychologist.specialty),
-                          if (!psychologist.available)
-                            const _Chip(
-                                label: 'Indisponible',
-                                color: AppColors.rose,
-                                bg: AppColors.errorBg),
+                          Text(
+                            '$price F',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                              height: 1.2,
+                            ),
+                          ),
+                          const Text(
+                            'la séance',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: AppColors.muted,
+                              height: 1.2,
+                            ),
+                          ),
                         ],
                       ),
                     ],
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                _RatingRow(
+                  rating: psychologist.rating,
+                  totalReviews: psychologist.totalReviews,
+                ),
+                const SizedBox(height: 9),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    AppPill(
+                      label: psychologist.specialty,
+                      icon: Icons.psychology_outlined,
+                    ),
+                    if (psychologist.city != null)
+                      AppPill(
+                        label: psychologist.city!,
+                        icon: Icons.place_outlined,
+                        color: AppColors.textSecondary,
+                        background: AppColors.surfaceAlt,
+                      ),
+                    if (price == null)
+                      const AppPill(
+                        label: 'Tarif non précisé',
+                        color: AppColors.muted,
+                        background: AppColors.surfaceAlt,
+                      ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onViewProfile,
-                    child: const Text('Voir profil'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: psychologist.available ? onBook : null,
-                    child: const Text('Réserver'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 6, top: 16),
+            child: Icon(Icons.chevron_right_rounded,
+                color: AppColors.faint, size: 22),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
-        color: AppColors.tealLight,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(Icons.person, color: AppColors.tealDark, size: size * 0.55),
     );
   }
 }
@@ -194,46 +174,27 @@ class _RatingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (rating == null || rating == 0) {
-      return const Text('Nouveau', style: TextStyle(color: AppColors.muted, fontSize: 12));
+      return const SizedBox.shrink();
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star, color: AppColors.gold, size: 13),
-        const SizedBox(width: 2),
-        Text(rating!.toStringAsFixed(1),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        if (totalReviews != null && totalReviews! > 0)
-          Text(' ($totalReviews avis)',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, this.color, this.bg});
-
-  final String label;
-  final Color? color;
-  final Color? bg;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg ?? AppColors.tealLight,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color ?? AppColors.tealDark,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+        const Icon(Icons.star_rounded, color: AppColors.gold, size: 16),
+        const SizedBox(width: 3),
+        Text(
+          rating!.toStringAsFixed(1),
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
         ),
-      ),
+        if (totalReviews != null && totalReviews! > 0)
+          Text(
+            '  ($totalReviews avis)',
+            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          ),
+      ],
     );
   }
 }

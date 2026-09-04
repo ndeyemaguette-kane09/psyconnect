@@ -8,13 +8,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// gestion du lien de suivi psychologue ↔ patient.
-// routes sous /psychologists/{psyId}/followed-patients/**
-//
-// POST   /psychologists/{psyId}/followed-patients/{patientId}  → ajouter au suivi
-// DELETE /psychologists/{psyId}/followed-patients/{patientId}  → retirer du suivi
-// GET    /psychologists/{psyId}/followed-patients              → liste patientIds suivis
-// GET    /psychologists/{psyId}/followed-patients/{patientId}  → true/false
 @RestController
 @RequestMapping("/psychologists")
 public class PsyPatientLinkController {
@@ -55,8 +48,6 @@ public class PsyPatientLinkController {
         );
     }
 
-    // vérification stateless : pas besoin d'authentification pour juste savoir
-    // si un lien existe (utilisé par Flutter pour initialiser l'état du toggle)
     @GetMapping("/{psyId}/followed-patients/{patientId}")
     public ResponseEntity<Boolean> isFollowing(
             @PathVariable Long psyId,

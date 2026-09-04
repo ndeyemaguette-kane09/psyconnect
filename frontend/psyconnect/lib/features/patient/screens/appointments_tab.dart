@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../call/screens/call_screen.dart';
 import '../../payment/models/payment_models.dart';
@@ -13,8 +16,6 @@ import '../models/psychologist_models.dart';
 import '../services/appointment_service.dart';
 import '../services/psychologist_service.dart';
 
-// Onglet rendez-vous du patient. L'API ne renvoie pas le nom du psychologue
-// directement : on charge la liste complète des psychologues en parallèle.
 class AppointmentsTab extends StatefulWidget {
   const AppointmentsTab({super.key});
 
@@ -32,16 +33,83 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   List<Appointment> _appointments = [];
   Map<int, PsychologistProfile> _psychologistsById = {};
 
-  // filtre par statut, null = "Tous" (groupé par statut)
   AppointmentStatus? _statusFilter;
-
-  // RDV déjà payés : le bouton "Payer" est masqué pour ces entrées.
   Set<int> _paidAppointmentIds = {};
+  Set<int> _reviewedPsychologistIds = {};
+
+  late DateTime _selectedDay;
+  late DateTime _weekStart;
 
   @override
   void initState() {
     super.initState();
+    final today = _dateKey(DateTime.now());
+    _selectedDay = today;
+    _weekStart = _mondayOf(today);
     _load();
+  }
+
+  static DateTime _dateKey(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  static DateTime _mondayOf(DateTime d) =>
+      DateTime(d.year, d.month, d.day - (d.weekday - 1));
+
+  bool _isActive(Appointment a) =>
+      a.status != AppointmentStatus.cancelled &&
+      a.status != AppointmentStatus.rejected;
+
+  Map<DateTime, int> get _loadByDay {
+    final map = <DateTime, int>{};
+    for (final a in _appointments) {
+      if (!_isActive(a)) continue;
+      final key = _dateKey(a.startTime);
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }
+
+  List<Appointment> get _appointmentsOfSelectedDay => _appointments
+      .where((a) => _dateKey(a.startTime) == _selectedDay)
+      .toList();
+
+  void _selectDay(DateTime day) => setState(() => _selectedDay = day);
+
+  void _shiftWeek(int weeks) {
+    setState(() {
+      final offset = weeks * 7;
+      _weekStart = DateTime(
+          _weekStart.year, _weekStart.month, _weekStart.day + offset);
+      _selectedDay = DateTime(
+          _selectedDay.year, _selectedDay.month, _selectedDay.day + offset);
+    });
+  }
+
+  void _goToToday() {
+    final today = _dateKey(DateTime.now());
+    setState(() {
+      _selectedDay = today;
+      _weekStart = _mondayOf(today);
+    });
+  }
+
+  void _focusRelevantDay(List<Appointment> appointments) {
+    final today = _dateKey(DateTime.now());
+    if (appointments.any((a) => _dateKey(a.startTime) == today)) {
+      _selectedDay = today;
+      _weekStart = _mondayOf(today);
+      return;
+    }
+
+    final upcoming = appointments
+        .where((a) => _isActive(a) && a.startTime.isAfter(DateTime.now()))
+        .toList();
+    final target = upcoming.isNotEmpty
+        ? upcoming.first.startTime
+        : (appointments.isNotEmpty ? appointments.last.startTime : null);
+
+    final day = target == null ? today : _dateKey(target);
+    _selectedDay = day;
+    _weekStart = _mondayOf(day);
   }
 
   Future<void> _load() async {
@@ -50,7 +118,6 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       _error = null;
     });
 
-    // Lu avant l'await pour éviter d'utiliser context après une opération asynchrone.
     final patientId = context.read<AuthProvider>().session?.profileId;
     if (patientId == null) {
       setState(() {
@@ -67,21 +134,28 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       ]);
       final appointments = results[0] as List<Appointment>;
       final psychologists = results[1] as List<PsychologistProfile>;
-      // Tri par date de création, le plus récent en tête de liste.
-      appointments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      appointments.sort((a, b) => a.startTime.compareTo(b.startTime));
 
-      // Vérification du paiement uniquement pour les RDV confirmés.
       final confirmedIds = appointments
           .where((a) => a.status == AppointmentStatus.confirmed)
           .map((a) => a.id)
           .toList();
       final paidIds = await _loadPaidAppointmentIds(confirmedIds);
 
+      final reviewablePsychologistIds = appointments
+          .where((a) => a.status == AppointmentStatus.completed)
+          .map((a) => a.psychologistId)
+          .toSet();
+      final reviewedIds =
+          await _loadReviewedPsychologistIds(reviewablePsychologistIds);
+
       if (!mounted) return;
       setState(() {
         _appointments = appointments;
         _psychologistsById = {for (final p in psychologists) p.id: p};
         _paidAppointmentIds = paidIds;
+        _reviewedPsychologistIds = reviewedIds;
+        _focusRelevantDay(appointments);
         _loading = false;
       });
     } catch (e) {
@@ -93,9 +167,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     }
   }
 
-  // Renvoie les identifiants des RDV déjà payés, pour masquer le bouton "Payer".
-  // Les vérifications sont faites en parallèle ; un échec sur l'un n'empêche pas les autres.
-  Future<Set<int>> _loadPaidAppointmentIds(List<int> confirmedAppointmentIds) async {
+  Future<Set<int>> _loadPaidAppointmentIds(
+      List<int> confirmedAppointmentIds) async {
     if (confirmedAppointmentIds.isEmpty) return {};
     final paid = <int>{};
     await Future.wait(confirmedAppointmentIds.map((id) async {
@@ -109,7 +182,23 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     return paid;
   }
 
-  Future<void> _pay(Appointment appointment, PsychologistProfile? psychologist) async {
+  Future<Set<int>> _loadReviewedPsychologistIds(
+      Set<int> psychologistIds) async {
+    if (psychologistIds.isEmpty) return {};
+    final reviewed = <int>{};
+    await Future.wait(psychologistIds.map((id) async {
+      try {
+        final review = await _psychologistService.getMyReview(id);
+        if (review.rating != null) {
+          reviewed.add(id);
+        }
+      } catch (_) {}
+    }));
+    return reviewed;
+  }
+
+  Future<void> _pay(
+      Appointment appointment, PsychologistProfile? psychologist) async {
     final price = psychologist?.consultationPrice;
     if (price == null || price <= 0) return;
     final patientId = context.read<AuthProvider>().session?.profileId;
@@ -127,16 +216,13 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     if (mounted) _load();
   }
 
-  // Ouvre la feuille d'avis. Pré-remplie si le patient en a déjà soumis un.
   Future<void> _leaveReview(
       Appointment appointment, PsychologistProfile? psychologist) async {
     PsychologistReview? existing;
     try {
       existing =
           await _psychologistService.getMyReview(appointment.psychologistId);
-    } catch (_) {
-      // Échec silencieux : le formulaire part de zéro.
-    }
+    } catch (_) {}
     if (!mounted) return;
 
     final result = await showModalBottomSheet<_ReviewInput>(
@@ -158,6 +244,12 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         comment: result.comment,
       );
       if (!mounted) return;
+      setState(() {
+        _reviewedPsychologistIds = {
+          ..._reviewedPsychologistIds,
+          appointment.psychologistId,
+        };
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Merci, votre avis a été enregistré.')),
       );
@@ -221,14 +313,12 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       if (mounted) _load();
     } catch (e) {
       if (!mounted) return;
-      final message =
-          e is ApiException ? e.message : 'Le report a échoué.';
+      final message = e is ApiException ? e.message : 'Le report a échoué.';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
-  // Annule un RDV et affiche la règle de remboursement (seuil 48 h).
   Future<void> _cancel(Appointment appointment) async {
     final hoursUntilStart =
         appointment.startTime.difference(DateTime.now()).inHours;
@@ -268,14 +358,12 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       if (mounted) _load();
     } catch (e) {
       if (!mounted) return;
-      final message =
-          e is ApiException ? e.message : "L'annulation a échoué.";
+      final message = e is ApiException ? e.message : "L'annulation a échoué.";
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
-  // Supprime définitivement un RDV annulé ou refusé.
   Future<void> _delete(Appointment appointment) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -312,7 +400,6 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     }
   }
 
-  // ordre des groupes en vue "Tous", en attente d'abord
   static const _groupOrder = [
     AppointmentStatus.pending,
     AppointmentStatus.confirmed,
@@ -321,55 +408,63 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     AppointmentStatus.rejected,
   ];
 
-  Widget _buildCard(Appointment appointment) {
-    final psychologist = _psychologistsById[appointment.psychologistId];
-    // Report/annulation disponibles uniquement si le RDV n'est pas encore passé.
+  void _openDetail(
+      Appointment appointment, PsychologistProfile? psychologist) {
     final modifiable = (appointment.status == AppointmentStatus.pending ||
             appointment.status == AppointmentStatus.confirmed) &&
         appointment.startTime.isAfter(DateTime.now());
-    // Fenêtre d'appel : de 10 minutes avant le début jusqu'à 30 minutes après la fin
-    // (même grace que côté psy, pour éviter l'asymétrie où le psy peut rejoindre
-    // mais le patient ne le peut plus si l'heure de fin est légèrement dépassée).
+    final deletable = appointment.status == AppointmentStatus.cancelled ||
+        appointment.status == AppointmentStatus.rejected;
+    final canPay = appointment.status == AppointmentStatus.confirmed &&
+        (psychologist?.consultationPrice ?? 0) > 0 &&
+        !_paidAppointmentIds.contains(appointment.id);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AppointmentDetailSheet(
+        appointment: appointment,
+        psychologist: psychologist,
+        onPay: canPay ? () => _pay(appointment, psychologist) : null,
+        onReschedule: modifiable ? () => _reschedule(appointment) : null,
+        onCancel: modifiable ? () => _cancel(appointment) : null,
+        onDelete: deletable ? () => _delete(appointment) : null,
+        onReview: appointment.status == AppointmentStatus.completed
+            ? () => _leaveReview(appointment, psychologist)
+            : null,
+        hasReview:
+            _reviewedPsychologistIds.contains(appointment.psychologistId),
+      ),
+    );
+  }
+
+  Widget _buildCard(Appointment appointment) {
+    final psychologist = _psychologistsById[appointment.psychologistId];
     final now = DateTime.now();
-    final callWindowOpen =
-        now.isAfter(appointment.startTime.subtract(const Duration(minutes: 10))) &&
-            now.isBefore(appointment.endTime.add(const Duration(minutes: 30)));
+    final callWindowOpen = now.isAfter(
+            appointment.startTime.subtract(const Duration(minutes: 10))) &&
+        now.isBefore(appointment.endTime.add(const Duration(minutes: 30)));
     final isCallType = appointment.consultationType == ConsultationType.video ||
         appointment.consultationType == ConsultationType.audio;
     final canJoinCall = appointment.status == AppointmentStatus.confirmed &&
         isCallType &&
         callWindowOpen;
-    // Pas encore l'heure : on affiche un message plutôt que de simplement masquer le bouton.
     final callNotYetOpen = appointment.status == AppointmentStatus.confirmed &&
         isCallType &&
         !callWindowOpen &&
         now.isBefore(appointment.startTime);
-    // Suppression disponible uniquement pour les RDV annulés ou refusés.
-    final deletable = appointment.status == AppointmentStatus.cancelled ||
-        appointment.status == AppointmentStatus.rejected;
+
     return _AppointmentCard(
       appointment: appointment,
       psychologist: psychologist,
-      // Paiement disponible uniquement si le RDV est confirmé et pas encore payé.
-      onPay: appointment.status == AppointmentStatus.confirmed &&
-              (psychologist?.consultationPrice ?? 0) > 0 &&
-              !_paidAppointmentIds.contains(appointment.id)
-          ? () => _pay(appointment, psychologist)
-          : null,
+      onTap: () => _openDetail(appointment, psychologist),
       onJoinCall:
           canJoinCall ? () => _joinCall(appointment, psychologist) : null,
       callNotYetOpen: callNotYetOpen,
-      onReschedule: modifiable ? () => _reschedule(appointment) : null,
-      onCancel: modifiable ? () => _cancel(appointment) : null,
-      onDelete: deletable ? () => _delete(appointment) : null,
-      // Avis disponible uniquement pour les séances réellement terminées.
-      onReview: appointment.status == AppointmentStatus.completed
-          ? () => _leaveReview(appointment, psychologist)
-          : null,
     );
   }
 
-  // liste filtrée par statut, ou groupée si "Tous"
   List<Widget> _buildContentSlivers() {
     if (_statusFilter != null) {
       final filtered =
@@ -378,11 +473,10 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         return [
           SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(
-              child: Text(
-                'Aucun rendez-vous "${_statusFilter!.label}".',
-                style: const TextStyle(color: AppColors.muted),
-              ),
+            child: AppEmptyState(
+              icon: Icons.event_busy_outlined,
+              title: 'Aucun rendez-vous',
+              message: 'Rien dans « ${_statusFilter!.label} » pour l\'instant.',
             ),
           ),
         ];
@@ -399,35 +493,43 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       ];
     }
 
-    final slivers = <Widget>[];
-    for (final status in _groupOrder) {
-      final items =
-          _appointments.where((a) => a.status == status).toList();
-      if (items.isEmpty) continue;
-      slivers.add(
+    final items = _appointmentsOfSelectedDay;
+
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+        sliver: SliverToBoxAdapter(
+          child: _DayHeading(day: _selectedDay, count: items.length),
+        ),
+      ),
+      if (items.isEmpty)
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           sliver: SliverToBoxAdapter(
-            child: Text(
-              '${status.label} (${items.length})',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, color: AppColors.muted),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 34),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceAlt,
+                borderRadius: AppRadius.mdAll,
+              ),
+              child: const Text(
+                'Journée libre',
+                style: TextStyle(color: AppColors.muted, fontSize: 13.5),
+              ),
             ),
           ),
-        ),
-      );
-      slivers.add(
+        )
+      else
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
           sliver: SliverList.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) => _buildCard(items[i]),
           ),
         ),
-      );
-    }
-    return slivers;
+    ];
   }
 
   @override
@@ -444,12 +546,12 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                     style: Theme.of(context).textTheme.displayMedium),
               ),
             ),
-            if (!_loading && _error == null && _appointments.isNotEmpty)
+            if (!_loading && _error == null && _appointments.isNotEmpty) ...[
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 0, 8),
+                padding: const EdgeInsets.fromLTRB(20, 0, 0, 10),
                 sliver: SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 36,
+                    height: 34,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.only(right: 20),
@@ -457,67 +559,62 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (context, i) {
                         final status = i == 0 ? null : _groupOrder[i - 1];
-                        final label = status?.label ?? 'Tous';
-                        final selected = _statusFilter == status;
-                        return ChoiceChip(
-                          label: Text(label),
-                          selected: selected,
-                          onSelected: (_) =>
+                        final count = status == null
+                            ? 0
+                            : _appointments
+                                .where((a) => a.status == status)
+                                .length;
+                        final label = status == null
+                            ? 'Semaine'
+                            : count > 0
+                                ? '${status.label} ($count)'
+                                : status.label;
+                        return _FilterChip(
+                          label: label,
+                          selected: _statusFilter == status,
+                          onTap: () =>
                               setState(() => _statusFilter = status),
-                          selectedColor: AppColors.teal,
-                          labelStyle: TextStyle(
-                            color: selected ? Colors.white : AppColors.text,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                          backgroundColor: AppColors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                                color: selected
-                                    ? AppColors.teal
-                                    : AppColors.tealMid),
-                          ),
                         );
                       },
                     ),
                   ),
                 ),
               ),
+              if (_statusFilter == null)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                  sliver: SliverToBoxAdapter(
+                    child: _WeekStrip(
+                      weekStart: _weekStart,
+                      selectedDay: _selectedDay,
+                      today: _dateKey(DateTime.now()),
+                      loadByDay: _loadByDay,
+                      onSelectDay: _selectDay,
+                      onPreviousWeek: () => _shiftWeek(-1),
+                      onNextWeek: () => _shiftWeek(1),
+                      onToday: _goToToday,
+                    ),
+                  ),
+                ),
+            ],
             if (_loading)
               const SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
+                child: AppLoadingState(label: 'Chargement de vos rendez-vous…'),
               )
             else if (_error != null)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.wifi_off,
-                            color: AppColors.muted, size: 36),
-                        const SizedBox(height: 8),
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.muted)),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                            onPressed: _load, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  ),
-                ),
+                child: AppErrorState(message: _error!, onRetry: _load),
               )
             else if (_appointments.isEmpty)
               const SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(
-                  child: Text('Aucun rendez-vous pour le moment.',
-                      style: TextStyle(color: AppColors.muted)),
+                child: AppEmptyState(
+                  icon: Icons.event_available_outlined,
+                  title: 'Aucun rendez-vous',
+                  message: 'Vos rendez-vous avec vos psychologues '
+                      'apparaîtront ici.',
                 ),
               )
             else
@@ -529,30 +626,321 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   }
 }
 
+const _kWeekdayLetters = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+const _kWeekdayNames = [
+  'lundi',
+  'mardi',
+  'mercredi',
+  'jeudi',
+  'vendredi',
+  'samedi',
+  'dimanche',
+];
+
+const _kMonthNames = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+];
+
+class _WeekStrip extends StatelessWidget {
+  const _WeekStrip({
+    required this.weekStart,
+    required this.selectedDay,
+    required this.today,
+    required this.loadByDay,
+    required this.onSelectDay,
+    required this.onPreviousWeek,
+    required this.onNextWeek,
+    required this.onToday,
+  });
+
+  final DateTime weekStart;
+  final DateTime selectedDay;
+  final DateTime today;
+  final Map<DateTime, int> loadByDay;
+  final ValueChanged<DateTime> onSelectDay;
+  final VoidCallback onPreviousWeek;
+  final VoidCallback onNextWeek;
+  final VoidCallback onToday;
+
+  List<DateTime> get _days => List.generate(
+        7,
+        (i) => DateTime(weekStart.year, weekStart.month, weekStart.day + i),
+      );
+
+  String get _rangeLabel {
+    final days = _days;
+    final start = days.first;
+    final end = days.last;
+    if (start.month == end.month) {
+      return '${start.day} – ${end.day} ${_kMonthNames[end.month - 1]} '
+          '${end.year}';
+    }
+    return '${start.day} ${_kMonthNames[start.month - 1]} – '
+        '${end.day} ${_kMonthNames[end.month - 1]} ${end.year}';
+  }
+
+  bool get _isCurrentWeek => _days.any((d) => d == today);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            IconButton(
+              onPressed: onPreviousWeek,
+              icon: const Icon(Icons.chevron_left, size: 22),
+              color: AppColors.textSecondary,
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Semaine précédente',
+            ),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      _rangeLabel,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ),
+                  if (!_isCurrentWeek) ...[
+                    const SizedBox(width: 10),
+                    InkWell(
+                      onTap: onToday,
+                      borderRadius: AppRadius.smAll,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
+                        child: Text(
+                          'Aujourd\'hui',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.teal,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: onNextWeek,
+              icon: const Icon(Icons.chevron_right, size: 22),
+              color: AppColors.textSecondary,
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Semaine suivante',
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            for (final day in _days)
+              Expanded(
+                child: _DayCell(
+                  day: day,
+                  selected: day == selectedDay,
+                  isToday: day == today,
+                  load: loadByDay[day] ?? 0,
+                  onTap: () => onSelectDay(day),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Container(height: 1, color: AppColors.border),
+      ],
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.day,
+    required this.selected,
+    required this.isToday,
+    required this.load,
+    required this.onTap,
+  });
+
+  final DateTime day;
+  final bool selected;
+  final bool isToday;
+  final int load;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final numberColor = selected
+        ? Colors.white
+        : isToday
+            ? AppColors.teal
+            : AppColors.text;
+    final dotCount = load > 3 ? 3 : load;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.smAll,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _kWeekdayLetters[day.weekday - 1],
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.faint,
+                letterSpacing: 0.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            AnimatedContainer(
+              duration: AppMotion.fast,
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? AppColors.teal : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '${day.day}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight:
+                      selected || isToday ? FontWeight.w700 : FontWeight.w600,
+                  color: numberColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            SizedBox(
+              height: 4,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < dotCount; i++)
+                    Container(
+                      width: 4,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      decoration: const BoxDecoration(
+                        color: AppColors.teal,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DayHeading extends StatelessWidget {
+  const _DayHeading({required this.day, required this.count});
+
+  final DateTime day;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final weekday = _kWeekdayNames[day.weekday - 1];
+    final label = '${weekday[0].toUpperCase()}${weekday.substring(1)} '
+        '${day.day} ${_kMonthNames[day.month - 1]}';
+    final suffix = count == 0 ? '' : ' · $count rendez-vous';
+
+    return Text(
+      '$label$suffix',
+      style: Theme.of(context)
+          .textTheme
+          .titleSmall
+          ?.copyWith(color: AppColors.textSecondary),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.teal : AppColors.white,
+      borderRadius: AppRadius.mdAll,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.mdAll,
+            border: Border.all(
+              color: selected ? AppColors.teal : AppColors.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.textSecondary,
+              fontSize: 12.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AppointmentCard extends StatelessWidget {
   const _AppointmentCard({
     required this.appointment,
     this.psychologist,
-    this.onPay,
+    required this.onTap,
     this.onJoinCall,
     this.callNotYetOpen = false,
-    this.onReschedule,
-    this.onCancel,
-    this.onDelete,
-    this.onReview,
   });
 
   final Appointment appointment;
   final PsychologistProfile? psychologist;
-  final VoidCallback? onPay;
+  final VoidCallback onTap;
   final VoidCallback? onJoinCall;
-  // appel possible mais pas encore l'heure
   final bool callNotYetOpen;
-  final VoidCallback? onReschedule;
-  final VoidCallback? onCancel;
-  final VoidCallback? onDelete;
-  // laisser/modifier un avis, seulement si RDV terminé
-  final VoidCallback? onReview;
 
   Color get _statusColor {
     switch (appointment.status) {
@@ -576,114 +964,55 @@ class _AppointmentCard extends StatelessWidget {
         '${start.hour.toString().padLeft(2, '0')}h'
         '${start.minute.toString().padLeft(2, '0')}';
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.tealMid),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildRow(context, date),
-          if (appointment.status == AppointmentStatus.pending) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'En attente de confirmation du psychologue. Vous pourrez '
-              'payer une fois le rendez-vous confirmé.',
-              style: TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-          ],
-          if (callNotYetOpen) ...[
-            const SizedBox(height: 8),
-            Text(
-              "L'appel pourra être rejoint à partir de "
-              '${appointment.startTime.hour.toString().padLeft(2, '0')}h'
-              '${appointment.startTime.minute.toString().padLeft(2, '0')} '
-              '(10 minutes avant le créneau).',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-          ],
-          if (onPay != null) ...[
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: onPay,
-              icon: const Icon(Icons.payments_outlined, size: 18),
-              label: Text(
-                psychologist?.consultationPrice != null
-                    ? 'Payer ${psychologist!.consultationPrice} F CFA'
-                    : 'Payer maintenant',
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          border: Border.all(color: AppColors.tealMid),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildRow(context, date),
+            if (appointment.status == AppointmentStatus.pending) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'En attente de confirmation du psychologue. Vous pourrez '
+                'payer une fois le rendez-vous confirmé.',
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
               ),
-            ),
-          ],
-          if (onJoinCall != null) ...[
-            const SizedBox(height: 10),
-            ElevatedButton.icon(
-              onPressed: onJoinCall,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.teal,
-                foregroundColor: Colors.white,
+            ],
+            if (callNotYetOpen) ...[
+              const SizedBox(height: 8),
+              Text(
+                "L'appel pourra être rejoint à partir de "
+                '${appointment.startTime.hour.toString().padLeft(2, '0')}h'
+                '${appointment.startTime.minute.toString().padLeft(2, '0')} '
+                '(10 minutes avant le créneau).',
+                style: const TextStyle(color: AppColors.muted, fontSize: 12),
               ),
-              icon: Icon(
-                appointment.consultationType == ConsultationType.video
-                    ? Icons.videocam
-                    : Icons.call,
-                size: 18,
+            ],
+            if (onJoinCall != null) ...[
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: onJoinCall,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  foregroundColor: Colors.white,
+                ),
+                icon: Icon(
+                  appointment.consultationType == ConsultationType.video
+                      ? Icons.videocam
+                      : Icons.call,
+                  size: 18,
+                ),
+                label: const Text("Rejoindre l'appel"),
               ),
-              label: const Text("Rejoindre l'appel"),
-            ),
+            ],
           ],
-          if (onReschedule != null || onCancel != null) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                if (onReschedule != null)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: onReschedule,
-                      icon: const Icon(Icons.event_repeat, size: 18),
-                      label: const Text('Reporter'),
-                    ),
-                  ),
-                if (onReschedule != null && onCancel != null)
-                  const SizedBox(width: 8),
-                if (onCancel != null)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: onCancel,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.rose,
-                        side: const BorderSide(color: AppColors.rose),
-                      ),
-                      icon: const Icon(Icons.close, size: 18),
-                      label: const Text('Annuler'),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (onReview != null) ...[
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: onReview,
-              icon: const Icon(Icons.star_outline, size: 18),
-              label: const Text('Laisser un avis'),
-            ),
-          ],
-          if (onDelete != null) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onDelete,
-                style: TextButton.styleFrom(foregroundColor: AppColors.muted),
-                icon: const Icon(Icons.delete_outline, size: 16),
-                label: const Text('Supprimer'),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -692,54 +1021,348 @@ class _AppointmentCard extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-          CircleAvatar(
-            backgroundColor: AppColors.tealLight,
-            child: Icon(
-              appointment.consultationType == ConsultationType.video
-                  ? Icons.videocam_outlined
-                  : appointment.consultationType == ConsultationType.audio
-                      ? Icons.call_outlined
-                      : Icons.meeting_room_outlined,
-              color: AppColors.teal,
-            ),
+        CircleAvatar(
+          backgroundColor: AppColors.tealLight,
+          child: Icon(
+            appointment.consultationType == ConsultationType.video
+                ? Icons.videocam_outlined
+                : appointment.consultationType == ConsultationType.audio
+                    ? Icons.call_outlined
+                    : Icons.meeting_room_outlined,
+            color: AppColors.teal,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  psychologist?.fullName ?? 'Psychologue',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$date · ${appointment.consultationType.label}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                ),
-              ],
-            ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                psychologist?.fullName ?? 'Psychologue',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '$date · ${appointment.consultationType.label}',
+                style: const TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+            ],
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: _statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              appointment.status.label,
-              style: TextStyle(
-                  color: _statusColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600),
-            ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: _statusColor.withValues(alpha: 0.12),
           ),
-        ],
-      );
+          child: Text(
+            appointment.status.label,
+            style: TextStyle(
+                color: _statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
+      ],
+    );
   }
 }
 
-// Nouveau créneau sélectionné lors d'un report de rendez-vous.
+class _AppointmentDetailSheet extends StatefulWidget {
+  const _AppointmentDetailSheet({
+    required this.appointment,
+    this.psychologist,
+    this.onPay,
+    this.onReschedule,
+    this.onCancel,
+    this.onDelete,
+    this.onReview,
+    this.hasReview = false,
+  });
+
+  final Appointment appointment;
+  final PsychologistProfile? psychologist;
+  final VoidCallback? onPay;
+  final VoidCallback? onReschedule;
+  final VoidCallback? onCancel;
+  final VoidCallback? onDelete;
+  final VoidCallback? onReview;
+  final bool hasReview;
+
+  @override
+  State<_AppointmentDetailSheet> createState() =>
+      _AppointmentDetailSheetState();
+}
+
+class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
+  final _paymentService = PaymentService();
+  bool _loadingPayment = true;
+  Payment? _payment;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPayment();
+  }
+
+  Future<void> _loadPayment() async {
+    try {
+      final payments = await _paymentService
+          .getPaymentsByAppointmentId(widget.appointment.id);
+      final completed =
+          payments.where((p) => p.status == PaymentStatus.completed).toList();
+      if (!mounted) return;
+      setState(() {
+        _payment = completed.isNotEmpty ? completed.first : null;
+        _loadingPayment = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingPayment = false);
+    }
+  }
+
+  String _formatXof(int amount) {
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    return '$buffer FCFA';
+  }
+
+  void _runAndClose(VoidCallback action) {
+    Navigator.of(context).pop();
+    action();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appointment = widget.appointment;
+    final psychologist = widget.psychologist;
+    final name = psychologist?.fullName ?? 'Psychologue';
+    final start = appointment.startTime;
+    final end = appointment.endTime;
+    final date = '${start.day.toString().padLeft(2, '0')}/'
+        '${start.month.toString().padLeft(2, '0')}/${start.year}';
+    final timeRange = '${start.hour.toString().padLeft(2, '0')}h'
+        '${start.minute.toString().padLeft(2, '0')} – '
+        '${end.hour.toString().padLeft(2, '0')}h'
+        '${end.minute.toString().padLeft(2, '0')}';
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.35,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+          ),
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.tealMid,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.tealLight,
+                    child: Icon(Icons.person,
+                        color: AppColors.tealDark, size: 26),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 18)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _DetailRow(
+                  icon: Icons.event_outlined, label: 'Date', value: date),
+              const SizedBox(height: 10),
+              _DetailRow(
+                  icon: Icons.schedule_outlined,
+                  label: 'Horaire',
+                  value: timeRange),
+              const SizedBox(height: 10),
+              _DetailRow(
+                icon: appointment.consultationType == ConsultationType.video
+                    ? Icons.videocam_outlined
+                    : appointment.consultationType == ConsultationType.audio
+                        ? Icons.call_outlined
+                        : appointment.consultationType ==
+                                ConsultationType.chat
+                            ? Icons.chat_outlined
+                            : Icons.meeting_room_outlined,
+                label: 'Type de consultation',
+                value: appointment.consultationType.label,
+              ),
+              const SizedBox(height: 10),
+              _DetailRow(
+                icon: Icons.info_outline,
+                label: 'Statut',
+                value: appointment.status.label,
+              ),
+              const SizedBox(height: 20),
+              const SectionHeader(title: 'Paiement'),
+              const SizedBox(height: 8),
+              if (_loadingPayment)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                      child: SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))),
+                )
+              else if (_payment != null) ...[
+                _DetailRow(
+                  icon: Icons.payments_outlined,
+                  label: 'Montant payé',
+                  value: _formatXof(_payment!.amount),
+                ),
+                const SizedBox(height: 10),
+                _DetailRow(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Moyen de paiement',
+                  value: _payment!.method?.label ?? '—',
+                ),
+              ] else if (widget.onPay != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _runAndClose(widget.onPay!),
+                    icon: const Icon(Icons.payments_outlined, size: 18),
+                    label: Text(
+                      psychologist?.consultationPrice != null
+                          ? 'Payer ${psychologist!.consultationPrice} F CFA'
+                          : 'Payer maintenant',
+                    ),
+                  ),
+                )
+              else
+                const Text('Aucun paiement enregistré pour ce rendez-vous.',
+                    style: TextStyle(color: AppColors.muted, fontSize: 13)),
+              if (widget.onReschedule != null || widget.onCancel != null) ...[
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'Gérer le rendez-vous'),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    if (widget.onReschedule != null)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _runAndClose(widget.onReschedule!),
+                          icon: const Icon(Icons.event_repeat, size: 18),
+                          label: const Text('Reporter'),
+                        ),
+                      ),
+                    if (widget.onReschedule != null && widget.onCancel != null)
+                      const SizedBox(width: 8),
+                    if (widget.onCancel != null)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _runAndClose(widget.onCancel!),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.rose,
+                            side: const BorderSide(color: AppColors.rose),
+                          ),
+                          icon: const Icon(Icons.close, size: 18),
+                          label: const Text('Annuler'),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+              if (widget.onReview != null) ...[
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'Votre avis'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _runAndClose(widget.onReview!),
+                    icon: Icon(
+                      widget.hasReview ? Icons.star : Icons.star_outline,
+                      size: 18,
+                    ),
+                    label: Text(widget.hasReview
+                        ? 'Modifier votre avis'
+                        : 'Laisser un avis'),
+                  ),
+                ),
+              ],
+              if (widget.onDelete != null) ...[
+                const SizedBox(height: 24),
+                Container(height: 1, color: AppColors.tealMid),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => _runAndClose(widget.onDelete!),
+                    style:
+                        TextButton.styleFrom(foregroundColor: AppColors.rose),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Supprimer ce rendez-vous'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow(
+      {required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: AppColors.muted),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style:
+                      const TextStyle(color: AppColors.muted, fontSize: 11)),
+              const SizedBox(height: 2),
+              Text(value,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, color: AppColors.tealDark)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _NewSlot {
   const _NewSlot({required this.start, required this.end});
 
@@ -747,7 +1370,6 @@ class _NewSlot {
   final DateTime end;
 }
 
-// Feuille de report : sélecteur de date et d'heure pour choisir un nouveau créneau.
 class _RescheduleSheet extends StatefulWidget {
   const _RescheduleSheet({required this.appointment});
 
@@ -784,12 +1406,11 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: const BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
@@ -803,14 +1424,14 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: AppColors.tealMid,
-                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             Text('Reporter le rendez-vous',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
-            Text('Nouvelle date', style: Theme.of(context).textTheme.bodyMedium),
+            Text('Nouvelle date',
+                style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 10),
             SizedBox(
               height: 64,
@@ -828,7 +1449,6 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
                       width: 56,
                       decoration: BoxDecoration(
                         color: selected ? AppColors.teal : AppColors.white,
-                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: selected ? AppColors.teal : AppColors.tealMid,
                         ),
@@ -858,7 +1478,8 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Nouvelle heure', style: Theme.of(context).textTheme.bodyMedium),
+            Text('Nouvelle heure',
+                style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -876,7 +1497,6 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
                   ),
                   backgroundColor: AppColors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
                     side: BorderSide(
                         color: selected ? AppColors.teal : AppColors.tealMid),
                   ),
@@ -900,7 +1520,6 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
   }
 }
 
-// Note et commentaire saisis via la feuille d'avis.
 class _ReviewInput {
   const _ReviewInput({required this.rating, this.comment});
 
@@ -908,8 +1527,6 @@ class _ReviewInput {
   final String? comment;
 }
 
-// Feuille pour soumettre ou modifier un avis anonyme. Pré-remplie si le patient
-// a déjà soumis un avis pour ce psychologue.
 class _ReviewSheet extends StatefulWidget {
   const _ReviewSheet({
     required this.psychologistName,
@@ -958,7 +1575,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
       child: Container(
         decoration: const BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
@@ -972,7 +1588,6 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: AppColors.tealMid,
-                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),

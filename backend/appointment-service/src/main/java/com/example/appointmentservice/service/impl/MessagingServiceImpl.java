@@ -22,8 +22,6 @@ import com.example.appointmentservice.security.SecurityUtils;
 import com.example.appointmentservice.service.MessagingService;
 import com.example.appointmentservice.service.OwnershipResolver;
 
-// Conversation possible uniquement si patient et psychologue ont déjà un rendez-vous ensemble
-// chaque conversation reservee a ses 2 participants
 @Service
 public class MessagingServiceImpl implements MessagingService {
 

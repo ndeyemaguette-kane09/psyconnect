@@ -1,4 +1,3 @@
-
 package com.example.userservice.config;
 
 import com.example.userservice.security.JwtAuthenticationFilter;
@@ -38,13 +37,12 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        // annonces accessibles à tout utilisateur authentifié
-                        // (utilise /users/broadcasts pour réutiliser la route gateway /users/**)
+
                         .requestMatchers(HttpMethod.GET, "/users/broadcasts").authenticated()
                         .requestMatchers(
                                 "/psychologists/by-auth-user/**"
                         ).authenticated()
-                        // le justificatif doit jamais etre public
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/psychologists/*/license-document"
@@ -54,22 +52,24 @@ public class SecurityConfig {
                                 "/psychologists",
                                 "/psychologists/**"
                         ).permitAll()
-                        // laisser un avis : réservé au patient (vérification supplémentaire
-                        // d'avoir eu une seance terminee faite dans ReviewServiceImpl)
+
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/psychologists/*/review"
                         ).hasRole("PATIENT")
                         .requestMatchers("/psychologists/**")
                         .hasRole("PSYCHOLOGIST")
-                        // notes cliniques privees : reservees au psychologue (jamais
-                        // au patient, controle fin refait dans ClinicalNoteServiceImpl)
+
                         .requestMatchers("/patients/*/clinical-notes", "/clinical-notes/**")
                         .hasRole("PSYCHOLOGIST")
-                        // signalements : déposer = PATIENT uniquement
+
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/patients/*/reports"
+                        ).hasRole("PATIENT")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/patients/*/support-messages"
                         ).hasRole("PATIENT")
                         .requestMatchers("/users/**", "/patients/**", "/journal/**")
                         .authenticated()

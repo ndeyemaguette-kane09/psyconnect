@@ -11,9 +11,6 @@ import com.example.userservice.service.ReviewService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-// avis patient -> psychologue. La liste (GET /reviews) est publique et
-// anonyme. PUT et /review/me exigent d'etre connecte en tant que patient
-// ayant déjà eu une séance COMPLETED avec ce psychologue (vérifié dans le service).
 @RestController
 @RequestMapping("/psychologists/{id}")
 public class ReviewController {

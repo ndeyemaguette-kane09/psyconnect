@@ -236,7 +236,6 @@ class _XalaatScreenState extends State<XalaatScreen> {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
               ),
@@ -286,12 +285,6 @@ class _MessageBubble extends StatelessWidget {
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
           color: isMine ? AppColors.teal : AppColors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(isMine ? 14 : 2),
-            bottomRight: Radius.circular(isMine ? 2 : 14),
-          ),
           border: isMine ? null : Border.all(color: AppColors.tealMid),
         ),
         child: Text(
@@ -319,7 +312,6 @@ class _FlaggedBubble extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.goldLight,
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.gold),
       ),
       child: Column(
@@ -354,7 +346,6 @@ class _TypingBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.tealMid),
         ),
         child: const SizedBox(

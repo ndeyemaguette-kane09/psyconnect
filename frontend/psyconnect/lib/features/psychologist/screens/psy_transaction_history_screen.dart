@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../auth/models/profile_models.dart';
 import '../../auth/services/profile_service.dart';
 import '../../payment/models/payment_models.dart';
 import '../../payment/services/payment_service.dart';
@@ -155,18 +154,10 @@ class _PsyTransactionHistoryScreenState
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              decoration: const BoxDecoration(
-                                color: AppColors.tealLight,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
+                            const Icon(
                                   Icons.receipt_long_outlined,
                                   size: 32,
                                   color: AppColors.teal),
-                            ),
                             const SizedBox(height: 16),
                             const Text('Aucune transaction',
                                 style: TextStyle(
@@ -233,14 +224,6 @@ class _TransactionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
@@ -279,7 +262,6 @@ class _TransactionCard extends StatelessWidget {
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: bgColor,
-                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           _isRefunded ? 'Remboursé' : 'Payé',

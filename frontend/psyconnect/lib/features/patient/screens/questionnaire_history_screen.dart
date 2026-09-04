@@ -173,18 +173,9 @@ class _QuestionnaireCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.text.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -196,7 +187,6 @@ class _QuestionnaireCard extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   color: _typeBg,
-                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Text(

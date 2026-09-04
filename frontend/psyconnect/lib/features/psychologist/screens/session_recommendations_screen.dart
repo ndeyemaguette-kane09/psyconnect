@@ -182,16 +182,8 @@ class _SessionRecommendationsScreenState
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              decoration: const BoxDecoration(
-                                color: AppColors.tealLight,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.assignment_outlined,
+                            const Icon(Icons.assignment_outlined,
                                   size: 32, color: AppColors.teal),
-                            ),
                             const SizedBox(height: 16),
                             const Text('Aucune recommandation',
                                 style: TextStyle(
@@ -245,7 +237,6 @@ class _RecoCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: recommendation.completed
               ? AppColors.tealMid
@@ -331,7 +322,6 @@ class _AddRecommendationSheet extends StatelessWidget {
       child: Container(
         decoration: const BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: Column(
@@ -344,8 +334,7 @@ class _AddRecommendationSheet extends StatelessWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                    color: AppColors.tealMid,
-                    borderRadius: BorderRadius.circular(4)),
+                    color: AppColors.tealMid),
               ),
             ),
             const Text(
@@ -367,11 +356,9 @@ class _AddRecommendationSheet extends StatelessWidget {
                 hintText: 'Ex : Tenir le journal 10 minutes chaque soir…',
                 hintStyle: const TextStyle(color: AppColors.muted),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.tealMid),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.teal),
                 ),
               ),

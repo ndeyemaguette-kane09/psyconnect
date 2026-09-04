@@ -3,6 +3,7 @@ package com.example.sessionservice.service.impl;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,22 @@ public class SessionServiceImpl implements SessionService {
     private final NotificationClient notificationClient;
     private final OwnershipResolver ownershipResolver;
 
+    // Verrou en memoire, un seul par instance du service : protege la sequence
+    // "verifier qu'aucune session IN_PROGRESS n'existe puis en creer une" contre
+    // une execution concurrente. Sans lui, deux appels quasi simultanes a
+    // /sessions/start (typiquement patient + psy qui rejoignent en meme temps)
+    // passent tous les deux le controle "aucune session en cours" AVANT que l'un
+    // des deux ait sauvegarde la sienne : chacun cree alors sa propre session,
+    // avec un meetingToken (donc un salon Jitsi) different -> les deux
+    // participants se retrouvent chacun seul dans sa salle. C'est la cause
+    // reelle du bug "salle d'attente" remonte par magui, pas une simple absence
+    // de controle : le controle existait deja (existsByAppointmentIdAndStatus)
+    // mais n'etait pas atomique avec la creation.
+    // Limite assumee : ce verrou ne protege que cette instance JVM. Suffisant
+    // ici (un seul exemplaire de chaque service, pas de scaling horizontal dans
+    // ce MVP), a documenter comme limite si le sujet revient en soutenance.
+    private final Object sessionStartLock = new Object();
+
     public SessionServiceImpl(
             SessionRepository sessionRepository,
             AppointmentClient appointmentClient,
@@ -58,38 +75,53 @@ public class SessionServiceImpl implements SessionService {
         AppointmentDto appt = appointmentClient.getAppointment(request.getAppointmentId());
         checkParticipant(appt);
 
-        if (!"CONFIRMED".equals(appt.getStatus())) {
-            throw new RuntimeException(
-                    "La session ne peut démarrer que pour un rendez-vous confirmé (paiement requis)");
+        synchronized (sessionStartLock) {
+            // "Get" avant "create" : si une session IN_PROGRESS existe deja pour
+            // ce rendez-vous (demarree par l'autre participant, ou par nous-memes
+            // apres avoir quitte puis relance l'appel), on la rejoint au lieu
+            // d'en creer une nouvelle. C'est ce qui garantit que les deux
+            // participants atterrissent toujours dans le meme salon Jitsi.
+            // Volontairement AVANT les controles de statut/horaire ci-dessous :
+            // rejoindre une session deja ouverte doit marcher meme si on s'y
+            // reconnecte un peu apres la fin theorique du creneau.
+            Optional<Session> existing = sessionRepository
+                    .findFirstByAppointmentIdAndStatus(appt.getId(), SessionStatus.IN_PROGRESS);
+            if (existing.isPresent()) {
+                return mapToResponse(existing.get());
+            }
+
+            if (!"CONFIRMED".equals(appt.getStatus())) {
+                throw new RuntimeException(
+                        "La session ne peut démarrer que pour un rendez-vous confirmé (paiement requis)");
+            }
+
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isBefore(appt.getStartTime().minusMinutes(10))) {
+                throw new RuntimeException(
+                        "Ce rendez-vous n'a pas encore commencé : vous pourrez rejoindre "
+                                + "l'appel 10 minutes avant l'heure prévue");
+            }
+            // +30 min de marge, alignee sur la fenetre "callWindowOpen" deja
+            // utilisee cote Flutter (appointments_tab.dart / agenda_tab.dart) :
+            // avant, le backend refusait un tout premier demarrage passe
+            // l'heure de fin exacte, alors que l'UI le proposait encore.
+            if (now.isAfter(appt.getEndTime().plusMinutes(30))) {
+                throw new RuntimeException("Le créneau de ce rendez-vous est terminé");
+            }
+
+            // nom de room Jitsi : psyconnect-{rdvId}-{uuid8}
+            // les deux participants rejoignent le même room avec ce token
+            String roomName = "psyconnect-" + appt.getId() + "-"
+                    + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+
+            Session session = new Session();
+            session.setAppointmentId(appt.getId());
+            session.setStatus(SessionStatus.IN_PROGRESS);
+            session.setMeetingToken(roomName);
+            session.setStartedAt(LocalDateTime.now());
+
+            return mapToResponse(sessionRepository.save(session));
         }
-
-        LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(appt.getStartTime().minusMinutes(10))) {
-            throw new RuntimeException(
-                    "Ce rendez-vous n'a pas encore commencé : vous pourrez rejoindre "
-                            + "l'appel 10 minutes avant l'heure prévue");
-        }
-        if (now.isAfter(appt.getEndTime())) {
-            throw new RuntimeException("Le créneau de ce rendez-vous est terminé");
-        }
-
-        if (sessionRepository.existsByAppointmentIdAndStatus(
-                appt.getId(), SessionStatus.IN_PROGRESS)) {
-            throw new RuntimeException("Une session est déjà en cours pour ce rendez-vous");
-        }
-
-        // nom de room Jitsi : psyconnect-{rdvId}-{uuid8}
-        // les deux participants rejoignent le même room avec ce token
-        String roomName = "psyconnect-" + appt.getId() + "-"
-                + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-
-        Session session = new Session();
-        session.setAppointmentId(appt.getId());
-        session.setStatus(SessionStatus.IN_PROGRESS);
-        session.setMeetingToken(roomName);
-        session.setStartedAt(LocalDateTime.now());
-
-        return mapToResponse(sessionRepository.save(session));
     }
 
     @Override

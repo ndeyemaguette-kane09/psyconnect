@@ -13,7 +13,6 @@ import com.example.appointmentservice.service.MessagingService;
 
 import jakarta.validation.Valid;
 
-// Messagerie patient-psychologue, même principe que paiement/visio
 @RestController
 @RequestMapping("/messages")
 public class MessagingController {
@@ -29,7 +28,6 @@ public class MessagingController {
         return ResponseEntity.ok(messagingService.listMyConversations());
     }
 
-    // Crée la conversation si elle n'existe pas encore, sinon la retourne
     @PostMapping("/conversations")
     public ResponseEntity<ConversationResponse> startOrGetConversation(
             @Valid @RequestBody StartConversationRequest request

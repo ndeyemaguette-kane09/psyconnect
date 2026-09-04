@@ -27,8 +27,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// pas de JWT ici, le controle ADMIN est teste ailleurs
-// on verifie juste que les routes appellent bien AdminService
 @WebMvcTest(AdminController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AdminControllerTest {
@@ -77,11 +75,6 @@ class AdminControllerTest {
         when(adminService.setUserEnabled(eq(2L), eq(false), eq("admin@psyconnect.sn")))
                 .thenReturn(buildUserResponse(2L, "PATIENT", false));
 
-        // Avec @AutoConfigureMockMvc(addFilters = false), la chaîne de filtres
-        // Spring Security (qui fait pointer request.getUserPrincipal() vers le
-        // SecurityContextHolder) ne tourne pas : @WithMockUser seul ne suffit
-        // donc pas à alimenter le paramètre "Authentication" du contrôleur.
-        // On fixe directement le principal de la requête MockMvc.
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken("admin@psyconnect.sn", null);
 
@@ -105,9 +98,6 @@ class AdminControllerTest {
 
         when(adminService.getStats()).thenReturn(stats);
 
-        // Endpoint renommé /stats -> /stats/accounts côté AdminController
-        // (routage gateway non ambigu avec les /admin/stats de user-service
-        // et appointment-service) ; ce test ciblait encore l'ancien chemin.
         mockMvc.perform(get("/admin/stats/accounts"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalUsers").value(10))

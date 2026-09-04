@@ -60,4 +60,11 @@ class AuthService {
       withAuth: false,
     );
   }
+
+  Future<void> updatePseudo(String pseudo) async {
+    await _api.post(
+      ApiConstants.updatePseudo,
+      body: {'pseudo': pseudo},
+    );
+  }
 }

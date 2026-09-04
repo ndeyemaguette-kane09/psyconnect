@@ -53,14 +53,14 @@ public class RecommendationServiceImpl implements RecommendationService {
                         "Rendez-vous non trouvé"
                 ));
 
-        // le psy doit etre celui du RDV
+        
         if (!psyId.equals(appointment.getPsychologistId())) {
             throw new ForbiddenOperationException(
                     "Vous ne pouvez créer des recommandations que pour vos propres rendez-vous"
             );
         }
 
-        // uniquement apres une seance terminee
+        
         if (appointment.getStatus() != AppointmentStatus.COMPLETED) {
             throw new ForbiddenOperationException(
                     "Les recommandations ne peuvent être ajoutées qu'après une séance terminée"

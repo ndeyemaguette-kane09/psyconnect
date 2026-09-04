@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../models/wallet_models.dart';
 import '../services/wallet_service.dart';
 
@@ -75,13 +76,12 @@ class _WalletTransactionsScreenState extends State<WalletTransactionsScreen> {
 
     if (_error != null) {
       return ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: AppColors.errorBg,
-              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(_error!,
                 style: const TextStyle(color: AppColors.rose, fontSize: 13)),
@@ -129,16 +129,15 @@ class _TransactionTile extends StatelessWidget {
     final sign = isCredit ? '+' : '-';
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.tealMid.withOpacity(0.2)),
+        border: Border.all(color: AppColors.tealMid.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: color.withOpacity(0.12),
+            backgroundColor: color.withValues(alpha: 0.12),
             child: Icon(
               isCredit ? Icons.south_west : Icons.north_east,
               color: color,

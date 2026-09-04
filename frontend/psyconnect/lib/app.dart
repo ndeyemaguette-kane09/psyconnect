@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/widgets/loading_state.dart';
 import 'core/widgets/touch_indicator_overlay.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/splash_screen.dart';
@@ -43,7 +44,7 @@ class _Root extends StatelessWidget {
     switch (auth.status) {
       case AuthStatus.unknown:
         return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: AppLoadingState(label: 'Préparation de votre espace sécurisé…'),
         );
       case AuthStatus.authenticated:
         return const HomeScreen();

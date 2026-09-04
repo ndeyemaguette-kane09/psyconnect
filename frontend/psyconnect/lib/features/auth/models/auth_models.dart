@@ -53,11 +53,12 @@ class AuthSession {
         pseudo: json['pseudo'] as String,
       );
 
-  AuthSession copyWith({int? userProfileId, int? profileId}) => AuthSession(
+  AuthSession copyWith({int? userProfileId, int? profileId, String? pseudo}) =>
+      AuthSession(
         token: token,
         role: role,
         userId: userId,
-        pseudo: pseudo,
+        pseudo: pseudo ?? this.pseudo,
         userProfileId: userProfileId ?? this.userProfileId,
         profileId: profileId ?? this.profileId,
       );

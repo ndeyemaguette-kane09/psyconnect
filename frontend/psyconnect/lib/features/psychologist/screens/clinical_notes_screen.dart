@@ -181,50 +181,58 @@ class _NoteCard extends StatelessWidget {
         '${d.month.toString().padLeft(2, '0')}/${d.year} à '
         '${d.hour.toString().padLeft(2, '0')}h${d.minute.toString().padLeft(2, '0')}';
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    dateLabel,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        dateLabel,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
                     ),
-                  ),
+                    InkWell(
+                      onTap: onDelete,
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.delete_outline,
+                            size: 18, color: AppColors.danger),
+                      ),
+                    ),
+                  ],
                 ),
-                InkWell(
-                  onTap: onDelete,
-                  child: const Icon(Icons.delete_outline, size: 18, color: AppColors.rose),
+                const SizedBox(height: 8),
+                Text(
+                  note.content,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, height: 1.5),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              note.content,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
+
 
 class _NoteEditorSheet extends StatefulWidget {
   const _NoteEditorSheet({
@@ -295,7 +303,6 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
           return Container(
             decoration: const BoxDecoration(
               color: AppColors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: ListView(
               controller: scrollController,
@@ -308,7 +315,6 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       color: AppColors.tealMid,
-                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ),
@@ -335,7 +341,6 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
                     filled: true,
                     fillColor: AppColors.background,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -346,7 +351,6 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.teal,
                     minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _saving
                       ? const SizedBox(

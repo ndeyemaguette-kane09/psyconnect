@@ -14,9 +14,6 @@ import com.example.appointmentservice.security.SecurityUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
-// appelle payment-service pour rembourser un RDV annulé (>48h avant le
-// début) ; on lui passe directement le patientId déjà en mémoire, pas
-// besoin que payment-service revienne nous le demander
 @Component
 public class PaymentClient {
 
@@ -52,8 +49,6 @@ public class PaymentClient {
         );
     }
 
-    // Si payment-service est indisponible, l'annulation s'effectue quand même mais sans
-    // remboursement automatique ; on logue fort pour un traitement manuel
     private void fallbackRefund(Long appointmentId, Long patientId, Throwable t) {
         LOGGER.error(
                 "Remboursement automatique impossible pour le rendez-vous {} (patient {}) : "

@@ -7,6 +7,7 @@ import com.example.authservice.dto.LoginRequest;
 import com.example.authservice.dto.MessageResponse;
 import com.example.authservice.dto.RegisterRequest;
 import com.example.authservice.dto.ResetPasswordWithCodeRequest;
+import com.example.authservice.dto.UpdatePseudoRequest;
 import com.example.authservice.entity.Role;
 import com.example.authservice.service.AuthService;
 
@@ -36,7 +37,6 @@ public class AuthController {
         return ResponseEntity.ok(authService.register(request));
     }
 
-    // ces 2 routes forcent le role, le client choisit pas
     @PostMapping("/register/patient")
     public ResponseEntity<MessageResponse> registerPatient(
             @Valid @RequestBody RegisterRequest request
@@ -67,7 +67,16 @@ public class AuthController {
         );
     }
 
-    // publiques (pas de JWT) : c'est tout le but du flux "mot de passe oublie"
+    @PostMapping("/pseudo")
+    public ResponseEntity<MessageResponse> updatePseudo(
+            Authentication authentication,
+            @Valid @RequestBody UpdatePseudoRequest request
+    ) {
+        return ResponseEntity.ok(
+                authService.updatePseudo(authentication.getName(), request.getPseudo())
+        );
+    }
+
     @PostMapping("/forgot-password")
     public ResponseEntity<ForgotPasswordResponse> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request
