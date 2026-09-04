@@ -22,6 +22,7 @@ class PsychologistRecommendation(BaseModel):
 
     # champs calculés par le moteur de reco
     contentSimilarity: float
+    cityMatch: float
     score: float
 
 

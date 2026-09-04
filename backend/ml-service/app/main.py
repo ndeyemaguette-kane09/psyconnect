@@ -61,6 +61,7 @@ async def get_recommendations(
         top_n=top_n,
         content_weight=config.CONTENT_WEIGHT,
         rating_weight=config.RATING_WEIGHT,
+        city_weight=config.CITY_WEIGHT,
     )
 
     return RecommendationResponse(

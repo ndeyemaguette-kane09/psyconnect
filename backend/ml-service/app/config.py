@@ -13,6 +13,9 @@ HTTP_TIMEOUT_SECONDS: float = float(os.getenv("HTTP_TIMEOUT_SECONDS", "5"))
 DEFAULT_TOP_N: int = int(os.getenv("DEFAULT_TOP_N", "5"))
 MAX_TOP_N: int = int(os.getenv("MAX_TOP_N", "20"))
 
-# poids du score final : score = CONTENT_WEIGHT*cosinus + RATING_WEIGHT*(note/5)
-CONTENT_WEIGHT: float = float(os.getenv("CONTENT_WEIGHT", "0.7"))
-RATING_WEIGHT: float = float(os.getenv("RATING_WEIGHT", "0.3"))
+# poids du score final :
+# score = CONTENT_WEIGHT*cosinus + RATING_WEIGHT*(note/5) + CITY_WEIGHT*meme_ville
+# les trois somment a 1 pour garder un score borne entre 0 et 1
+CONTENT_WEIGHT: float = float(os.getenv("CONTENT_WEIGHT", "0.6"))
+RATING_WEIGHT: float = float(os.getenv("RATING_WEIGHT", "0.25"))
+CITY_WEIGHT: float = float(os.getenv("CITY_WEIGHT", "0.15"))
