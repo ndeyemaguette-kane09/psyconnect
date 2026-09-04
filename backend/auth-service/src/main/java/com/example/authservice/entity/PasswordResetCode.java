@@ -10,9 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
-// Code à 6 chiffres pour le flux "mot de passe oublié" self-service. Un
-// code par demande ; les anciens codes non utilisés du même utilisateur sont
-// invalidés dès qu'un nouveau est généré (voir AuthService.forgotPassword)
 @Entity
 @Table(name = "password_reset_codes")
 public class PasswordResetCode {
@@ -24,14 +21,17 @@ public class PasswordResetCode {
     @Column(nullable = false)
     private Long userId;
 
-    @Column(nullable = false, length = 6)
-    private String code;
+    @Column(nullable = false, length = 100)
+    private String codeHash;
 
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
     @Column(nullable = false)
     private boolean used;
+
+    @Column(nullable = false)
+    private int attempts;
 
     private LocalDateTime createdAt;
 
@@ -59,12 +59,12 @@ public class PasswordResetCode {
         this.userId = userId;
     }
 
-    public String getCode() {
-        return code;
+    public String getCodeHash() {
+        return codeHash;
     }
 
-    public void setCode(String code) {
-        this.code = code;
+    public void setCodeHash(String codeHash) {
+        this.codeHash = codeHash;
     }
 
     public LocalDateTime getExpiresAt() {
@@ -81,6 +81,14 @@ public class PasswordResetCode {
 
     public void setUsed(boolean used) {
         this.used = used;
+    }
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    public void setAttempts(int attempts) {
+        this.attempts = attempts;
     }
 
     public LocalDateTime getCreatedAt() {

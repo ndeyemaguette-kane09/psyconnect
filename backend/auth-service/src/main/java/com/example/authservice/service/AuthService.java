@@ -2,6 +2,7 @@ package com.example.authservice.service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.example.authservice.dto.AuthResponse;
 import com.example.authservice.dto.ForgotPasswordRequest;
@@ -20,7 +21,6 @@ import com.example.authservice.security.JwtService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -30,24 +30,29 @@ public class AuthService {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int CODE_VALIDITY_MINUTES = 15;
+    private static final int MAX_CODE_ATTEMPTS = 5;
 
     private final UserRepository userRepository;
     private final PasswordResetCodeRepository passwordResetCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    @Value("${app.password-reset.expose-code-in-response:true}")
-    private boolean exposeCodeInResponse;
+    private final PasswordResetMailer passwordResetMailer;
+    private final ResetRequestThrottle resetRequestThrottle;
 
     public AuthService(UserRepository userRepository,
                        PasswordResetCodeRepository passwordResetCodeRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+                       JwtService jwtService,
+                       PasswordResetMailer passwordResetMailer,
+                       ResetRequestThrottle resetRequestThrottle) {
 
         this.userRepository = userRepository;
         this.passwordResetCodeRepository = passwordResetCodeRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.passwordResetMailer = passwordResetMailer;
+        this.resetRequestThrottle = resetRequestThrottle;
     }
 
     public MessageResponse register(RegisterRequest request) {
@@ -144,47 +149,76 @@ public class AuthService {
 
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
 
-        String generic = "Si un compte existe avec cet email, "
-                + "un code de réinitialisation vient d'être envoyé.";
+        ForgotPasswordResponse generic = new ForgotPasswordResponse(
+                "Si un compte existe avec cet email, "
+                        + "un code de réinitialisation vient d'être envoyé."
+        );
+
+        if (!resetRequestThrottle.allow(request.getEmail())) {
+            LOGGER.warn("Trop de demandes de réinitialisation pour un même email");
+            return generic;
+        }
 
         User user = userRepository.findByEmail(request.getEmail()).orElse(null);
 
         if (user == null) {
-            return new ForgotPasswordResponse(generic, null);
+            return generic;
         }
 
-        passwordResetCodeRepository
-                .findByUserIdAndUsedFalse(user.getId())
-                .forEach(old -> old.setUsed(true));
+        List<PasswordResetCode> previous =
+                passwordResetCodeRepository.findByUserIdAndUsedFalse(user.getId());
+        previous.forEach(old -> old.setUsed(true));
+        passwordResetCodeRepository.saveAll(previous);
 
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
 
         PasswordResetCode resetCode = new PasswordResetCode();
         resetCode.setUserId(user.getId());
-        resetCode.setCode(code);
+        resetCode.setCodeHash(passwordEncoder.encode(code));
         resetCode.setExpiresAt(LocalDateTime.now().plusMinutes(CODE_VALIDITY_MINUTES));
         resetCode.setUsed(false);
+        resetCode.setAttempts(0);
         passwordResetCodeRepository.save(resetCode);
 
+        passwordResetMailer.sendResetCode(
+                user.getEmail(), code, CODE_VALIDITY_MINUTES);
+
         LOGGER.info(
-                "Code de réinitialisation pour {} (userId={}) : {} (valable {} min)",
-                user.getEmail(), user.getId(), code, CODE_VALIDITY_MINUTES
+                "Code de réinitialisation généré pour userId={} (valable {} min)",
+                user.getId(), CODE_VALIDITY_MINUTES
         );
 
-        return new ForgotPasswordResponse(generic, exposeCodeInResponse ? code : null);
+        return generic;
     }
 
     public MessageResponse resetPasswordWithCode(ResetPasswordWithCodeRequest request) {
 
+        RuntimeException invalid = new RuntimeException("Code invalide ou expiré");
+
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Code invalide ou expiré"));
+                .orElseThrow(() -> invalid);
 
         PasswordResetCode resetCode = passwordResetCodeRepository
-                .findByUserIdAndCodeAndUsedFalse(user.getId(), request.getCode())
-                .orElseThrow(() -> new RuntimeException("Code invalide ou expiré"));
+                .findFirstByUserIdAndUsedFalseOrderByCreatedAtDesc(user.getId())
+                .orElseThrow(() -> invalid);
 
         if (resetCode.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Code invalide ou expiré");
+            throw invalid;
+        }
+
+        if (resetCode.getAttempts() >= MAX_CODE_ATTEMPTS) {
+            resetCode.setUsed(true);
+            passwordResetCodeRepository.save(resetCode);
+            throw invalid;
+        }
+
+        if (!passwordEncoder.matches(request.getCode(), resetCode.getCodeHash())) {
+            resetCode.setAttempts(resetCode.getAttempts() + 1);
+            if (resetCode.getAttempts() >= MAX_CODE_ATTEMPTS) {
+                resetCode.setUsed(true);
+            }
+            passwordResetCodeRepository.save(resetCode);
+            throw invalid;
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));

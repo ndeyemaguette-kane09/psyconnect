@@ -439,3 +439,89 @@ Certains fichiers Java ont été lus depuis l'index git, légèrement antérieur
 `git add`). Les conclusions portant sur `AuthService.java` et sur les `SecurityConfig`
 de user-service et appointment-service méritent une relecture directe si des
 modifications de logique ont eu lieu depuis.
+
+---
+
+## 7. Corrections apportées le 04/09/2026 — flux « mot de passe oublié »
+
+Cette section ferme les points **3.1**, **3.2** et **3.3** de l'audit, et documente ce qui reste ouvert
+sur ce flux.
+
+### 7.1 Point 3.1 — le code n'est plus renvoyé dans la réponse HTTP : **corrigé**
+
+Le champ `devCode` n'a pas été désactivé, il a été **supprimé** de `ForgotPasswordResponse`, ainsi que la
+propriété `app.password-reset.expose-code-in-response` qui le pilotait et la variable d'environnement
+`PASSWORD_RESET_EXPOSE_CODE`. Le drapeau valait `true` par défaut : le désactiver aurait laissé un
+interrupteur qu'un déploiement distrait pouvait rallumer. Un champ qui n'existe plus ne se rallume pas.
+
+Côté Flutter, le `devCode` disparaît de la même façon : `AuthService.forgotPassword` ne lit plus le champ,
+`AuthProvider.forgotPassword` renvoie désormais un booléen, et l'encart jaune « mode démo » qui affichait
+le code à l'écran est retiré de `ResetPasswordScreen`.
+
+### 7.2 Point 3.2 — limitation des tentatives : **corrigé**
+
+Deux verrous complémentaires.
+
+**Sur la vérification du code** : la table `password_reset_codes` gagne une colonne `attempts`. Chaque code
+soumis qui ne correspond pas l'incrémente ; au cinquième échec le code est marqué comme utilisé, donc mort.
+
+L'ordre de grandeur, utile à citer : un code à six chiffres représente un million de combinaisons. Sans
+limite, sur la fenêtre de validité de quinze minutes, un script tentant cinquante codes par seconde en
+essaie quarante-cinq mille, soit **environ 4,5 % de chances de réussite par code**, répétable à volonté.
+Avec cinq essais maximum, la probabilité tombe à **1 sur 200 000**.
+
+S'y ajoute un effet du hachage (voir 7.4) : la vérification passe par BCrypt, volontairement lent
+(de l'ordre de 100 ms), ce qui plafonne mécaniquement le débit d'une attaque même sans compteur.
+
+**Sur la demande de code** : nouveau composant `ResetRequestThrottle`, trois demandes maximum par adresse
+sur quinze minutes glissantes. Sans lui, on pouvait inonder la boîte mail d'un utilisateur, et exploiter
+l'écart de temps de réponse entre une adresse connue et une adresse inconnue pour contourner la réponse
+générique. La réponse renvoyée en cas de dépassement reste strictement identique.
+
+Limite assumée : ce compteur est en mémoire, donc propre à une instance. Avec plusieurs répliques
+d'`auth-service` il faudrait le déporter dans Redis. À l'échelle du projet, c'est une perspective, pas un
+défaut.
+
+### 7.3 Point 3.3 — le code n'est plus écrit dans les logs : **corrigé**
+
+La ligne de journal ne contient plus ni le code ni l'adresse e-mail, seulement l'identifiant utilisateur et
+la durée de validité. C'était une fuite distincte de 3.1, qui lui aurait survécu : toute personne ayant
+accès aux journaux du conteneur pouvait réinitialiser n'importe quel compte.
+
+### 7.4 Amélioration non listée dans l'audit : le code est désormais haché
+
+Le code était stocké en clair. Un accès en lecture à la base — sauvegarde, capture, injection SQL ailleurs
+dans le système — permettait de réinitialiser n'importe quel compte pendant la fenêtre de validité. Il est
+maintenant haché avec le même `PasswordEncoder` que les mots de passe, et la colonne renommée `code_hash`
+pour que l'intention soit lisible dans le schéma.
+
+### 7.5 Envoi réel de l'e-mail
+
+`auth-service` embarque `spring-boot-starter-mail` et envoie le code via un composant dédié
+`PasswordResetMailer`, en `@Async` : l'échec ou la lenteur du serveur SMTP ne bloque ni ne casse la
+réponse HTTP, le code étant déjà enregistré.
+
+**L'envoi part d'`auth-service`, pas de `notification-service`.** Décision assumée : le code de
+réinitialisation est un secret, le faire transiter par un service supplémentaire multiplierait la surface
+de fuite et les modes de panne ; et `notification-service` adresse des identifiants de profil patient ou
+psychologue, alors qu'il s'agit ici d'écrire à une adresse e-mail brute, pour un utilisateur qui peut ne
+pas avoir de profil métier.
+
+Deux précautions dans le message lui-même : **le code est dans le corps, jamais dans l'objet** — un objet
+s'affiche sur un écran verrouillé — et le message rappelle la durée de validité, l'usage unique, et la
+conduite à tenir si la demande n'émane pas du destinataire.
+
+La configuration SMTP est entièrement pilotée par variables d'environnement. Par défaut elle pointe vers
+**Mailpit**, serveur de capture ajouté au `docker-compose.yml`, dont l'interface web est exposée sur le
+port 8025 : aucun identifiant à stocker, aucune dépendance réseau, et une démonstration reproductible.
+Basculer vers un envoi réel ne demande aucune modification de code.
+
+### 7.6 Ce qui reste ouvert sur ce flux
+
+**Les jetons JWT émis avant la réinitialisation restent valides** jusqu'à leur expiration. Les jetons étant
+sans état et sans liste de révocation, changer le mot de passe ne ferme pas les sessions déjà ouvertes : un
+attaquant disposant d'un jeton valide le conserve. C'est la limite la plus sérieuse subsistant sur ce
+parcours, et elle mérite d'être citée en perspective plutôt que découverte par le jury.
+
+**Le transport reste en HTTP** (point 3.5 de l'audit, inchangé) : le code circule en clair entre
+l'application et la passerelle.

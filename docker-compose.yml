@@ -75,6 +75,14 @@ services:
   # ─── Microservices applicatifs ────────────────────────────────────────────
   # Tous dépendent de : postgres (healthy) + eureka-server (healthy)
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: psyconnect-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: unless-stopped
+
   auth-service:
     build:
       context: backend/auth-service
@@ -90,6 +98,8 @@ services:
       JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
       # Vérification obligatoire du statut du profil psychologue au login.
       USER_SERVICE_URL: http://user-service:8082
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
     depends_on:
       postgres:
         condition: service_healthy
