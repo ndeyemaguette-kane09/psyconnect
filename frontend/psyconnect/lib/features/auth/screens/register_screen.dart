@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/profile_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../home/screens/home_screen.dart';
 import '../models/auth_models.dart';
@@ -42,6 +43,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _yearsController = TextEditingController();
   final _priceController = TextEditingController();
   final _licenseNumberController = TextEditingController();
+  final _needController = TextEditingController();
+  String _language = ProfileConstants.languages.first;
 
   // Chemin local du justificatif choisi via file_picker, envoyé après la création du profil.
   // Pas de validator Form pour un file picker : la vérification est faite manuellement.
@@ -81,6 +84,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _yearsController.dispose();
     _priceController.dispose();
     _licenseNumberController.dispose();
+    _needController.dispose();
     super.dispose();
   }
 
@@ -124,6 +128,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         city: _cityController.text.trim().isEmpty
             ? null
             : _cityController.text.trim(),
+        country: ProfileConstants.defaultCountry,
         address: _addressController.text.trim().isEmpty
             ? null
             : _addressController.text.trim(),
@@ -145,6 +150,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         city: _cityController.text.trim().isEmpty
             ? null
             : _cityController.text.trim(),
+        country: ProfileConstants.defaultCountry,
+        preferredLanguage: _language,
+        medicalHistory: _needController.text.trim().isEmpty
+            ? null
+            : _needController.text.trim(),
       );
     }
 
@@ -218,6 +228,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   yearsController: _yearsController,
                   priceController: _priceController,
                   licenseNumberController: _licenseNumberController,
+                  needController: _needController,
+                  language: _language,
+                  onLanguageChanged: (value) =>
+                      setState(() => _language = value),
                   licenseDocumentName: _licenseDocumentName,
                   licenseDocumentError: _licenseDocumentError,
                   onPickLicenseDocument: _pickLicenseDocument,
@@ -417,6 +431,9 @@ class _ProfileStep extends StatelessWidget {
     required this.yearsController,
     required this.priceController,
     required this.licenseNumberController,
+    required this.needController,
+    required this.language,
+    required this.onLanguageChanged,
     required this.licenseDocumentName,
     required this.licenseDocumentError,
     required this.onPickLicenseDocument,
@@ -434,6 +451,9 @@ class _ProfileStep extends StatelessWidget {
   final TextEditingController yearsController;
   final TextEditingController priceController;
   final TextEditingController licenseNumberController;
+  final TextEditingController needController;
+  final String language;
+  final ValueChanged<String> onLanguageChanged;
   final String? licenseDocumentName;
   final String? licenseDocumentError;
   final VoidCallback onPickLicenseDocument;
@@ -475,6 +495,37 @@ class _ProfileStep extends StatelessWidget {
               prefixIcon: Icon(Icons.location_on_outlined),
             ),
           ),
+          if (!isPsychologist) ...[
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: language,
+              decoration: const InputDecoration(
+                labelText: 'Langue préférée',
+                prefixIcon: Icon(Icons.language_outlined),
+              ),
+              items: [
+                for (final lang in ProfileConstants.languages)
+                  DropdownMenuItem(value: lang, child: Text(lang)),
+              ],
+              onChanged: (value) {
+                if (value != null) onLanguageChanged(value);
+              },
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: needController,
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Ce que vous recherchez (optionnel)',
+                hintText: 'Ex : anxiété liée au travail, gestion du stress',
+                helperText:
+                    'Sert à vous proposer les psychologues les plus adaptés',
+                helperMaxLines: 2,
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
           if (isPsychologist) ...[
             const SizedBox(height: 14),
             TextFormField(
