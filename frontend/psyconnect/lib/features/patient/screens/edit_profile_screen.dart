@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/constants/profile_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
@@ -30,8 +31,6 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  static const _languages = ['Français', 'Wolof', 'Anglais'];
-
   final _formKey = GlobalKey<FormState>();
 
   late final _firstName = TextEditingController(text: widget.userProfile.firstName);
@@ -43,6 +42,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       TextEditingController(text: widget.patientProfile?.emergencyContactName ?? '');
   late final _emergencyPhone =
       TextEditingController(text: widget.patientProfile?.emergencyContactPhone ?? '');
+  late final _need =
+      TextEditingController(text: widget.patientProfile?.medicalHistory ?? '');
   late String? _language = widget.patientProfile?.preferredLanguage;
 
   final _profileService = ProfileService();
@@ -69,6 +70,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _country.dispose();
     _emergencyName.dispose();
     _emergencyPhone.dispose();
+    _need.dispose();
     super.dispose();
   }
 
@@ -113,7 +115,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           emergencyContactPhone: _emergencyPhone.text.trim().isEmpty
               ? null
               : _emergencyPhone.text.trim(),
-          medicalHistory: widget.patientProfile?.medicalHistory,
+          medicalHistory:
+              _need.text.trim().isEmpty ? null : _need.text.trim(),
           preferredLanguage: _language,
           anonymousMode: widget.patientProfile?.anonymousMode,
         ),
@@ -213,6 +216,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  _field(
+                    _need,
+                    'Ce que vous recherchez',
+                    isLast: true,
+                    maxLines: 3,
+                    helper:
+                        'Sert à vous proposer les psychologues les plus adaptés',
+                  ),
                 ],
               ),
               const SizedBox(height: 22),
@@ -295,7 +307,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               ),
             ),
-            for (final lang in _languages)
+            for (final lang in ProfileConstants.languages)
               ListTile(
                 title: Text(lang),
                 trailing:
@@ -316,14 +328,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     bool required = false,
     bool isLast = false,
     TextInputType? keyboardType,
+    int maxLines = 1,
+    String? helper,
   }) {
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        maxLines: maxLines,
+        textCapitalization: maxLines > 1
+            ? TextCapitalization.sentences
+            : TextCapitalization.none,
         decoration: InputDecoration(
           labelText: label,
+          helperText: helper,
+          helperMaxLines: 2,
+          alignLabelWithHint: maxLines > 1,
           filled: true,
           fillColor: AppColors.background,
           border: OutlineInputBorder(

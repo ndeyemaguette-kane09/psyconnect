@@ -180,6 +180,8 @@ class AuthProvider extends ChangeNotifier {
     required String phoneNumber,
     String? city,
     String? country,
+    String? preferredLanguage,
+    String? medicalHistory,
   }) async {
     clearError();
     _setLoading(true);
@@ -204,7 +206,11 @@ class AuthProvider extends ChangeNotifier {
       );
 
       final patientProfileId = await _profileService.createPatientProfile(
-        CreatePatientProfileRequest(userProfileId: userProfile.id),
+        CreatePatientProfileRequest(
+          userProfileId: userProfile.id,
+          preferredLanguage: preferredLanguage,
+          medicalHistory: medicalHistory,
+        ),
       );
 
       // Nécessaire pour réserver un RDV : l'API attend le PatientProfile.id, pas l'authUserId.
