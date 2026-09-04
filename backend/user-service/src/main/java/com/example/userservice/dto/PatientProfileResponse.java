@@ -15,6 +15,8 @@ public class PatientProfileResponse {
 
     private String profilePicture;
 
+    private String city;
+
     private String emergencyContactName;
 
     private String emergencyContactPhone;

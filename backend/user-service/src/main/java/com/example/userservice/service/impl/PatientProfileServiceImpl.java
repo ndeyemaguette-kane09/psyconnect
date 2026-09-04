@@ -483,6 +483,12 @@ public class PatientProfileServiceImpl
                         .getProfilePicture()
         );
 
+        response.setCity(
+                patientProfile
+                        .getUserProfile()
+                        .getCity()
+        );
+
         response.setEmergencyContactName(
                 patientProfile.getEmergencyContactName()
         );
