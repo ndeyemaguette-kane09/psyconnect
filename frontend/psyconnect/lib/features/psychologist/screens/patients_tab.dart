@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -12,9 +13,6 @@ import '../services/psy_patient_link_service.dart';
 import 'clinical_notes_screen.dart';
 import 'patient_questionnaires_screen.dart';
 
-// Onglet "Patients" du psychologue. Il n'existe pas d'endpoint dédié :
-// la liste est déduite des patientId présents dans les rendez-vous,
-// puis chaque profil est chargé individuellement.
 class PatientsTab extends StatefulWidget {
   const PatientsTab({super.key});
 
@@ -30,7 +28,6 @@ class _PatientsTabState extends State<PatientsTab> {
   bool _loading = true;
   String? _error;
   List<_PatientEntry> _patients = [];
-  // patientProfileIds actuellement dans la liste de suivi du psy
   Set<int> _followedIds = {};
 
   @override
@@ -89,7 +86,6 @@ class _PatientsTabState extends State<PatientsTab> {
         _loading = false;
       });
 
-      // charge les patients "suivis" indépendamment pour que l'erreur ne cache pas la liste
       try {
         final followed = await _linkService.getFollowedPatientIds(psychologistId);
         if (!mounted) return;
@@ -167,7 +163,7 @@ class _PatientsTabState extends State<PatientsTab> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 sliver: SliverList.separated(
                   itemCount: _patients.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, __) => const SizedBox.shrink(),
                   itemBuilder: (context, i) {
                     final entry = _patients[i];
                     return _PatientCard(
@@ -237,83 +233,73 @@ class _PatientCard extends StatelessWidget {
     final lastVisitLabel = '${last.day.toString().padLeft(2, '0')}/'
         '${last.month.toString().padLeft(2, '0')}/${last.year}';
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => _PatientDetailSheet(
-          entry: entry,
-          isFollowed: isFollowed,
-          psychologistId: psychologistId,
-          onFollowChanged: onFollowChanged,
-        ),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Row(
-          children: [
-            const CircleAvatar(
-              backgroundColor: AppColors.tealLight,
-              child: Icon(Icons.person, color: AppColors.tealDark),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => _PatientDetailSheet(
+              entry: entry,
+              isFollowed: isFollowed,
+              psychologistId: psychologistId,
+              onFollowChanged: onFollowChanged,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            child: Row(
+              children: [
+                AppAvatar(name: name.isEmpty ? 'Patient' : name, size: 42),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(name.isEmpty ? 'Patient' : name,
-                            style: const TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                      if (isFollowed)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.tealLight,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'Suivi',
-                            style: TextStyle(
-                                color: AppColors.tealDark,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700),
-                          ),
+                      Text(
+                        name.isEmpty ? 'Patient' : name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14.5,
+                          color: AppColors.text,
                         ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${entry.appointmentCount} consultation'
+                        '${entry.appointmentCount > 1 ? 's' : ''} · dernière le '
+                        '$lastVisitLabel',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 12),
+                      ),
+                      if (isFollowed) ...[
+                        const SizedBox(height: 6),
+                        const AppPill(label: 'Suivi', dense: true),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${entry.appointmentCount} consultation'
-                    '${entry.appointmentCount > 1 ? 's' : ''} · dernière le '
-                    '$lastVisitLabel',
-                    style:
-                        const TextStyle(color: AppColors.muted, fontSize: 12),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 10),
+                const Icon(Icons.chevron_right,
+                    color: AppColors.faint, size: 20),
+              ],
             ),
-            const Icon(Icons.chevron_right, color: AppColors.muted),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// Fiche détail d'un patient, ouverte en tap depuis la liste.
-// Le toggle "Marquer comme suivi" crée ou supprime le PsyPatientLink dans user-service.
-// Un patient suivi débloque l'accès aux notes cliniques.
 class _PatientDetailSheet extends StatefulWidget {
   const _PatientDetailSheet({
     required this.entry,
@@ -389,7 +375,7 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
         return Container(
           decoration: const BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border(top: BorderSide(color: AppColors.borderStrong)),
           ),
           child: ListView(
             controller: scrollController,
@@ -402,17 +388,18 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: AppColors.tealMid,
-                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
               Row(
                 children: [
-                  const CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.tealLight,
-                    child: Icon(Icons.person,
-                        color: AppColors.tealDark, size: 26),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    alignment: Alignment.center,
+                    color: AppColors.tealLight,
+                    child: const Icon(Icons.person_outline,
+                        color: AppColors.tealDark, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -426,7 +413,6 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.muted.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text('Mode anonyme',
                           style: TextStyle(
@@ -437,7 +423,6 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              // bouton toggle suivi — crée ou supprime le PsyPatientLink
               _toggling
                   ? const Center(
                       child: SizedBox(
@@ -471,10 +456,9 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
                       ),
                     ),
               const SizedBox(height: 20),
-              const _SectionLabel('Informations médicales'),
+              const SectionHeader(title: 'Informations médicales'),
               const SizedBox(height: 8),
               InkWell(
-                borderRadius: BorderRadius.circular(10),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => MedicalHistoryScreen(
@@ -501,7 +485,6 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
               ),
               const SizedBox(height: 10),
               InkWell(
-                borderRadius: BorderRadius.circular(10),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ClinicalNotesScreen(
@@ -533,10 +516,9 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
                 value: profile?.preferredLanguage,
               ),
               const SizedBox(height: 20),
-              const _SectionLabel('Questionnaires PHQ-9 / GAD-7'),
+              const SectionHeader(title: 'Questionnaires PHQ-9 / GAD-7'),
               const SizedBox(height: 8),
               InkWell(
-                borderRadius: BorderRadius.circular(10),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => PatientQuestionnairesScreen(
@@ -563,7 +545,7 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
                 ),
               ),
               const SizedBox(height: 20),
-              const _SectionLabel("Contact d'urgence"),
+              const SectionHeader(title: "Contact d'urgence"),
               const SizedBox(height: 8),
               _InfoRow(
                 icon: Icons.person_pin_outlined,
@@ -577,7 +559,7 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
                 value: profile?.emergencyContactPhone,
               ),
               const SizedBox(height: 20),
-              _SectionLabel(
+              SectionHeader(title: 
                   'Historique des rendez-vous (${entry.visits.length})'),
               const SizedBox(height: 8),
               ...entry.visits.map((a) => Padding(
@@ -588,21 +570,6 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
           ),
         );
       },
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-          fontWeight: FontWeight.w700, color: AppColors.tealDark, fontSize: 13),
     );
   }
 }
@@ -677,7 +644,6 @@ class _VisitRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.tealLight.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
@@ -688,7 +654,6 @@ class _VisitRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: _statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               appointment.status.label,

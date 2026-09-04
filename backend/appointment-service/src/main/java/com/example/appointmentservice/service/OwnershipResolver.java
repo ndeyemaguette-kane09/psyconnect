@@ -21,8 +21,6 @@ import io.github.resilience4j.retry.annotation.Retry;
 
 import java.util.Map;
 
-// va chercher l'id patient/psy via l'id du JWT, appelle user-service
-// retry + circuit breaker car appelé tout le temps
 @Component
 public class OwnershipResolver {
 
@@ -88,12 +86,124 @@ public class OwnershipResolver {
                     "Accès refusé lors de la résolution du profil " + profileLabel
             );
         } catch (RestClientException ex) {
-            // Panne réseau — le retry se chargera de réessayer
             throw new ServiceUnavailableException(
                     "user-service indisponible pour la vérification de propriété (" + profileLabel + ")",
                     ex
             );
         }
+    }
+
+    @CircuitBreaker(name = "userService")
+    @Retry(name = "userService", fallbackMethod = "fallbackIsPsychologistVerified")
+    @SuppressWarnings("unchecked")
+    public boolean isPsychologistVerified(Long psychologistId) {
+        try {
+            Map<String, Object> body = restTemplate.exchange(
+                    userServiceUrl + "/psychologists/" + psychologistId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(new HttpHeaders()),
+                    Map.class
+            ).getBody();
+
+            if (body == null) {
+                throw new ResourceNotFoundException("Psychologue introuvable");
+            }
+
+            Object verified = body.get("profileVerified");
+            return Boolean.TRUE.equals(verified);
+
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new ResourceNotFoundException("Psychologue introuvable");
+        } catch (RestClientException ex) {
+            throw new ServiceUnavailableException(
+                    "user-service indisponible pour la vérification du statut du psychologue",
+                    ex
+            );
+        }
+    }
+
+    @CircuitBreaker(name = "userService")
+    @Retry(name = "userService")
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getPsychologistProfile(Long psychologistId) {
+        String authorization = SecurityUtils.currentAuthorizationHeader();
+        HttpHeaders headers = new HttpHeaders();
+        if (authorization != null) {
+            headers.set("Authorization", authorization);
+        }
+
+        try {
+            Map<String, Object> body = restTemplate.exchange(
+                    userServiceUrl + "/psychologists/" + psychologistId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    Map.class
+            ).getBody();
+
+            if (body == null) {
+                throw new ResourceNotFoundException("Psychologue introuvable");
+            }
+
+            return body;
+
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new ResourceNotFoundException("Psychologue introuvable");
+        } catch (RestClientException ex) {
+            throw new ServiceUnavailableException(
+                    "user-service indisponible pour la récupération du profil du psychologue",
+                    ex
+            );
+        }
+    }
+
+    @CircuitBreaker(name = "userService")
+    @Retry(name = "userService")
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getPatientProfile(Long patientId) {
+        String authorization = SecurityUtils.currentAuthorizationHeader();
+        HttpHeaders headers = new HttpHeaders();
+        if (authorization != null) {
+            headers.set("Authorization", authorization);
+        }
+
+        try {
+            Map<String, Object> body = restTemplate.exchange(
+                    userServiceUrl + "/patients/" + patientId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    Map.class
+            ).getBody();
+
+            if (body == null) {
+                throw new ResourceNotFoundException("Patient introuvable");
+            }
+
+            return body;
+
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new ResourceNotFoundException("Patient introuvable");
+        } catch (RestClientException ex) {
+            throw new ServiceUnavailableException(
+                    "user-service indisponible pour la récupération du profil du patient",
+                    ex
+            );
+        }
+    }
+
+    private boolean fallbackIsPsychologistVerified(Long psychologistId, Throwable t) {
+        if (t instanceof ResourceNotFoundException) {
+            throw (RuntimeException) t;
+        }
+        LOGGER.warn(
+                "user-service indisponible (retry épuisé ou circuit ouvert) pour la "
+                        + "vérification du statut du psychologue {}",
+                psychologistId,
+                t
+        );
+        throw new ServiceUnavailableException(
+                "Le service utilisateur est temporairement indisponible, merci de réessayer dans quelques instants",
+                t
+        );
     }
 
     private Long fallbackResolvePatientId(Throwable t) {
@@ -104,7 +214,6 @@ public class OwnershipResolver {
         return handleFallback("psychologue", t);
     }
 
-    // appelé quand le retry a echoué ou le circuit est ouvert
     private Long handleFallback(String profileLabel, Throwable t) {
 
         if (t instanceof ResourceNotFoundException || t instanceof ForbiddenOperationException) {

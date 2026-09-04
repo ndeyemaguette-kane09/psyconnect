@@ -6,8 +6,10 @@ enum AppNotificationType {
   questionnaire,
   questionnaireResult,
   system,
-  announcement, // broadcast admin → tous / patients / psys
-  session,      // fin de session (normale ou urgence) — session-service
+  announcement,
+  session,
+  supportReply,
+  newMessage,
 }
 
 extension AppNotificationTypeX on AppNotificationType {
@@ -29,6 +31,8 @@ extension AppNotificationTypeX on AppNotificationType {
         return AppNotificationType.announcement;
       case 'SESSION':
         return AppNotificationType.session;
+      case 'SUPPORT_REPLY':
+        return AppNotificationType.supportReply;
       default:
         // valeur inconnue, on plante pas l'ecran pour ca
         return AppNotificationType.system;
@@ -53,6 +57,10 @@ extension AppNotificationTypeX on AppNotificationType {
         return 'Annonces';
       case AppNotificationType.session:
         return 'Sessions';
+      case AppNotificationType.supportReply:
+        return 'Support';
+      case AppNotificationType.newMessage:
+        return 'Messages';
     }
   }
 }

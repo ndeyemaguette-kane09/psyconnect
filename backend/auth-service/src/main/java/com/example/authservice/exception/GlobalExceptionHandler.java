@@ -34,9 +34,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
-    // Traitement prioritaire sur RuntimeException : compte désactivé par l'admin.
-    // Renvoie HTTP 403 + errorCode "ACCOUNT_BANNED" pour que Flutter affiche
-    // un message clair avec les coordonnées de l'administrateur.
     @ExceptionHandler(BannedAccountException.class)
     public ResponseEntity<Map<String, String>>
     handleBannedAccount(BannedAccountException ex) {

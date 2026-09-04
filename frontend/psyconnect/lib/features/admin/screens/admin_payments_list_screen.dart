@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../models/admin_models.dart';
 import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
@@ -232,13 +234,10 @@ class _PaymentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.tealMid),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      borderColor: AppColors.tealMid,
+      shadow: const [],
       child: Row(
         children: [
           Expanded(
@@ -258,8 +257,7 @@ class _PaymentRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
+              color: statusColor.withValues(alpha: 0.12),
             ),
             child: Text(payment.status.label,
                 style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),

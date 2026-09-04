@@ -1,3 +1,19 @@
+String formatAmount(num value) {
+  final whole = value == value.roundToDouble();
+  final text = whole
+      ? value.round().abs().toString()
+      : value.abs().toStringAsFixed(2);
+  final parts = text.split('.');
+  final digits = parts[0];
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('\u00A0');
+    buffer.write(digits[i]);
+  }
+  final sign = value < 0 ? '-' : '';
+  return parts.length > 1 ? '$sign$buffer,${parts[1]}' : '$sign$buffer';
+}
+
 // les 3 valeurs SIMULATED_* sont juste pour faire semblant, y'a pas
 // de vrai operateur derriere. ca sert a marquer un depot/retrait
 // sur le solde (cf WalletScreen) — payer un RDV ça passe que par le wallet

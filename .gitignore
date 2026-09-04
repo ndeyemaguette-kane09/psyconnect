@@ -66,3 +66,13 @@ logs/
 *.bak2
 *.bak_liminaires
 PsyConnect_Diagrammes_UML_v2.pdf
+
+### Python (ml-service) ###
+**/__pycache__/
+*.pyc
+
+### Sortie de compilation Eclipse (backend) ###
+backend/*/bin/
+
+### Dossier de travail temporaire ###
+tmp/

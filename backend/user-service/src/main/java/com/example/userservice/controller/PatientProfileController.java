@@ -45,8 +45,6 @@ public class PatientProfileController {
                 );
     }
 
-    // accessible au proprietaire, a un psy ou a un admin
-    // le mode anonyme est gere dans le service
     @GetMapping("/{id}")
     public ResponseEntity<PatientProfileResponse>
     getPatientProfile(
@@ -101,8 +99,6 @@ public class PatientProfileController {
         );
     }
 
-    // le solde sert a payer les RDV et a recevoir les remboursements
-    // /debit et /credit sont appelés par appointment-service, pas le frontend
     @GetMapping("/{id}/wallet")
     public ResponseEntity<WalletResponse> getWallet(
             HttpServletRequest httpRequest,
@@ -167,8 +163,6 @@ public class PatientProfileController {
         );
     }
 
-    // Relevé des mouvements (dépôts/retraits/débits/crédits), du plus
-    // récent au plus ancien.
     @GetMapping("/{id}/wallet/transactions")
     public ResponseEntity<java.util.List<WalletTransactionResponse>> getWalletTransactions(
             HttpServletRequest httpRequest,

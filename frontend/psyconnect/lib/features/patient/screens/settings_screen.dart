@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/storage/token_storage.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../auth/models/profile_models.dart';
+import '../../auth/models/user_role.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
+import 'contact_admin_screen.dart';
 
 // ecran Parametres, pas dans la maquette
 // regroupe mode anonyme (sauvegarde backend) et notifications (local)
@@ -66,6 +72,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _editPseudo() async {
+    final auth = context.read<AuthProvider>();
+    final current = auth.session?.pseudo ?? '';
+    final newPseudo = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PseudoSheet(initialValue: current),
+    );
+    if (newPseudo == null || newPseudo == current || !mounted) return;
+    setState(() => _saving = true);
+    final ok = await auth.updatePseudo(newPseudo);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Pseudonyme mis à jour.'
+              : auth.errorMessage ?? 'Impossible de modifier le pseudonyme.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           if (_saving)
             const Padding(
-              padding: EdgeInsets.only(right: 16),
+              padding: EdgeInsets.only(right: AppSpacing.lg),
               child: Center(
                 child: SizedBox(
                   width: 18,
@@ -96,8 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                gradient: AppColors.headerGradient,
-                borderRadius: BorderRadius.circular(16),
+                color: AppColors.teal,
               ),
               child: Row(
                 children: [
@@ -121,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            _SectionLabel('Préférences'),
+            SectionHeader(title: 'Préférences'),
             const SizedBox(height: 10),
             _SettingsCard(
               children: [
@@ -130,7 +160,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Mode anonyme',
                   subtitle: 'Masque votre nom auprès des psychologues',
                   trailing: Switch(
-                    activeColor: AppColors.teal,
                     value: _anonymousMode,
                     onChanged: (v) {
                       setState(() => _anonymousMode = v);
@@ -138,10 +167,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                 ),
+                _SettingsRow(
+                  icon: Icons.badge_outlined,
+                  title: 'Pseudonyme',
+                  subtitle: context.watch<AuthProvider>().session?.pseudo ??
+                      'Nom affiché en mode anonyme',
+                  trailing: const Icon(Icons.chevron_right, color: AppColors.muted),
+                  onTap: _editPseudo,
+                ),
               ],
             ),
             const SizedBox(height: 22),
-            _SectionLabel('Notifications'),
+            SectionHeader(title: 'Notifications'),
             const SizedBox(height: 10),
             _SettingsCard(
               children: [
@@ -150,7 +187,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Recevoir des notifications',
                   subtitle: 'Réglage local à cet appareil',
                   trailing: Switch(
-                    activeColor: AppColors.teal,
                     value: _notificationsEnabled,
                     onChanged: (v) {
                       setState(() => _notificationsEnabled = v);
@@ -161,14 +197,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 22),
-            _SectionLabel('À propos'),
+            SectionHeader(title: 'Aide'),
+            const SizedBox(height: 10),
+            _SettingsCard(
+              children: [
+                _SettingsRow(
+                  icon: Icons.support_agent_outlined,
+                  title: 'Contacter l\'administrateur',
+                  subtitle: 'Question, problème technique, autre demande',
+                  trailing: const Icon(Icons.chevron_right,
+                      color: AppColors.muted),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ContactAdminScreen(
+                        profileId: widget.patientId,
+                        role: UserRole.patient,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            SectionHeader(title: 'À propos'),
             const SizedBox(height: 10),
             _SettingsCard(
               children: [
                 _SettingsRow(
                   icon: Icons.info_outline,
                   title: 'PsyConnect Sénégal',
-                  // a jour a la main, pas besoin d'un package juste pour ca
                   subtitle: 'Version 1.0.0',
                 ),
               ],
@@ -181,25 +238,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: AppColors.muted,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.4,
-      ),
-    );
-  }
-}
-
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({required this.children});
 
@@ -210,14 +248,6 @@ class _SettingsCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(children: children),
     );
@@ -264,6 +294,88 @@ class _SettingsRow extends StatelessWidget {
               ),
             ),
             if (trailing != null) trailing!,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PseudoSheet extends StatefulWidget {
+  const _PseudoSheet({required this.initialValue});
+
+  final String initialValue;
+
+  @override
+  State<_PseudoSheet> createState() => _PseudoSheetState();
+}
+
+class _PseudoSheetState extends State<_PseudoSheet> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialValue);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final value = _controller.text.trim();
+    if (value.isEmpty) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.tealMid,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text(
+              'Modifier votre pseudonyme',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'C\'est ce nom que verra le psychologue quand le mode anonyme est activé.',
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Pseudonyme',
+                filled: true,
+                fillColor: AppColors.background,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _confirm,
+              child: const Text('Enregistrer'),
+            ),
           ],
         ),
       ),

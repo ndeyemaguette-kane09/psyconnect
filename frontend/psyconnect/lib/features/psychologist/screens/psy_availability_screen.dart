@@ -176,7 +176,6 @@ class _PsyAvailabilityScreenState extends State<PsyAvailabilityScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,7 +206,6 @@ class _PsyAvailabilityScreenState extends State<PsyAvailabilityScreen> {
                     ),
                     backgroundColor: AppColors.background,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
                       side: BorderSide(
                           color: selected ? AppColors.teal : AppColors.tealMid),
                     ),
@@ -283,7 +281,6 @@ class _DayRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: enabled ? AppColors.teal : AppColors.tealMid,
           width: enabled ? 1.5 : 1,
@@ -296,7 +293,7 @@ class _DayRow extends StatelessWidget {
               Switch(
                 value: enabled,
                 onChanged: onToggle,
-                activeColor: AppColors.teal,
+                activeThumbColor: AppColors.teal,
               ),
               const SizedBox(width: 4),
               Expanded(
@@ -381,7 +378,6 @@ class _HourDropdown extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.tealMid),
       ),
       child: DropdownButtonHideUnderline(

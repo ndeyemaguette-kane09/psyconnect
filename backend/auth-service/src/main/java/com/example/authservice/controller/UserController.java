@@ -33,8 +33,6 @@ public class UserController {
         );
     }
 
-    // utilisé par user-service pour afficher le pseudo du patient
-    // (le pseudo est stocké ici, pas dans user-service)
     @GetMapping("/{id}/pseudo")
     public ResponseEntity<Map<String, String>> getPseudo(
             @PathVariable Long id

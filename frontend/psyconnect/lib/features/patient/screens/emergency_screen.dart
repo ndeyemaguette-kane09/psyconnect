@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../call/models/session_models.dart';
@@ -85,7 +84,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         const SnackBar(
           content:
               Text('Impossible de démarrer l\'appel. Réessayez dans un instant.'),
-          backgroundColor: Color(0xFFE53935),
+          backgroundColor: AppColors.emergency,
         ),
       );
     }
@@ -96,7 +95,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF5F5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE53935),
+        backgroundColor: AppColors.emergency,
         foregroundColor: Colors.white,
         title: const Row(
           children: [
@@ -120,7 +119,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           children: [
             // en-tête rassurant
             Container(
-              color: const Color(0xFFE53935),
+              color: AppColors.emergency,
               padding:
                   const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               child: Column(
@@ -145,7 +144,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Row(
                       children: [
@@ -175,7 +173,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           CircularProgressIndicator(
-                              color: Color(0xFFE53935)),
+                              color: AppColors.emergency),
                           SizedBox(height: 12),
                           Text('Recherche de psychologues disponibles…',
                               style: TextStyle(color: AppColors.muted)),
@@ -188,7 +186,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                           ? _buildEmpty()
                           : RefreshIndicator(
                               onRefresh: _load,
-                              color: const Color(0xFFE53935),
+                              color: AppColors.emergency,
                               child: ListView.separated(
                                 padding:
                                     const EdgeInsets.symmetric(
@@ -227,7 +225,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             FilledButton.icon(
               onPressed: _load,
               style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFE53935)),
+                  backgroundColor: AppColors.emergency,
+                  minimumSize: const Size(200, 46)),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Réessayer'),
             ),
@@ -244,13 +243,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                  color: Color(0xFFFFEBEE), shape: BoxShape.circle),
-              child: const Icon(Icons.person_search,
-                  color: Color(0xFFE53935), size: 48),
-            ),
+            const Icon(Icons.person_search,
+                  color: AppColors.emergency, size: 48),
             const SizedBox(height: 16),
             const Text(
               'Aucun psychologue disponible pour l\'instant',
@@ -274,8 +268,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Actualiser'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFE53935),
-                side: const BorderSide(color: Color(0xFFE53935)),
+                foregroundColor: AppColors.emergency,
+                side: const BorderSide(color: AppColors.emergency),
               ),
             ),
           ],
@@ -303,21 +297,13 @@ class _PsychologistSosCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFCDD2), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFE53935).withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: AppColors.emergency.withValues(alpha: 0.28), width: 1.5),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: const Color(0xFFFFEBEE),
+            backgroundColor: AppColors.dangerBg,
             backgroundImage: psychologist.profilePicture != null
                 ? NetworkImage(psychologist.profilePicture!)
                 : null,
@@ -327,7 +313,7 @@ class _PsychologistSosCard extends StatelessWidget {
                         ? psychologist.firstName[0].toUpperCase()
                         : '?',
                     style: const TextStyle(
-                        color: Color(0xFFE53935),
+                        color: AppColors.emergency,
                         fontWeight: FontWeight.w700,
                         fontSize: 20),
                   )
@@ -356,7 +342,6 @@ class _PsychologistSosCard extends StatelessWidget {
                         horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppColors.tealLight,
-                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
                       'Consultation solidaire — gratuite',
@@ -374,11 +359,11 @@ class _PsychologistSosCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: isCalling ? null : onCall,
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFE53935),
+              backgroundColor: AppColors.emergency,
+              minimumSize: const Size(0, 42),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
             ),
             icon: isCalling
                 ? const SizedBox(
@@ -543,8 +528,6 @@ class _EmergencyJitsiLauncherState extends State<_EmergencyJitsiLauncher> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
                     ),
                     child: const Text('Retour à l\'accueil'),
                   ),

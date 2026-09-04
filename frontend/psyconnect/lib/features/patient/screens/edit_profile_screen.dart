@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/services/profile_service.dart';
 import 'medical_history_screen.dart';
@@ -164,13 +165,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppColors.errorBg,
-                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(_error!, style: const TextStyle(color: AppColors.rose)),
                 ),
                 const SizedBox(height: 16),
               ],
-              _SectionLabel('Informations personnelles'),
+              SectionHeader(title: 'Informations personnelles'),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
@@ -182,13 +182,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
               const SizedBox(height: 22),
-              _SectionLabel('Préférences'),
+              SectionHeader(title: 'Préférences'),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
                   InkWell(
                     onTap: _pickLanguage,
-                    borderRadius: BorderRadius.circular(10),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
@@ -217,7 +216,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
               const SizedBox(height: 22),
-              _SectionLabel('Informations médicales'),
+              SectionHeader(title: 'Informations médicales'),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
@@ -228,7 +227,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             MedicalHistoryScreen(patientId: widget.patientId),
                       ),
                     ),
-                    borderRadius: BorderRadius.circular(10),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 4),
                       child: Row(
@@ -248,7 +246,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
               const SizedBox(height: 22),
-              _SectionLabel("Contact d'urgence"),
+              SectionHeader(title: "Contact d'urgence"),
               const SizedBox(height: 10),
               _FormCard(
                 children: [
@@ -263,7 +261,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
                   minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 icon: _saving
                     ? const SizedBox(
@@ -285,7 +282,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final selected = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -331,32 +327,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           filled: true,
           fillColor: AppColors.background,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none,
           ),
         ),
         validator: required
             ? (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null
             : null,
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: AppColors.muted,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.4,
       ),
     );
   }
@@ -373,14 +349,6 @@ class _FormCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(children: children),
     );

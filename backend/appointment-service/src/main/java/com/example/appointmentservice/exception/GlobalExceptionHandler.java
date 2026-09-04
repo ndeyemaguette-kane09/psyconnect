@@ -1,4 +1,3 @@
-
 package com.example.appointmentservice.exception;
 
 import java.time.LocalDateTime;

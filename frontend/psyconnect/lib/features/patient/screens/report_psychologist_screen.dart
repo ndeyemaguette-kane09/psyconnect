@@ -133,7 +133,6 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.tealLight,
-                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,13 +158,12 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
               Text('Motif *', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               DropdownButtonFormField<ReportReasonOption>(
-                value: _selectedReason,
+                initialValue: _selectedReason,
                 hint: const Text('Choisir un motif'),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: AppColors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.tealMid),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
@@ -200,7 +198,6 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
                   filled: true,
                   fillColor: AppColors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.tealMid),
                   ),
                   contentPadding: const EdgeInsets.all(14),
@@ -225,7 +222,6 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
                       horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: AppColors.background,
-                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.tealMid),
                   ),
                   child: Row(
@@ -260,8 +256,6 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
                     label: const Text('Joindre un fichier'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
                       side: const BorderSide(color: AppColors.tealMid),
                     ),
                   ),
@@ -276,7 +270,6 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppColors.errorBg,
-                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(_error!,
                       style: const TextStyle(

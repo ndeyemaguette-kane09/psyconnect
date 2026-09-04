@@ -50,10 +50,6 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage());
     }
 
-    // sans ce handler specifique, une violation de contrainte SQL (ex:
-    // colonne NOT NULL) tombe dans le catch-all RuntimeException ci-dessous
-    // et expose le message brut du driver Postgres (SQL + valeurs) jusqu'a
-    // l'écran Flutter. On intercepte avant pour renvoyer un message générique
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>>
     handleDataIntegrityViolation(

@@ -130,8 +130,7 @@ class _ProfileTabState extends State<ProfileTab> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: AppColors.headerGradient,
-                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.teal,
                 ),
                 child: Row(
                   children: [
@@ -311,12 +310,10 @@ class _NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.tealMid),
         ),
         child: Row(
@@ -330,7 +327,6 @@ class _NavRow extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.rose,
-                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '$badge',
@@ -366,7 +362,6 @@ class _InfoTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.tealMid),
         ),
         child: Row(

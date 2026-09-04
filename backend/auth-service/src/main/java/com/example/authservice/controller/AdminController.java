@@ -21,11 +21,6 @@ import jakarta.validation.Valid;
 
 import java.util.List;
 
-/**
- * Endpoints réservés au rôle ADMIN (gestion des comptes utilisateurs).
- * Protégés par {@code SecurityConfig} : {@code /admin/**} exige
- * {@code hasRole("ADMIN")}.
- */
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -52,11 +47,6 @@ public class AdminController {
         );
     }
 
-    /**
-     * Suppression définitive d'un compte (CDC 6.8 : DELETE /admin/users/{id}).
-     * Irréversible — contrairement à la désactivation (PATCH .../enabled),
-     * qui reste réversible et est l'action recommandée au quotidien.
-     */
     @DeleteMapping("/users/{id}")
     public ResponseEntity<MessageResponse> deleteUser(
             @PathVariable Long id,
@@ -66,11 +56,6 @@ public class AdminController {
         return ResponseEntity.ok(new MessageResponse("Compte supprimé"));
     }
 
-    /**
-     * Réinitialisation forcée du mot de passe d'un compte par l'admin (CDC
-     * 4.3 : utile quand l'utilisateur a perdu l'accès à son email, en
-     * l'absence d'un flux self-service "mot de passe oublié").
-     */
     @PatchMapping("/users/{id}/password")
     public ResponseEntity<UserAdminResponse> resetPassword(
             @PathVariable Long id,
@@ -82,7 +67,6 @@ public class AdminController {
         );
     }
 
-    // /stats/accounts pour pas que la gateway se perde entre les services
     @GetMapping("/stats/accounts")
     public ResponseEntity<AdminStatsResponse> getStats() {
         return ResponseEntity.ok(adminService.getStats());

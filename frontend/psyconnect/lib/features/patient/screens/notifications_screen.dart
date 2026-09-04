@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/loading_state.dart';
+import '../../auth/models/user_role.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../payment/screens/psy_wallet_screen.dart';
+import '../../payment/screens/wallet_screen.dart';
+import '../../psychologist/screens/agenda_tab.dart';
+import '../../psychologist/screens/patients_tab.dart';
+import '../../psychologist/screens/psychologist_messages_tab.dart';
 import '../models/notification_models.dart';
 import '../services/notification_service.dart';
+import 'announcements_screen.dart';
+import 'appointments_tab.dart';
+import 'messages_tab.dart';
+import 'questionnaire_history_screen.dart';
 
-// Écran de notifications, partagé entre patient et psychologue.
-// userId correspond au PatientProfile.id ou au PsychologistProfile.id selon l'appelant.
-// Les notifications sont regroupées par période et colorées par type.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key, required this.userId});
 
@@ -22,12 +34,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _loading = true;
   String? _error;
   List<AppNotification> _notifications = [];
-  // null = "Tous" ; sinon filtre actif (cf. _FilterChips)
   AppNotificationType? _filter;
+  UserRole? _role;
 
   @override
   void initState() {
     super.initState();
+    _role = context.read<AuthProvider>().session?.role;
     _load();
   }
 
@@ -54,6 +67,121 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Widget? _destinationFor(AppNotification n) {
+    switch (n.type) {
+      case AppNotificationType.questionnaire:
+        return _role == UserRole.patient
+            ? const QuestionnaireHistoryScreen()
+            : null;
+      case AppNotificationType.questionnaireResult:
+        return _role == UserRole.psychologist
+            ? Scaffold(
+                appBar: AppBar(title: const Text('Mes patients')),
+                body: const PatientsTab(),
+              )
+            : null;
+      case AppNotificationType.announcement:
+        return const AnnouncementsScreen();
+      case AppNotificationType.appointment:
+      case AppNotificationType.reminder:
+      case AppNotificationType.session:
+        if (_role == UserRole.patient) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Rendez-vous')),
+            body: const AppointmentsTab(),
+          );
+        }
+        if (_role == UserRole.psychologist) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Agenda')),
+            body: const AgendaTab(),
+          );
+        }
+        return null;
+      case AppNotificationType.payment:
+        if (_role == UserRole.patient) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Portefeuille')),
+            body: WalletScreen(patientId: widget.userId),
+          );
+        }
+        if (_role == UserRole.psychologist) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Portefeuille')),
+            body: PsyWalletScreen(psychologistId: widget.userId),
+          );
+        }
+        return null;
+      case AppNotificationType.newMessage:
+        if (_role == UserRole.patient) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Messages')),
+            body: const MessagesTab(),
+          );
+        }
+        if (_role == UserRole.psychologist) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Messages')),
+            body: const PsychologistMessagesTab(),
+          );
+        }
+        return null;
+      case AppNotificationType.system:
+      case AppNotificationType.supportReply:
+        return null;
+    }
+  }
+
+  Future<void> _openNotification(AppNotification n) async {
+    await _markAsRead(n);
+    if (!mounted) return;
+    final destination = _destinationFor(n);
+    if (destination != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => destination),
+      );
+      return;
+    }
+    await _showDetailSheet(n);
+  }
+
+  Future<void> _showDetailSheet(AppNotification n) {
+    return showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                n.title,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                n.message,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _markAsRead(AppNotification n) async {
     if (n.isRead) return;
     try {
@@ -76,15 +204,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               existing,
         ];
       });
-    } catch (_) {
-      // Échec silencieux : l'utilisateur peut retapper la notification pour réessayer.
-    }
+    } catch (_) {}
   }
 
-  // Notifications après filtrage par catégorie, avant regroupement par période.
-  // Le filtre "questionnaire" inclut aussi "questionnaireResult" : patient
-  // (questionnaires à remplir) et psychologue (résultats) voient tous deux
-  // leur contenu sous le même chip "Questionnaires".
   List<AppNotification> get _filtered {
     if (_filter == null) return _notifications;
     if (_filter == AppNotificationType.questionnaire) {
@@ -97,14 +219,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return _notifications.where((n) => n.type == _filter).toList();
   }
 
-  // Regroupe les notifications par période ("Aujourd'hui", "Hier", etc.).
   List<MapEntry<String, List<AppNotification>>> get _groups {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final groups = <String, List<AppNotification>>{};
 
     for (final n in _filtered) {
-      final day = DateTime(n.createdAt.year, n.createdAt.month, n.createdAt.day);
+      final day =
+          DateTime(n.createdAt.year, n.createdAt.month, n.createdAt.day);
       final diff = today.difference(day).inDays;
       final key = diff <= 0
           ? 'Aujourd\'hui'
@@ -128,7 +250,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.white,
       appBar: AppBar(
         backgroundColor: AppColors.white,
         elevation: 0,
@@ -136,13 +258,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Notifications',
-                style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700)),
+            const Text(
+              'Notifications',
+              style: TextStyle(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17),
+            ),
             if (!_loading && _unreadCount > 0)
               Text(
                 '$_unreadCount non lue${_unreadCount > 1 ? 's' : ''}',
                 style: const TextStyle(
-                    color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w400),
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400),
               ),
           ],
         ),
@@ -151,108 +280,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Les filtres sont affichés dès qu'il y a des notifications, quel que soit
-            // le type présent : patient et psychologue voient toujours les mêmes chips.
             if (!_loading && _error == null && _notifications.isNotEmpty)
-              _FilterChips(
+              _FilterBar(
                 selected: _filter,
                 onSelected: (t) => setState(() => _filter = t),
               ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _error != null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(_error!,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(color: AppColors.muted)),
-                                  const SizedBox(height: 12),
-                                  OutlinedButton(
-                                      onPressed: _load, child: const Text('Réessayer')),
-                                ],
-                              ),
-                            ),
-                          )
-                        : _notifications.isEmpty
-                            ? ListView(
-                                // ListView et pas Center, pour garder le pull-to-refresh
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 100),
-                                    child: Center(
-                                      child: Column(
-                                        children: [
-                                          Container(
-                                            width: 72,
-                                            height: 72,
-                                            decoration: const BoxDecoration(
-                                              color: AppColors.tealLight,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.notifications_none,
-                                                size: 32, color: AppColors.teal),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          const Text('Rien de nouveau',
-                                              style: TextStyle(
-                                                  fontWeight: FontWeight.w700, fontSize: 15)),
-                                          const SizedBox(height: 4),
-                                          const Text('Vos notifications apparaîtront ici.',
-                                              style:
-                                                  TextStyle(color: AppColors.muted, fontSize: 13)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : _filtered.isEmpty
-                                ? ListView(
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 80),
-                                        child: Center(
-                                          child: Text(
-                                            'Aucune notification dans cette catégorie.',
-                                            style: const TextStyle(color: AppColors.muted),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : ListView(
-                                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                                    children: [
-                                      for (final group in _groups) ...[
-                                        Padding(
-                                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-                                          child: Text(
-                                            group.key,
-                                            style: const TextStyle(
-                                              color: AppColors.muted,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: 0.4,
-                                            ),
-                                          ),
-                                        ),
-                                        for (final n in group.value) ...[
-                                          _NotificationCard(
-                                            notification: n,
-                                            onTap: () => _markAsRead(n),
-                                          ),
-                                          const SizedBox(height: 8),
-                                        ],
-                                      ],
-                                    ],
-                                  ),
+                color: AppColors.teal,
+                child: _buildBody(),
               ),
             ),
           ],
@@ -260,65 +297,101 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const AppListSkeleton(itemHeight: 84);
+    }
+
+    if (_error != null) {
+      return ListView(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 60),
+            child: AppErrorState(message: _error!, onRetry: _load),
+          ),
+        ],
+      );
+    }
+
+    if (_notifications.isEmpty) {
+      return ListView(
+        children: const [
+          Padding(
+            padding: EdgeInsets.only(top: 80),
+            child: AppEmptyState(
+              icon: Icons.notifications_none,
+              title: 'Rien de nouveau',
+              message: 'Vos notifications apparaîtront ici.',
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_filtered.isEmpty) {
+      return ListView(
+        children: const [
+          Padding(
+            padding: EdgeInsets.only(top: 80),
+            child: AppEmptyState(
+              icon: Icons.filter_list,
+              title: 'Aucune notification',
+              message: 'Rien dans cette catégorie pour le moment.',
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        for (final group in _groups) ...[
+          _GroupHeader(label: group.key),
+          for (var i = 0; i < group.value.length; i++) ...[
+            _NotificationRow(
+              notification: group.value[i],
+              onTap: () => _openNotification(group.value[i]),
+            ),
+            if (i < group.value.length - 1)
+              const Divider(height: 1, indent: 68, endIndent: 16),
+          ],
+        ],
+      ],
+    );
+  }
 }
 
-// Chips horizontales de filtrage par catégorie. "Questionnaires" regroupe
-// questionnaire et questionnaireResult pour que patient et psychologue partagent le même chip.
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({
-    required this.selected,
-    required this.onSelected,
-  });
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader({required this.label});
 
-  final AppNotificationType? selected;
-  final ValueChanged<AppNotificationType?> onSelected;
-
-  // Catégories disponibles dans les filtres. Le type questionnaireResult est
-  // exclu pour éviter le doublon : il est couvert par le filtre questionnaire.
-  static const _filters = [
-    AppNotificationType.appointment,
-    AppNotificationType.reminder,
-    AppNotificationType.payment,
-    AppNotificationType.questionnaire, // Représente aussi questionnaireResult.
-    AppNotificationType.system,
-    AppNotificationType.announcement,
-  ];
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.white,
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            ChoiceChip(
-              label: const Text('Tous'),
-              selected: selected == null,
-              onSelected: (_) => onSelected(null),
-            ),
-            for (final t in _filters) ...[
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: Text(t.label),
-                // actif si le filtre = ce type OU son pendant (questionnaire ↔ result)
-                selected: selected == t ||
-                    (t == AppNotificationType.questionnaire &&
-                        selected == AppNotificationType.questionnaireResult),
-                onSelected: (_) => onSelected(t),
-              ),
-            ],
-          ],
+      width: double.infinity,
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
+      child: Text(
+        label.toUpperCase(),
+        style: const TextStyle(
+          color: AppColors.muted,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.1,
         ),
       ),
     );
   }
 }
 
-class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.notification, required this.onTap});
+class _NotificationRow extends StatelessWidget {
+  const _NotificationRow({
+    required this.notification,
+    required this.onTap,
+  });
 
   final AppNotification notification;
   final VoidCallback onTap;
@@ -339,121 +412,216 @@ class _NotificationCard extends StatelessWidget {
         return Icons.info_outline;
       case AppNotificationType.announcement:
         return Icons.campaign_outlined;
+      case AppNotificationType.session:
+        return Icons.videocam_outlined;
+      case AppNotificationType.supportReply:
+        return Icons.support_agent_outlined;
+      case AppNotificationType.newMessage:
+        return Icons.chat_bubble_outline;
     }
   }
 
-  Color get _accent {
-    switch (notification.type) {
-      case AppNotificationType.appointment:
-        return AppColors.teal;
-      case AppNotificationType.reminder:
-        return AppColors.gold;
-      case AppNotificationType.payment:
-        return AppColors.tealDark;
-      case AppNotificationType.questionnaire:
-      case AppNotificationType.questionnaireResult:
-        return AppColors.rose;
-      case AppNotificationType.system:
-        return AppColors.muted;
-      case AppNotificationType.announcement:
-        return const Color(0xFF7C3AED); // violet
-    }
-  }
-
-  Color get _accentBg {
-    switch (notification.type) {
-      case AppNotificationType.appointment:
-        return AppColors.tealLight;
-      case AppNotificationType.reminder:
-        return AppColors.goldLight;
-      case AppNotificationType.payment:
-        return AppColors.tealLight;
-      case AppNotificationType.questionnaire:
-      case AppNotificationType.questionnaireResult:
-        return AppColors.errorBg;
-      case AppNotificationType.system:
-        return AppColors.scaffoldOuter;
-      case AppNotificationType.announcement:
-        return const Color(0xFFEDE9FE); // violet clair
-    }
-  }
-
-  String get _relativeDate {
-    final now = DateTime.now();
-    final diff = now.difference(notification.createdAt);
-    if (diff.inMinutes < 1) return 'À l\'instant';
-    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
-    if (diff.inDays < 7) return 'Il y a ${diff.inDays} j';
+  String get _shortDate {
+    final diff = DateTime.now().difference(notification.createdAt);
+    if (diff.inMinutes < 1) return 'maintenant';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min';
+    if (diff.inHours < 24) return '${diff.inHours} h';
+    if (diff.inDays < 7) return '${diff.inDays} j';
     final d = notification.createdAt;
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final unread = !notification.isRead;
+
     return Material(
-      color: Colors.transparent,
+      color: unread ? AppColors.tealSoft : AppColors.white,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.text.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 4,
-                  decoration: BoxDecoration(
-                    color: notification.isRead ? Colors.transparent : _accent,
-                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: unread ? AppColors.tealLight : AppColors.surfaceAlt,
+                  shape: BoxShape.circle,
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 14, 14, 14),
-                    child: Row(
+                child: Icon(
+                  _icon,
+                  size: 18,
+                  color: unread ? AppColors.tealDark : AppColors.muted,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          radius: 19,
-                          backgroundColor: _accentBg,
-                          child: Icon(_icon, size: 18, color: _accent),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(notification.title,
-                                  style: TextStyle(
-                                    fontWeight:
-                                        notification.isRead ? FontWeight.w600 : FontWeight.w700,
-                                  )),
-                              const SizedBox(height: 4),
-                              Text(notification.message,
-                                  style: const TextStyle(fontSize: 13, color: AppColors.text)),
-                              const SizedBox(height: 6),
-                              Text(_relativeDate,
-                                  style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-                            ],
+                          child: Text(
+                            notification.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              height: 1.25,
+                              color: AppColors.text,
+                              fontWeight:
+                                  unread ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Text(
+                            _shortDate,
+                            style: const TextStyle(
+                              color: AppColors.faint,
+                              fontSize: 11.5,
+                            ),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      notification.message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: unread
+                            ? AppColors.textSecondary
+                            : AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 10, top: 6),
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: unread ? AppColors.teal : Colors.transparent,
                   ),
                 ),
-              ],
+              ),
+              const Padding(
+                padding: EdgeInsets.only(left: 4, top: 2),
+                child: Icon(Icons.chevron_right,
+                    size: 18, color: AppColors.faint),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({required this.selected, required this.onSelected});
+
+  final AppNotificationType? selected;
+  final ValueChanged<AppNotificationType?> onSelected;
+
+  static const _filters = [
+    AppNotificationType.appointment,
+    AppNotificationType.reminder,
+    AppNotificationType.payment,
+    AppNotificationType.questionnaire,
+    AppNotificationType.system,
+    AppNotificationType.announcement,
+    AppNotificationType.supportReply,
+  ];
+
+  bool _isSelected(AppNotificationType type) =>
+      selected == type ||
+      (type == AppNotificationType.questionnaire &&
+          selected == AppNotificationType.questionnaireResult);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Row(
+          children: [
+            _TypeChip(
+              label: 'Tous',
+              selected: selected == null,
+              onTap: () => onSelected(null),
+            ),
+            for (final type in _filters) ...[
+              const SizedBox(width: 8),
+              _TypeChip(
+                label: type.label,
+                selected: _isSelected(type),
+                onTap: () => onSelected(type),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.teal : AppColors.white,
+      borderRadius: AppRadius.mdAll,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.fast,
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.mdAll,
+            border: Border.all(
+              color: selected ? AppColors.teal : AppColors.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.textSecondary,
+              fontSize: 12.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             ),
           ),
         ),

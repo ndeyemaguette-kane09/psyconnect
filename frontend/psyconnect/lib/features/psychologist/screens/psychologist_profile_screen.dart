@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../auth/models/user_role.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/splash_screen.dart';
 import '../../patient/models/psychologist_models.dart';
+import '../../patient/screens/contact_admin_screen.dart';
 import '../../patient/services/psychologist_service.dart';
+import '../../payment/screens/psy_wallet_screen.dart';
 import 'edit_psychologist_profile_screen.dart';
 import 'psy_availability_screen.dart';
 
@@ -101,6 +105,7 @@ class _PsychologistProfileScreenState
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
 
     final authProvider = context.read<AuthProvider>();
     await authProvider.logout();
@@ -192,7 +197,7 @@ class _PsychologistProfileScreenState
                   ),
                 ),
                 const SizedBox(height: 24),
-                const _SectionLabel('Informations professionnelles'),
+                const SectionHeader(title: 'Informations professionnelles'),
                 const SizedBox(height: 8),
                 _InfoRow(
                     icon: Icons.badge_outlined,
@@ -239,7 +244,7 @@ class _PsychologistProfileScreenState
                       : 'Non fourni',
                 ),
                 const SizedBox(height: 20),
-                const _SectionLabel('Planning'),
+                const SectionHeader(title: 'Planning'),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
@@ -266,6 +271,63 @@ class _PsychologistProfileScreenState
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'Revenus'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final psychologistId =
+                          context.read<AuthProvider>().session?.profileId;
+                      if (psychologistId == null) return;
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PsyWalletScreen(
+                            psychologistId: psychologistId,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.account_balance_wallet_outlined,
+                        color: AppColors.teal),
+                    label: const Text('Mon portefeuille',
+                        style: TextStyle(color: AppColors.teal)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.teal),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'Aide'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final psychologistId =
+                          context.read<AuthProvider>().session?.profileId;
+                      if (psychologistId == null) return;
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ContactAdminScreen(
+                            profileId: psychologistId,
+                            role: UserRole.psychologist,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.support_agent_outlined,
+                        color: AppColors.teal),
+                    label: const Text('Contacter l\'administrateur',
+                        style: TextStyle(color: AppColors.teal)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.teal),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,
@@ -285,21 +347,6 @@ class _PsychologistProfileScreenState
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-          fontWeight: FontWeight.w700, color: AppColors.tealDark, fontSize: 13),
     );
   }
 }

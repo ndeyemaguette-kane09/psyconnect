@@ -8,12 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
-/**
- * Même rôle que appointment-service.config.RestTemplateConfig : un
- * RestTemplate borné dans le temps (faute de quoi un appel à
- * notification-service qui ne répond jamais bloquerait un thread HTTP
- * indéfiniment) et @LoadBalanced (résolution du nom de service via Eureka).
- */
 @Configuration
 public class RestTemplateConfig {
 

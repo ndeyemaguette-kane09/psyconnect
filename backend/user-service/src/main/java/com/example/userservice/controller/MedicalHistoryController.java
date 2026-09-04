@@ -9,8 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 
-// Accessible au patient propriétaire et à un psychologue ayant déjà eu un
-// rendez-vous avec ce patient ; jamais à l'admin (vérifié dans le service)
 @RestController
 @RequestMapping("/patients/{id}/medical-history")
 public class MedicalHistoryController {

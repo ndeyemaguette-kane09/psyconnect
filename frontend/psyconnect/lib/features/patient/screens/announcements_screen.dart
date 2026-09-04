@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 
-// modèle léger pour les broadcasts lus depuis user-service
 class _Broadcast {
   final int id;
   final String title;
   final String message;
   final String audience;
-  final int recipientCount;
   final DateTime sentAt;
 
   _Broadcast({
@@ -18,7 +18,6 @@ class _Broadcast {
     required this.title,
     required this.message,
     required this.audience,
-    required this.recipientCount,
     required this.sentAt,
   });
 
@@ -27,7 +26,6 @@ class _Broadcast {
         title: j['title'] as String? ?? '',
         message: j['message'] as String? ?? '',
         audience: j['audience'] as String? ?? 'ALL',
-        recipientCount: (j['recipientCount'] as num?)?.toInt() ?? 0,
         sentAt: j['sentAt'] != null
             ? DateTime.parse(j['sentAt'] as String)
             : DateTime.now(),
@@ -38,7 +36,11 @@ class _Broadcast {
 // dans user-service, filtrés selon le rôle de l'utilisateur connecté.
 // Accessible depuis la home patient et la home psy (icône mégaphone).
 class AnnouncementsScreen extends StatefulWidget {
-  const AnnouncementsScreen({super.key});
+  const AnnouncementsScreen({super.key, this.lastSeen});
+
+  // Date de la dernière consultation de l'écran, lue par l'appelant avant la
+  // navigation. Les annonces postées après sont marquées comme non lues.
+  final DateTime? lastSeen;
 
   @override
   State<AnnouncementsScreen> createState() => _AnnouncementsScreenState();
@@ -66,7 +68,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       final json = await _api.get(ApiConstants.broadcasts);
       final list = (json as List)
           .map((e) => _Broadcast.fromJson(e as Map<String, dynamic>))
-          .toList();
+          .toList()
+        ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
       if (!mounted) return;
       setState(() {
         _broadcasts = list;
@@ -81,227 +84,192 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     }
   }
 
+  bool _isUnread(_Broadcast b) {
+    final seen = widget.lastSeen;
+    return seen != null && b.sentAt.isAfter(seen);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        title: const Text(
-          'Annonces système',
-          style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700),
-        ),
-        iconTheme: const IconThemeData(color: AppColors.text),
-      ),
+      appBar: AppBar(title: const Text('Annonces')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? ListView(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(_error!,
-                                  textAlign: TextAlign.center,
-                                  style:
-                                      const TextStyle(color: AppColors.muted)),
-                              const SizedBox(height: 12),
-                              OutlinedButton(
-                                  onPressed: _load,
-                                  child: const Text('Réessayer')),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  : _broadcasts.isEmpty
-                      ? ListView(
-                          children: [
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 100),
-                              child: Center(
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: 72,
-                                      height: 72,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFEDE9FE),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.campaign_outlined,
-                                        size: 32,
-                                        color: Color(0xFF7C3AED),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'Aucune annonce',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 15),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text(
-                                      'Les annonces de l\'administrateur\napparaîtront ici.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                          color: AppColors.muted, fontSize: 13),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                          itemCount: _broadcasts.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (_, i) =>
-                              _BroadcastCard(broadcast: _broadcasts[i]),
-                        ),
+          child: _buildBody(),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(vertical: 60),
+        children: [AppErrorState(message: _error!, onRetry: _load)],
+      );
+    }
+
+    if (_broadcasts.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(vertical: 60),
+        children: const [
+          AppEmptyState(
+            icon: Icons.campaign_outlined,
+            title: 'Aucune annonce',
+            message:
+                'Les messages de l\'équipe PsyConnect apparaîtront ici.',
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+      itemCount: _broadcasts.length + 1,
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
+      itemBuilder: (context, i) {
+        if (i == 0) return const _Lead();
+        final b = _broadcasts[i - 1];
+        return _BroadcastEntry(broadcast: b, unread: _isUnread(b));
+      },
+    );
+  }
+}
+
+class _Lead extends StatelessWidget {
+  const _Lead();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        'Messages de l\'équipe PsyConnect, adressés à l\'ensemble des '
+        'utilisateurs de la plateforme.',
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }
 }
 
-class _BroadcastCard extends StatelessWidget {
-  const _BroadcastCard({required this.broadcast});
+class _BroadcastEntry extends StatelessWidget {
+  const _BroadcastEntry({required this.broadcast, required this.unread});
 
   final _Broadcast broadcast;
+  final bool unread;
 
-  String get _audienceLabel {
+  static const _months = [
+    'janvier',
+    'février',
+    'mars',
+    'avril',
+    'mai',
+    'juin',
+    'juillet',
+    'août',
+    'septembre',
+    'octobre',
+    'novembre',
+    'décembre',
+  ];
+
+  String get _dateline {
+    final d = broadcast.sentAt;
+    final month = _months[d.month - 1];
+    final date = '${d.day} $month ${d.year}';
+
     switch (broadcast.audience) {
       case 'PATIENTS':
-        return 'Patients';
+        return '$date · aux patients';
       case 'PSYCHOLOGISTS':
-        return 'Psychologues';
+        return '$date · aux psychologues';
       default:
-        return 'Tous les utilisateurs';
+        return '$date · équipe PsyConnect';
     }
-  }
-
-  String get _relativeDate {
-    final now = DateTime.now();
-    final diff = now.difference(broadcast.sentAt);
-    if (diff.inMinutes < 1) return 'À l\'instant';
-    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
-    if (diff.inDays < 7) return 'Il y a ${diff.inDays} j';
-    final d = broadcast.sentAt;
-    return '${d.day.toString().padLeft(2, '0')}/'
-        '${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+        borderRadius: AppRadius.mdAll,
+        border: Border.all(
+          color: unread ? AppColors.tealMid : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            color: unread ? AppColors.tealLight : AppColors.surfaceAlt,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _dateline.toUpperCase(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color:
+                          unread ? AppColors.tealDark : AppColors.textSecondary,
+                      letterSpacing: 0.9,
+                      fontWeight:
+                          unread ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (unread) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: AppColors.teal,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Container(
+            height: 1,
+            color: unread ? AppColors.tealMid : AppColors.border,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  broadcast.title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: AppColors.tealDeep,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  broadcast.message,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // barre latérale violet
-            Container(
-              width: 4,
-              decoration: const BoxDecoration(
-                color: Color(0xFF7C3AED),
-                borderRadius:
-                    BorderRadius.horizontal(left: Radius.circular(14)),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Color(0xFFEDE9FE),
-                          child: Icon(
-                            Icons.campaign_outlined,
-                            size: 16,
-                            color: Color(0xFF7C3AED),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            broadcast.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      broadcast.message,
-                      style: const TextStyle(
-                          fontSize: 13.5, color: AppColors.text, height: 1.45),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time_outlined,
-                            size: 12, color: AppColors.muted),
-                        const SizedBox(width: 4),
-                        Text(
-                          _relativeDate,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 11),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEDE9FE),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _audienceLabel,
-                            style: const TextStyle(
-                                color: Color(0xFF7C3AED),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

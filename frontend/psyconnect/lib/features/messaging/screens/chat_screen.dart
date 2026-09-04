@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/messaging_models.dart';
 import '../services/messaging_service.dart';
@@ -58,9 +61,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadMessages({required bool initial}) async {
     try {
-      final messages = await _messagingService.getMessages(widget.conversationId);
+      final messages =
+          await _messagingService.getMessages(widget.conversationId);
       if (!mounted) return;
 
+      messages.sort((a, b) => a.sentAt.compareTo(b.sentAt));
       final hadNewMessages = messages.length != _messages.length;
 
       setState(() {
@@ -72,7 +77,8 @@ class _ChatScreenState extends State<ChatScreen> {
       // marque lu dès l'ouverture, et a chaque nouveau message recu tant
       // que l'ecran reste ouvert
       if (initial || hadNewMessages) {
-        unawaited(_messagingService.markConversationRead(widget.conversationId));
+        unawaited(
+            _messagingService.markConversationRead(widget.conversationId));
       }
 
       if (hadNewMessages) {
@@ -104,7 +110,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() => _sending = true);
     try {
-      final sent = await _messagingService.sendMessage(widget.conversationId, content);
+      final sent =
+          await _messagingService.sendMessage(widget.conversationId, content);
       if (!mounted) return;
       setState(() {
         _messages = [..._messages, sent];
@@ -120,6 +127,9 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() => _sending = false);
     }
   }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   @override
   Widget build(BuildContext context) {
@@ -144,47 +154,58 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoadingState(label: 'Ouverture de la conversation…');
     }
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.wifi_off, color: AppColors.muted, size: 36),
-              const SizedBox(height: 8),
-              Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.muted)),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () => _loadMessages(initial: true),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
-        ),
+      return AppErrorState(
+        message: _error!,
+        onRetry: () => _loadMessages(initial: true),
       );
     }
     if (_messages.isEmpty) {
-      return const Center(
-        child: Text(
-          'Aucun message pour le moment. Dites bonjour !',
-          style: TextStyle(color: AppColors.muted),
-        ),
+      return const AppEmptyState(
+        icon: Icons.chat_bubble_outline,
+        title: 'Aucun message',
+        message: 'Écrivez le premier message de cette conversation.',
       );
     }
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
       itemCount: _messages.length,
       itemBuilder: (context, i) {
         final message = _messages[i];
+        final previous = i > 0 ? _messages[i - 1] : null;
+        final next = i < _messages.length - 1 ? _messages[i + 1] : null;
         final isMine = message.senderAuthUserId == _myAuthUserId;
-        return _MessageBubble(message: message, isMine: isMine);
+
+        final newDay =
+            previous == null || !_sameDay(previous.sentAt, message.sentAt);
+
+        // Messages consécutifs du même auteur à moins de 5 minutes : ils
+        // forment un groupe. Seul le dernier porte la pointe et l'heure.
+        final firstOfGroup = newDay ||
+            previous.senderAuthUserId != message.senderAuthUserId ||
+            message.sentAt.difference(previous.sentAt).inMinutes > 5;
+
+        final lastOfGroup = next == null ||
+            !_sameDay(next.sentAt, message.sentAt) ||
+            next.senderAuthUserId != message.senderAuthUserId ||
+            next.sentAt.difference(message.sentAt).inMinutes > 5;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (newDay) _DaySeparator(date: message.sentAt),
+            _MessageBubble(
+              message: message,
+              isMine: isMine,
+              firstOfGroup: firstOfGroup,
+              lastOfGroup: lastOfGroup,
+            ),
+          ],
+        );
       },
     );
   }
@@ -194,9 +215,10 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: const BoxDecoration(
         color: AppColors.white,
-        border: Border(top: BorderSide(color: AppColors.tealMid)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: TextField(
@@ -208,31 +230,44 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: InputDecoration(
                 hintText: 'Écrire un message…',
                 filled: true,
-                fillColor: AppColors.tealLight,
+                fillColor: AppColors.surfaceAlt,
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: AppColors.teal),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            onPressed: _sending ? null : _send,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.teal,
-              foregroundColor: AppColors.white,
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Material(
+              color: AppColors.teal,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _sending ? null : _send,
+                child: Center(
+                  child: _sending
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.white),
+                        )
+                      : const Icon(Icons.send_rounded,
+                          size: 19, color: AppColors.white),
+                ),
+              ),
             ),
-            icon: _sending
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppColors.white),
-                  )
-                : const Icon(Icons.send_rounded, size: 18),
           ),
         ],
       ),
@@ -240,33 +275,110 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+class _DaySeparator extends StatelessWidget {
+  const _DaySeparator({required this.date});
+
+  final DateTime date;
+
+  static const _months = [
+    'janvier',
+    'février',
+    'mars',
+    'avril',
+    'mai',
+    'juin',
+    'juillet',
+    'août',
+    'septembre',
+    'octobre',
+    'novembre',
+    'décembre',
+  ];
+
+  String get _label {
+    final now = DateTime.now();
+    final day = DateTime(date.year, date.month, date.day);
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(day).inDays;
+
+    if (diff <= 0) return "Aujourd'hui";
+    if (diff == 1) return 'Hier';
+    return '${date.day} ${_months[date.month - 1]} ${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 14),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: AppRadius.mdAll,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Text(
+            _label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: AppColors.muted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.isMine});
+  const _MessageBubble({
+    required this.message,
+    required this.isMine,
+    required this.firstOfGroup,
+    required this.lastOfGroup,
+  });
 
   final ChatMessage message;
   final bool isMine;
+  final bool firstOfGroup;
+  final bool lastOfGroup;
 
   @override
   Widget build(BuildContext context) {
     final time = '${message.sentAt.hour.toString().padLeft(2, '0')}:'
         '${message.sentAt.minute.toString().padLeft(2, '0')}';
 
+    const big = Radius.circular(16);
+    const small = Radius.circular(6);
+    const tail = Radius.circular(4);
+
+    final radius = isMine
+        ? BorderRadius.only(
+            topLeft: big,
+            topRight: firstOfGroup ? big : small,
+            bottomLeft: big,
+            bottomRight: lastOfGroup ? tail : small,
+          )
+        : BorderRadius.only(
+            topLeft: firstOfGroup ? big : small,
+            topRight: big,
+            bottomLeft: lastOfGroup ? tail : small,
+            bottomRight: big,
+          );
+
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75),
+        margin: EdgeInsets.only(bottom: lastOfGroup ? 12 : 3),
+        padding: const EdgeInsets.fromLTRB(13, 9, 13, 8),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
           color: isMine ? AppColors.teal : AppColors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(isMine ? 14 : 2),
-            bottomRight: Radius.circular(isMine ? 2 : 14),
-          ),
-          border: isMine ? null : Border.all(color: AppColors.tealMid),
+          borderRadius: radius,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -275,18 +387,38 @@ class _MessageBubble extends StatelessWidget {
             Text(
               message.content,
               style: TextStyle(
-                  color: isMine ? AppColors.white : AppColors.text),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              time,
-              style: TextStyle(
-                fontSize: 10,
-                color: isMine
-                    ? AppColors.white.withValues(alpha: 0.75)
-                    : AppColors.muted,
+                fontSize: 14.5,
+                height: 1.35,
+                color: isMine ? AppColors.white : AppColors.text,
               ),
             ),
+            if (lastOfGroup) ...[
+              const SizedBox(height: 3),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    time,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isMine
+                          ? AppColors.white.withValues(alpha: 0.75)
+                          : AppColors.faint,
+                    ),
+                  ),
+                  if (isMine) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      message.readAt == null ? Icons.done : Icons.done_all,
+                      size: 13,
+                      color: AppColors.white.withValues(
+                        alpha: message.readAt == null ? 0.65 : 0.95,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ],
         ),
       ),

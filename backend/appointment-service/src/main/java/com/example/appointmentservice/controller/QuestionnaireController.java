@@ -12,11 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// questionnaires standardises PHQ-9 (depression) et GAD-7 (anxiete)
-//   POST /questionnaires                          : psy envoie
-//   GET  /questionnaires/patient/me/pending       : patient voit les siens en attente
-//   GET  /questionnaires/patient/{patientId}      : psy voit l'historique d'un patient
-//   POST /questionnaires/{id}/answers             : patient repond
 @RestController
 @RequestMapping("/questionnaires")
 public class QuestionnaireController {

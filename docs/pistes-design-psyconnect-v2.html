@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PsyConnect — pistes v2, avec couleur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Karla:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E9E6E0;color:#1A1A18;font-family:Inter,'Helvetica Neue',Arial,sans-serif;padding:48px 28px 90px}
+.wrap{max-width:1400px;margin:0 auto}
+.kicker{font-size:10px;font-weight:700;letter-spacing:.22em;color:#6E685E}
+h1.page{font-family:'Space Grotesk',sans-serif;font-size:42px;font-weight:500;letter-spacing:-.02em;margin:10px 0 0}
+p.page{font-size:14.5px;line-height:1.65;color:#4C4740;max-width:790px;margin:14px 0 0}
+.rule{height:1px;background:#CFC9BE;margin:34px 0}
+.dirhead{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start;border-top:2px solid #1A1A18;padding-top:18px}
+.dirhead .num{font-family:'Space Grotesk',sans-serif;font-size:44px;line-height:1;font-weight:500}
+.dirhead .txt{max-width:560px}
+.dirhead h2{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
+.dirhead p{font-size:13.5px;line-height:1.65;color:#4C4740;margin:0 0 10px}
+.spec{font-size:12px;line-height:1.7;color:#4C4740;min-width:240px}
+.spec b{color:#1A1A18}
+.sw{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0 0}
+.sw div{display:flex;align-items:center;gap:7px;font-size:11px;color:#4C4740}
+.sw i{width:18px;height:18px;border:1px solid rgba(0,0,0,.18);display:block;border-radius:50%}
+.screens{display:flex;flex-wrap:wrap;gap:40px;margin-top:30px}
+figure{margin:0;display:flex;flex-direction:column;gap:11px}
+figcaption{font-size:11px;letter-spacing:.14em;font-weight:600;color:#6E685E;text-transform:uppercase}
+.phone{width:378px;height:812px;overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid #C6C0B4}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.sm{width:16px;height:16px}
+svg.i.lg{width:26px;height:26px}
+.note{background:#fff;border:1px solid #CFC9BE;padding:22px 26px;font-size:13.5px;line-height:1.7;color:#3C382F;max-width:880px}
+.note h3{margin:0 0 10px;font-size:15px}
+.note ul{margin:8px 0 0;padding-left:18px}
+
+/* ══════════ PISTE D — TERANGA VIVE ══════════ */
+.dD{--ink:#241E16;--ink2:#6E6153;--paper:#FBF6EC;--card:#FFFFFF;--line:#E8DDC8;
+    --ind:#24457E;--bis:#B23A48;--vrt:#157A63;--och:#DE9A21;
+    background:var(--paper);color:var(--ink);font-family:Karla,sans-serif}
+.dD .weave{height:8px;background-image:repeating-linear-gradient(90deg,var(--ind) 0 4px,transparent 4px 9px,var(--bis) 9px 13px,transparent 13px 18px,var(--och) 18px 21px,transparent 21px 27px,var(--vrt) 27px 31px,transparent 31px 38px)}
+.dD .pad{padding:0 22px}
+.dD h1{font-family:Fraunces,Georgia,serif;font-weight:500;letter-spacing:-.015em;margin:0}
+.dD .h-l{font-size:28px;line-height:1.08}
+.dD .h-m{font-size:22px;line-height:1.1}
+.dD .hdr{display:flex;justify-content:space-between;align-items:center;padding:44px 22px 0}
+.dD .day{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--och)}
+.dD .bell{position:relative;color:var(--ink)}
+.dD .bell u{position:absolute;top:-4px;right:-5px;min-width:16px;height:16px;border-radius:9px;background:var(--bis);color:#fff;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;font-style:normal;padding:0 3px}
+.dD .wallet{margin:18px 22px 0;background:var(--ind);color:#fff;border-radius:4px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.dD .wallet .lab{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;opacity:.75}
+.dD .wallet .val{font-family:Fraunces,serif;font-size:21px;font-weight:600;margin-top:2px}
+.dD .wallet .go{margin-left:auto;font-size:11.5px;font-weight:700;border:1px solid rgba(255,255,255,.5);border-radius:3px;padding:7px 10px}
+.dD .sec{display:flex;align-items:center;gap:9px;padding:15px 22px 9px}
+.dD .sec h2{font-family:Fraunces,serif;font-size:19px;font-weight:500;margin:0;flex:1}
+.dD .sec .more{font-size:11.5px;font-weight:700;color:var(--bis)}
+.dD .card{background:var(--card);border:1px solid var(--line);border-radius:4px;margin:0 22px;display:flex;overflow:hidden;flex:none}
+.dD .bar{width:5px;flex:none;background:var(--ind)}
+.dD .bar.b{background:var(--bis)}.dD .bar.v{background:var(--vrt)}.dD .bar.o{background:var(--och)}
+.dD .cbody{padding:14px 15px;display:flex;gap:12px;align-items:center;flex:1}
+.dD .av{width:42px;height:42px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-family:Fraunces,serif;font-size:15px;font-weight:600;color:#fff;background:var(--ind)}
+.dD .av.b{background:var(--bis)}.dD .av.v{background:var(--vrt)}.dD .av.o{background:var(--och)}
+.dD .nm{font-size:15px;font-weight:700}
+.dD .mt{font-size:11.5px;color:var(--ink2);margin-top:4px;display:flex;align-items:center;gap:5px}
+.dD .join{background:var(--vrt);color:#fff;border-radius:3px;font-size:11.5px;font-weight:700;padding:9px 11px;display:flex;align-items:center;gap:6px}
+.dD .moods{display:flex;justify-content:space-between;margin:0 22px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:14px 14px 12px}
+.dD .mood{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:9.5px;font-weight:700;color:var(--ink2)}
+.dD .mood .f{width:39px;height:39px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}
+.dD .mood.on .f{outline:2.5px solid var(--ink);outline-offset:2px}
+.dD .mood.on{color:var(--ink)}
+.dD .row{display:flex;align-items:center;gap:13px;padding:13px 22px;border-bottom:1px solid var(--line)}
+.dD .row:first-child{border-top:1px solid var(--line)}
+.dD .t{font-size:14.5px;font-weight:700}
+.dD .s{font-size:11.5px;color:var(--ink2);margin-top:3px}
+.dD .ch{margin-left:auto;color:#B6A98F}
+.dD .chips{display:flex;gap:8px;padding:16px 22px 4px;overflow:hidden}
+.dD .chips span{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:8px 11px;border:1px solid var(--line);border-radius:3px;background:var(--card);white-space:nowrap;color:var(--ink2)}
+.dD .chips span.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dD .input{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:13px 13px;font-size:14px;display:flex;align-items:center;gap:9px;color:#A79C8B}
+.dD .sos{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--bis);padding:12px 0}
+.dD .nav{margin-top:auto;display:flex;border-top:1px solid var(--line);background:var(--card);padding-bottom:9px;flex:none}
+.dD .moods,.dD .row,.dD .sec,.dD .wallet{flex:none}
+.dD .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 0 12px;font-size:9.5px;font-weight:700;color:#A79C8B}
+.dD .nav div.on{color:var(--ind);box-shadow:inset 0 3px 0 var(--ind)}
+.dD .week{display:flex;justify-content:space-between;margin:0 22px;padding:14px 0 0}
+.dD .week i{width:34px;display:flex;flex-direction:column;align-items:center;gap:7px;font-style:normal;font-size:9.5px;font-weight:700;color:var(--ink2)}
+.dD .week i b{width:22px;height:22px;border-radius:50%;display:block;background:var(--line)}
+.dD .save{margin:14px 22px 0;background:var(--bis);color:#fff;border-radius:4px;text-align:center;padding:14px 0;font-size:14px;font-weight:800}
+.dD .ta{margin:14px 22px 0;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:14px;font-size:13.5px;color:#A79C8B;height:92px}
+
+/* ══════════ PISTE E — CLAUSTRA COULEUR ══════════ */
+.dE{--ink:#111619;--ink2:#5B6468;--paper:#F4F2EC;--card:#FFFFFF;--line:#DFD9CB;
+    --ind:#1E3B5C;--vrt:#0E6B5C;--och:#E4A11B;--lat:#B0492A;
+    background:var(--paper);color:var(--ink);font-family:Inter,sans-serif}
+.dE h1{font-family:'Space Grotesk',sans-serif;font-weight:500;letter-spacing:-.025em;margin:0}
+.dE .h-l{font-size:28px;line-height:1.08}
+.dE .h-m{font-size:22px;line-height:1.1}
+.dE .pad{padding:0 22px}
+.dE .hero{background:var(--ind);color:#fff;padding:42px 22px 20px;position:relative}
+.dE .hero .trame{position:absolute;left:0;right:0;bottom:0;height:12px;
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.34) 0 1px,transparent 1px 13px)}
+.dE .hero .top{display:flex;justify-content:space-between;align-items:center}
+.dE .hero .day{font-size:9.5px;font-weight:700;letter-spacing:.2em;color:var(--och)}
+.dE .hero .bell{position:relative}
+.dE .hero .bell u{position:absolute;top:-5px;right:-6px;min-width:16px;height:16px;background:var(--och);color:#111619;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;font-style:normal;padding:0 3px}
+.dE .hero h1{margin-top:12px}
+.dE .hero .money{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.25)}
+.dE .hero .lab{font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+.dE .hero .val{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:500;margin-top:3px}
+.dE .hero .go{margin-left:auto;font-size:11px;font-weight:600;color:var(--och)}
+.dE .sec{display:flex;align-items:center;gap:8px;padding:24px 22px 9px}
+.dE .sec .lbl{font-size:9.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;flex:1}
+.dE .sec .more{font-size:9.5px;font-weight:700;letter-spacing:.14em;color:var(--vrt)}
+.dE .card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--vrt);margin:0 22px;padding:14px 15px;display:flex;gap:13px;align-items:center}
+.dE .card.i{border-left-color:var(--ind)}.dE .card.o{border-left-color:var(--och)}.dE .card.l{border-left-color:var(--lat)}
+.dE .dbox{text-align:center;min-width:48px;border-right:1px solid var(--line);padding-right:13px}
+.dE .dbox .d{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:500;line-height:1;color:var(--ind)}
+.dE .dbox .m{font-size:8.5px;font-weight:700;letter-spacing:.16em;color:var(--ink2);margin-top:4px}
+.dE .nm{font-size:14.5px;font-weight:600}
+.dE .mt{font-size:11.5px;color:var(--ink2);margin-top:4px;display:flex;align-items:center;gap:5px}
+.dE .join{margin-left:auto;background:var(--vrt);color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.06em;padding:9px 10px;display:flex;align-items:center;gap:6px}
+.dE .tiles{display:flex;gap:11px;padding:0 22px}
+.dE .tile{flex:1;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--och);padding:14px 13px}
+.dE .tile.v{border-top-color:var(--vrt)}
+.dE .tile .t{font-size:13.5px;font-weight:600;margin-top:10px}
+.dE .tile .s{font-size:10.5px;color:var(--ink2);margin-top:4px;line-height:1.4}
+.dE .moods{display:flex;justify-content:space-between;padding:0 22px}
+.dE .mood{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+.dE .mood .f{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#fff}
+.dE .mood.on{color:var(--ink)}
+.dE .mood.on .f{outline:2px solid var(--ink);outline-offset:3px}
+.dE .row{display:flex;align-items:center;gap:13px;padding:15px 22px;border-bottom:1px solid var(--line)}
+.dE .row:first-child{border-top:1px solid var(--line)}
+.dE .t{font-size:14px;font-weight:600}
+.dE .s{font-size:11.5px;color:var(--ink2);margin-top:3px}
+.dE .ch{margin-left:auto;color:#ADA79A}
+.dE .av{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;color:#fff;background:var(--ind)}
+.dE .av.v{background:var(--vrt)}.dE .av.o{background:var(--och);color:#111619}.dE .av.l{background:var(--lat)}
+.dE .rate{display:flex;align-items:center;gap:4px;font-family:'Space Grotesk',sans-serif;font-size:12.5px;color:var(--och)}
+.dE .chips{display:flex;gap:8px;padding:16px 22px 4px;overflow:hidden}
+.dE .chips span{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:8px 11px;border:1px solid var(--line);background:var(--card);white-space:nowrap;color:var(--ink2)}
+.dE .chips span.on{background:var(--ind);border-color:var(--ind);color:#fff}
+.dE .input{background:var(--card);border:1px solid var(--line);border-bottom:2px solid var(--ind);padding:13px;font-size:14px;display:flex;align-items:center;gap:9px;color:#9C978C}
+.dE .sos{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--lat);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.dE .nav{margin-top:auto;display:flex;border-top:1px solid var(--ink);background:var(--card);padding-bottom:9px}
+.dE .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 0;font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9C978C}
+.dE .nav div.on{color:var(--ind);box-shadow:inset 0 3px 0 var(--ind)}
+.dE .week{display:flex;justify-content:space-between;padding:0 22px}
+.dE .week i{width:34px;display:flex;flex-direction:column;align-items:center;gap:7px;font-style:normal;font-size:9px;font-weight:700;color:var(--ink2)}
+.dE .week i b{width:24px;height:24px;display:block;background:var(--line)}
+.dE .save{margin:16px 22px 0;background:var(--ind);color:#fff;text-align:center;padding:15px 0;font-size:13.5px;font-weight:600}
+.dE .ta{margin:14px 22px 0;background:var(--card);border:1px solid var(--line);border-bottom:2px solid var(--ind);padding:14px;font-size:13.5px;color:#9C978C;height:92px}
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="ic-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="ic-msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.8 20c1.3-3.7 4-5.5 7.2-5.5s5.9 1.8 7.2 5.5"/></symbol>
+  <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M6.5 9.5a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5s1.5-1.5 1.5-5.5z"/><path d="M10.2 18.5a2 2 0 0 0 3.6 0"/></symbol>
+  <symbol id="ic-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="ic-book" viewBox="0 0 24 24"><path d="M5 4h9a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M18 20H8"/></symbol>
+  <symbol id="ic-talk" viewBox="0 0 24 24"><path d="M4 5h11v9H8l-4 3.5z"/><path d="M17 9h3v9l-3-2.5h-6V14"/></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
+  <symbol id="ic-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13"/><path d="M3 10h18M16.5 14.5h1.5"/></symbol>
+  <symbol id="ic-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12"/><path d="M15 11l6-3.5v9L15 13z"/></symbol>
+  <symbol id="ic-star" viewBox="0 0 24 24"><path d="M12 4l2.5 5.2 5.5.8-4 3.9 1 5.6-5-2.7-5 2.7 1-5.6-4-3.9 5.5-.8z"/></symbol>
+  <symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 21s6.5-6.2 6.5-11a6.5 6.5 0 0 0-13 0C5.5 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+  <symbol id="ic-leaf" viewBox="0 0 24 24"><path d="M20 4c0 9-5 13-11 13H5c0-8 5-12 11-12z"/><path d="M5 21c2-6 6-9 10-10.5"/></symbol>
+  <symbol id="ic-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.7-7.5-9.7A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7C19.5 15.3 12 20 12 20z"/></symbol>
+  <symbol id="ic-child" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.2"/><path d="M8 21v-4.5H6.5L9 11h6l2.5 5.5H16V21"/></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.2 20c1-3.2 3.2-4.8 5.8-4.8s4.8 1.6 5.8 4.8"/><path d="M16 6.2a3.2 3.2 0 0 1 0 5.9M17.5 15.6c2 .6 3.4 2.1 4.1 4.4"/></symbol>
+  <symbol id="ic-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1 .4-8 5.2 5.2 0 0 1 10 1.3A3.4 3.4 0 0 1 17 18z"/></symbol>
+  <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M4 20l1-4.2L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.2 19z"/><path d="M14.5 6.5l3 3"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="ic-m1" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.6 10.2v.2M15.4 10.2v.2" stroke-width="2.6"/><path d="M8.7 16c.9-1.5 2-2.2 3.3-2.2s2.4.7 3.3 2.2"/></symbol>
+  <symbol id="ic-m2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.6 10.2v.2M15.4 10.2v.2" stroke-width="2.6"/><path d="M8.8 15.4c.9-.8 2-1.2 3.2-1.2s2.3.4 3.2 1.2"/></symbol>
+  <symbol id="ic-m3" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.6 10.2v.2M15.4 10.2v.2" stroke-width="2.6"/><path d="M8.8 15h6.4"/></symbol>
+  <symbol id="ic-m4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.6 10.2v.2M15.4 10.2v.2" stroke-width="2.6"/><path d="M8.7 14.4c.9 1.3 2 2 3.3 2s2.4-.7 3.3-2"/></symbol>
+  <symbol id="ic-m5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.6 9.8v.2M15.4 9.8v.2" stroke-width="2.6"/><path d="M8 13.6c.6 2.1 2.1 3.3 4 3.3s3.4-1.2 4-3.3z"/></symbol>
+</svg>
+
+<div class="wrap">
+
+<div class="kicker">PSYCONNECT · V2 · 03 SEPTEMBRE 2026</div>
+<h1 class="page">Deux pistes, cette fois avec de la couleur</h1>
+<p class="page">
+  Retour pris en compte : trop sobre, et les icônes manquaient. Ici la couleur n'est pas décorative, elle
+  <b>travaille</b> — chaque spécialité, chaque humeur, chaque état de rendez-vous a la sienne, donc l'écran se lit
+  d'un coup d'œil. Les icônes reviennent partout (nav, lignes, catégories, humeurs) mais toujours <b>nues</b> :
+  jamais posées dans le petit carré arrondi pastel qui est LA signature d'une app générée. Toujours pas de dégradé,
+  pas de verre dépoli, pas de grille 2×2. Trois écrans par piste : accueil, recherche, journal — c'est là que la
+  couleur se voit vraiment.
+</p>
+
+<div class="rule"></div>
+
+<!-- ═══════════ D ═══════════ -->
+<section>
+  <div class="dirhead">
+    <div class="num">D</div>
+    <div class="txt">
+      <h2>Teranga vive — chaleur et couleur pleine</h2>
+      <p>
+        Toujours le tissage en bandes (les 4 couleurs de la charte reviennent en liseré sur le bord des blocs et en
+        bandeau haut), mais cette fois les couleurs remplissent : solde en bloc indigo plein, bouton « Rejoindre »
+        en vert, avatars en aplats colorés, humeurs en pastilles pleines. Titres en serif, coins à 4px.
+      </p>
+      <p><b>Le pari :</b> c'est l'app qui te met à l'aise. Chaude sans être enfantine, colorée sans être criarde.</p>
+    </div>
+    <div class="spec">
+      <b>Typographie</b><br>Fraunces (titres) + Karla (texte)<br><br>
+      <b>Icônes</b><br>Trait 1,7px, couleur du contexte, sans conteneur<br><br>
+      <b>Couleur au travail</b><br>Indigo = argent · Vert = action en cours · Bissap = urgence &amp; humeur basse · Ocre = attente
+      <div class="sw">
+        <div><i style="background:#FBF6EC"></i>Écru</div>
+        <div><i style="background:#24457E"></i>Indigo</div>
+        <div><i style="background:#B23A48"></i>Bissap</div>
+        <div><i style="background:#157A63"></i>Vert</div>
+        <div><i style="background:#DE9A21"></i>Ocre</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screens">
+
+    <!-- D / accueil -->
+    <figure>
+      <div class="phone dD">
+        <div class="hdr" style="padding-top:34px">
+          <span class="day">Mercredi 3 septembre</span>
+          <span class="bell"><svg class="i"><use href="#ic-bell"/></svg><u>2</u></span>
+        </div>
+        <div class="pad" style="margin-top:14px"><h1 class="h-l">Bonsoir, Aminata</h1></div>
+
+        <div class="wallet">
+          <svg class="i lg"><use href="#ic-wallet"/></svg>
+          <div><div class="lab">Solde PsyConnect</div><div class="val">12 500 F CFA</div></div>
+          <div class="go">Recharger</div>
+        </div>
+
+        <div class="sec"><svg class="i" style="color:#157A63"><use href="#ic-cal"/></svg><h2>Prochain rendez-vous</h2></div>
+        <div class="card">
+          <div class="bar v"></div>
+          <div class="cbody">
+            <div class="av v">FN</div>
+            <div style="flex:1">
+              <div class="nm">Dr. Fatou Ndiaye</div>
+              <div class="mt"><svg class="i sm"><use href="#ic-video"/></svg>Mar. 8 sept. · 15h00</div>
+            </div>
+            <div class="join"><svg class="i sm"><use href="#ic-video"/></svg>Rejoindre</div>
+          </div>
+        </div>
+
+        <div class="sec"><svg class="i" style="color:#DE9A21"><use href="#ic-heart"/></svg><h2>Comment tu te sens ?</h2></div>
+        <div class="moods">
+          <div class="mood"><span class="f" style="background:#B23A48"><svg class="i lg"><use href="#ic-m1"/></svg></span>Très mal</div>
+          <div class="mood"><span class="f" style="background:#D2693F"><svg class="i lg"><use href="#ic-m2"/></svg></span>Mal</div>
+          <div class="mood on"><span class="f" style="background:#DE9A21"><svg class="i lg"><use href="#ic-m3"/></svg></span>Ça va</div>
+          <div class="mood"><span class="f" style="background:#5C9A57"><svg class="i lg"><use href="#ic-m4"/></svg></span>Bien</div>
+          <div class="mood"><span class="f" style="background:#157A63"><svg class="i lg"><use href="#ic-m5"/></svg></span>Super</div>
+        </div>
+
+        <div style="margin-top:24px">
+          <div class="row">
+            <svg class="i" style="color:#24457E"><use href="#ic-book"/></svg>
+            <div><div class="t">Mon journal</div><div class="s">3 entrées cette semaine</div></div>
+            <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+          </div>
+          <div class="row">
+            <svg class="i" style="color:#B23A48"><use href="#ic-talk"/></svg>
+            <div><div class="t">Parler à Xalaat</div><div class="s">Confidentiel et éphémère</div></div>
+            <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+          </div>
+        </div>
+
+        <div class="sec"><svg class="i" style="color:#24457E"><use href="#ic-star"/></svg><h2>Recommandé</h2><span class="more">Voir tout</span></div>
+        <div class="row" style="border-top:1px solid #E8DDC8">
+          <div class="av b" style="width:34px;height:34px;font-size:13px">OS</div>
+          <div><div class="t">Dr. Ousmane Sarr</div><div class="s">Couple · Dakar · 4,9</div></div>
+          <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+        </div>
+
+        <div style="margin-top:auto">
+          <div class="sos"><svg class="i sm"><use href="#ic-alert"/></svg>Besoin d'aide tout de suite — 800 00 50 50</div>
+          <div class="weave"></div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg class="i"><use href="#ic-home"/></svg>Accueil</div>
+          <div><svg class="i"><use href="#ic-search"/></svg>Chercher</div>
+          <div><svg class="i"><use href="#ic-cal"/></svg>RDV</div>
+          <div><svg class="i"><use href="#ic-msg"/></svg>Messages</div>
+          <div><svg class="i"><use href="#ic-user"/></svg>Profil</div>
+        </div>
+      </div>
+      <figcaption>D · Accueil patient</figcaption>
+    </figure>
+
+    <!-- D / recherche -->
+    <figure>
+      <div class="phone dD">
+        <div class="weave"></div>
+        <div class="pad" style="padding-top:38px">
+          <h1 class="h-l">Trouver un psy</h1>
+          <div class="s" style="margin-top:7px">14 praticiens disponibles</div>
+          <div class="input" style="margin-top:18px"><svg class="i sm"><use href="#ic-search"/></svg>Spécialité, nom, ville…</div>
+        </div>
+        <div class="chips">
+          <span class="on"><svg class="i sm"><use href="#ic-cloud"/></svg>Je ne sais pas</span>
+          <span style="color:#B23A48"><svg class="i sm"><use href="#ic-leaf"/></svg>Anxiété</span>
+          <span style="color:#24457E"><svg class="i sm"><use href="#ic-users"/></svg>Couple</span>
+        </div>
+
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:11px">
+          <div class="card">
+            <div class="bar b"></div>
+            <div class="cbody">
+              <div class="av b">FN</div>
+              <div style="flex:1">
+                <div class="nm">Dr. Fatou Ndiaye</div>
+                <div class="mt"><svg class="i sm"><use href="#ic-leaf"/></svg>Anxiété, stress · Dakar</div>
+                <div class="mt" style="color:#157A63;font-weight:700">15 000 F CFA
+                  <svg class="i sm" style="color:#DE9A21"><use href="#ic-star"/></svg>4,8</div>
+              </div>
+              <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="bar"></div>
+            <div class="cbody">
+              <div class="av">OS</div>
+              <div style="flex:1">
+                <div class="nm">Dr. Ousmane Sarr</div>
+                <div class="mt"><svg class="i sm"><use href="#ic-users"/></svg>Couple · Dakar, Mermoz</div>
+                <div class="mt" style="color:#157A63;font-weight:700">20 000 F CFA
+                  <svg class="i sm" style="color:#DE9A21"><use href="#ic-star"/></svg>4,9</div>
+              </div>
+              <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="bar o"></div>
+            <div class="cbody">
+              <div class="av o">AD</div>
+              <div style="flex:1">
+                <div class="nm">Dr. Aïda Diallo</div>
+                <div class="mt"><svg class="i sm"><use href="#ic-child"/></svg>Enfant &amp; ado · Thiès</div>
+                <div class="mt" style="color:#157A63;font-weight:700">12 000 F CFA
+                  <svg class="i sm" style="color:#DE9A21"><use href="#ic-star"/></svg>4,7</div>
+              </div>
+              <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="bar v"></div>
+            <div class="cbody">
+              <div class="av v">MB</div>
+              <div style="flex:1">
+                <div class="nm">Dr. Mamadou Ba</div>
+                <div class="mt"><svg class="i sm"><use href="#ic-cloud"/></svg>Dépression · Saint-Louis</div>
+                <div class="mt" style="color:#157A63;font-weight:700">10 000 F CFA
+                  <svg class="i sm" style="color:#DE9A21"><use href="#ic-star"/></svg>4,6</div>
+              </div>
+              <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="nav">
+          <div><svg class="i"><use href="#ic-home"/></svg>Accueil</div>
+          <div class="on"><svg class="i"><use href="#ic-search"/></svg>Chercher</div>
+          <div><svg class="i"><use href="#ic-cal"/></svg>RDV</div>
+          <div><svg class="i"><use href="#ic-msg"/></svg>Messages</div>
+          <div><svg class="i"><use href="#ic-user"/></svg>Profil</div>
+        </div>
+      </div>
+      <figcaption>D · Trouver un psy</figcaption>
+    </figure>
+
+    <!-- D / journal -->
+    <figure>
+      <div class="phone dD">
+        <div class="weave"></div>
+        <div class="pad" style="padding-top:38px">
+          <h1 class="h-l">Mon journal</h1>
+          <div class="s" style="margin-top:7px">Personne d'autre que toi n'y a accès.</div>
+        </div>
+
+        <div class="sec"><svg class="i" style="color:#DE9A21"><use href="#ic-heart"/></svg><h2>Aujourd'hui</h2></div>
+        <div class="moods">
+          <div class="mood"><span class="f" style="background:#B23A48"><svg class="i lg"><use href="#ic-m1"/></svg></span>Très mal</div>
+          <div class="mood"><span class="f" style="background:#D2693F"><svg class="i lg"><use href="#ic-m2"/></svg></span>Mal</div>
+          <div class="mood"><span class="f" style="background:#DE9A21"><svg class="i lg"><use href="#ic-m3"/></svg></span>Ça va</div>
+          <div class="mood on"><span class="f" style="background:#5C9A57"><svg class="i lg"><use href="#ic-m4"/></svg></span>Bien</div>
+          <div class="mood"><span class="f" style="background:#157A63"><svg class="i lg"><use href="#ic-m5"/></svg></span>Super</div>
+        </div>
+        <div class="ta">Écrire quelques mots sur ta journée…</div>
+        <div class="save">Enregistrer</div>
+
+        <div class="sec"><svg class="i" style="color:#24457E"><use href="#ic-cal"/></svg><h2>Ma semaine</h2></div>
+        <div class="week">
+          <i><b style="background:#DE9A21"></b>L</i>
+          <i><b style="background:#5C9A57"></b>M</i>
+          <i><b style="background:#B23A48"></b>M</i>
+          <i><b style="background:#157A63"></b>J</i>
+          <i><b style="background:#5C9A57"></b>V</i>
+          <i><b></b>S</i>
+          <i><b></b>D</i>
+        </div>
+
+        <div style="margin-top:22px">
+          <div class="row">
+            <span style="width:12px;height:12px;border-radius:50%;background:#157A63;flex:none"></span>
+            <div><div class="t">Jeudi 28 août</div><div class="s">La séance m'a fait du bien, j'ai réussi à…</div></div>
+            <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+          </div>
+          <div class="row">
+            <span style="width:12px;height:12px;border-radius:50%;background:#B23A48;flex:none"></span>
+            <div><div class="t">Mercredi 27 août</div><div class="s">Journée compliquée au travail, beaucoup…</div></div>
+            <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+          </div>
+        </div>
+
+        <div class="nav">
+          <div class="on"><svg class="i"><use href="#ic-home"/></svg>Accueil</div>
+          <div><svg class="i"><use href="#ic-search"/></svg>Chercher</div>
+          <div><svg class="i"><use href="#ic-cal"/></svg>RDV</div>
+          <div><svg class="i"><use href="#ic-msg"/></svg>Messages</div>
+          <div><svg class="i"><use href="#ic-user"/></svg>Profil</div>
+        </div>
+      </div>
+      <figcaption>D · Mon journal</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<div class="rule"></div>
+
+<!-- ═══════════ E ═══════════ -->
+<section>
+  <div class="dirhead">
+    <div class="num">E</div>
+    <div class="txt">
+      <h2>Claustra couleur — moderne, net, coloré</h2>
+      <p>
+        La rigueur de la piste A, mais la couleur devient structurante : bandeau d'accueil en bloc indigo plein
+        (trame de claustra dessinée en blanc dans le bas du bloc, pas un dégradé), bord gauche coloré sur les cartes
+        selon l'état, tuiles à filet coloré, bandeau d'urgence en terre cuite pleine. Coins droits assumés.
+      </p>
+      <p><b>Le pari :</b> le plus « produit tech 2026 » des deux, sans le côté startup interchangeable. C'est celui
+      qui se photographie le mieux dans un mémoire.</p>
+    </div>
+    <div class="spec">
+      <b>Typographie</b><br>Space Grotesk (titres) + Inter (texte)<br><br>
+      <b>Icônes</b><br>Trait 1,7px, jamais dans un carré arrondi teinté<br><br>
+      <b>Couleur au travail</b><br>Indigo = repère principal · Vert = confirmé/actif · Ocre = note &amp; attente · Terre cuite = urgence
+      <div class="sw">
+        <div><i style="background:#F4F2EC"></i>Sable</div>
+        <div><i style="background:#1E3B5C"></i>Indigo</div>
+        <div><i style="background:#0E6B5C"></i>Vert</div>
+        <div><i style="background:#E4A11B"></i>Ocre</div>
+        <div><i style="background:#B0492A"></i>Terre cuite</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screens">
+
+    <!-- E / accueil -->
+    <figure>
+      <div class="phone dE">
+        <div class="hero">
+          <div class="top">
+            <span class="day">MER. 3 SEPTEMBRE</span>
+            <span class="bell"><svg class="i"><use href="#ic-bell"/></svg><u>2</u></span>
+          </div>
+          <h1 class="h-l">Bonsoir, Aminata</h1>
+          <div class="money">
+            <svg class="i lg" style="color:#E4A11B"><use href="#ic-wallet"/></svg>
+            <div><div class="lab">Solde PsyConnect</div><div class="val">12 500 F CFA</div></div>
+            <div class="go">Recharger</div>
+          </div>
+          <div class="trame"></div>
+        </div>
+
+        <div class="sec"><svg class="i sm" style="color:#0E6B5C"><use href="#ic-cal"/></svg><span class="lbl">Prochain rendez-vous</span></div>
+        <div class="card">
+          <div class="dbox"><div class="d">08</div><div class="m">SEPT</div></div>
+          <div style="flex:1">
+            <div class="nm">Dr. Fatou Ndiaye</div>
+            <div class="mt"><svg class="i sm" style="color:#0E6B5C"><use href="#ic-video"/></svg>15h00 · Vidéo</div>
+          </div>
+          <div class="join"><svg class="i sm"><use href="#ic-video"/></svg>Rejoindre</div>
+        </div>
+
+        <div class="sec"><svg class="i sm" style="color:#E4A11B"><use href="#ic-heart"/></svg><span class="lbl">Comment tu te sens ?</span></div>
+        <div class="moods">
+          <div class="mood"><span class="f" style="background:#B0492A"><svg class="i lg"><use href="#ic-m1"/></svg></span>Très mal</div>
+          <div class="mood"><span class="f" style="background:#C7752B"><svg class="i lg"><use href="#ic-m2"/></svg></span>Mal</div>
+          <div class="mood on"><span class="f" style="background:#E4A11B"><svg class="i lg"><use href="#ic-m3"/></svg></span>Ça va</div>
+          <div class="mood"><span class="f" style="background:#3F8A6E"><svg class="i lg"><use href="#ic-m4"/></svg></span>Bien</div>
+          <div class="mood"><span class="f" style="background:#0E6B5C"><svg class="i lg"><use href="#ic-m5"/></svg></span>Super</div>
+        </div>
+
+        <div class="sec" style="padding-bottom:11px"><span class="lbl">Mon espace</span></div>
+        <div class="tiles">
+          <div class="tile">
+            <svg class="i lg" style="color:#E4A11B"><use href="#ic-book"/></svg>
+            <div class="t">Mon journal</div>
+            <div class="s">3 entrées cette semaine</div>
+          </div>
+          <div class="tile v">
+            <svg class="i lg" style="color:#0E6B5C"><use href="#ic-talk"/></svg>
+            <div class="t">Xalaat</div>
+            <div class="s">Confidentiel et éphémère</div>
+          </div>
+        </div>
+
+        <div class="sec"><svg class="i sm" style="color:#1E3B5C"><use href="#ic-star"/></svg><span class="lbl">Recommandé</span><span class="more">VOIR TOUT</span></div>
+        <div class="row" style="border-top:1px solid #DFD9CB">
+          <div class="av">OS</div>
+          <div><div class="t">Dr. Ousmane Sarr</div><div class="s">Couple · Dakar</div></div>
+          <span class="rate"><svg class="i sm"><use href="#ic-star"/></svg>4,9</span>
+        </div>
+
+        <div style="margin-top:auto">
+          <div class="sos"><span>Besoin d'aide tout de suite</span><span>800 00 50 50</span></div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg class="i"><use href="#ic-home"/></svg>Accueil</div>
+          <div><svg class="i"><use href="#ic-search"/></svg>Chercher</div>
+          <div><svg class="i"><use href="#ic-cal"/></svg>RDV</div>
+          <div><svg class="i"><use href="#ic-msg"/></svg>Messages</div>
+          <div><svg class="i"><use href="#ic-user"/></svg>Profil</div>
+        </div>
+      </div>
+      <figcaption>E · Accueil patient</figcaption>
+    </figure>
+
+    <!-- E / recherche -->
+    <figure>
+      <div class="phone dE">
+        <div class="hero" style="padding-bottom:24px">
+          <div class="day">14 PRATICIENS DISPONIBLES</div>
+          <h1 class="h-l" style="margin-top:10px">Trouver un psy</h1>
+          <div class="trame"></div>
+        </div>
+        <div class="pad" style="margin-top:18px">
+          <div class="input"><svg class="i sm" style="color:#1E3B5C"><use href="#ic-search"/></svg>Spécialité, nom, ville…</div>
+        </div>
+        <div class="chips">
+          <span class="on"><svg class="i sm"><use href="#ic-cloud"/></svg>Je ne sais pas</span>
+          <span><svg class="i sm" style="color:#B0492A"><use href="#ic-leaf"/></svg>Anxiété</span>
+          <span><svg class="i sm" style="color:#0E6B5C"><use href="#ic-users"/></svg>Couple</span>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="row">
+            <div class="av l">FN</div>
+            <div style="flex:1">
+              <div class="t">Dr. Fatou Ndiaye</div>
+              <div class="s" style="display:flex;align-items:center;gap:5px;margin-top:4px">
+                <svg class="i sm" style="color:#B0492A"><use href="#ic-leaf"/></svg>Anxiété, stress · Dakar</div>
+              <div class="s" style="margin-top:5px;color:#0E6B5C;font-weight:600">15 000 F CFA</div>
+            </div>
+            <span class="rate"><svg class="i sm"><use href="#ic-star"/></svg>4,8</span>
+          </div>
+          <div class="row">
+            <div class="av v">OS</div>
+            <div style="flex:1">
+              <div class="t">Dr. Ousmane Sarr</div>
+              <div class="s" style="display:flex;align-items:center;gap:5px;margin-top:4px">
+                <svg class="i sm" style="color:#0E6B5C"><use href="#ic-users"/></svg>Couple · Dakar, Mermoz</div>
+              <div class="s" style="margin-top:5px;color:#0E6B5C;font-weight:600">20 000 F CFA</div>
+            </div>
+            <span class="rate"><svg class="i sm"><use href="#ic-star"/></svg>4,9</span>
+          </div>
+          <div class="row">
+            <div class="av o">AD</div>
+            <div style="flex:1">
+              <div class="t">Dr. Aïda Diallo</div>
+              <div class="s" style="display:flex;align-items:center;gap:5px;margin-top:4px">
+                <svg class="i sm" style="color:#E4A11B"><use href="#ic-child"/></svg>Enfant &amp; ado · Thiès</div>
+              <div class="s" style="margin-top:5px;color:#0E6B5C;font-weight:600">12 000 F CFA</div>
+            </div>
+            <span class="rate"><svg class="i sm"><use href="#ic-star"/></svg>4,7</span>
+          </div>
+          <div class="row">
+            <div class="av">MB</div>
+            <div style="flex:1">
+              <div class="t">Dr. Mamadou Ba</div>
+              <div class="s" style="display:flex;align-items:center;gap:5px;margin-top:4px">
+                <svg class="i sm" style="color:#1E3B5C"><use href="#ic-cloud"/></svg>Dépression · Saint-Louis</div>
+              <div class="s" style="margin-top:5px;color:#0E6B5C;font-weight:600">10 000 F CFA</div>
+            </div>
+            <span class="rate"><svg class="i sm"><use href="#ic-star"/></svg>4,6</span>
+          </div>
+        </div>
+
+        <div class="nav">
+          <div><svg class="i"><use href="#ic-home"/></svg>Accueil</div>
+          <div class="on"><svg class="i"><use href="#ic-search"/></svg>Chercher</div>
+          <div><svg class="i"><use href="#ic-cal"/></svg>RDV</div>
+          <div><svg class="i"><use href="#ic-msg"/></svg>Messages</div>
+          <div><svg class="i"><use href="#ic-user"/></svg>Profil</div>
+        </div>
+      </div>
+      <figcaption>E · Trouver un psy</figcaption>
+    </figure>
+
+    <!-- E / journal -->
+    <figure>
+      <div class="phone dE">
+        <div class="hero" style="padding-bottom:24px">
+          <div class="day">ESPACE PRIVÉ</div>
+          <h1 class="h-l" style="margin-top:10px">Mon journal</h1>
+          <div class="trame"></div>
+        </div>
+
+        <div class="sec"><svg class="i sm" style="color:#E4A11B"><use href="#ic-heart"/></svg><span class="lbl">Aujourd'hui</span></div>
+        <div class="moods">
+          <div class="mood"><span class="f" style="background:#B0492A"><svg class="i lg"><use href="#ic-m1"/></svg></span>Très mal</div>
+          <div class="mood"><span class="f" style="background:#C7752B"><svg class="i lg"><use href="#ic-m2"/></svg></span>Mal</div>
+          <div class="mood"><span class="f" style="background:#E4A11B"><svg class="i lg"><use href="#ic-m3"/></svg></span>Ça va</div>
+          <div class="mood on"><span class="f" style="background:#3F8A6E"><svg class="i lg"><use href="#ic-m4"/></svg></span>Bien</div>
+          <div class="mood"><span class="f" style="background:#0E6B5C"><svg class="i lg"><use href="#ic-m5"/></svg></span>Super</div>
+        </div>
+        <div class="ta">Écrire quelques mots sur ta journée…</div>
+        <div class="save">Enregistrer</div>
+
+        <div class="sec"><svg class="i sm" style="color:#1E3B5C"><use href="#ic-cal"/></svg><span class="lbl">Ma semaine</span></div>
+        <div class="week">
+          <i><b style="background:#E4A11B"></b>L</i>
+          <i><b style="background:#3F8A6E"></b>M</i>
+          <i><b style="background:#B0492A"></b>M</i>
+          <i><b style="background:#0E6B5C"></b>J</i>
+          <i><b style="background:#3F8A6E"></b>V</i>
+          <i><b></b>S</i>
+          <i><b></b>D</i>
+        </div>
+
+        <div style="margin-top:22px">
+          <div class="row">
+            <span style="width:12px;height:12px;background:#0E6B5C;flex:none"></span>
+            <div><div class="t">Jeudi 28 août</div><div class="s">La séance m'a fait du bien, j'ai réussi à…</div></div>
+            <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+          </div>
+          <div class="row">
+            <span style="width:12px;height:12px;background:#B0492A;flex:none"></span>
+            <div><div class="t">Mercredi 27 août</div><div class="s">Journée compliquée au travail, beaucoup…</div></div>
+            <span class="ch"><svg class="i sm"><use href="#ic-chev"/></svg></span>
+          </div>
+        </div>
+
+        <div class="nav">
+          <div class="on"><svg class="i"><use href="#ic-home"/></svg>Accueil</div>
+          <div><svg class="i"><use href="#ic-search"/></svg>Chercher</div>
+          <div><svg class="i"><use href="#ic-cal"/></svg>RDV</div>
+          <div><svg class="i"><use href="#ic-msg"/></svg>Messages</div>
+          <div><svg class="i"><use href="#ic-user"/></svg>Profil</div>
+        </div>
+      </div>
+      <figcaption>E · Mon journal</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<div class="rule"></div>
+
+<div class="note">
+  <h3>Ce qui a changé depuis la v1</h3>
+  <ul style="margin:0">
+    <li><b>Icônes de retour partout</b> : navigation, lignes de liste, catégories de spécialité, humeurs, états de rendez-vous.</li>
+    <li><b>Couleur qui porte du sens</b>, pas de la décoration : la même teinte veut toujours dire la même chose dans toute l'app.</li>
+    <li><b>Blocs pleins colorés</b> (solde, bandeau d'accueil, bouton Rejoindre, humeurs) — c'est ce qui enlève le côté terne, sans un seul dégradé.</li>
+    <li><b>Ce qu'on ne fait toujours pas</b> : dégradés, verre dépoli, icônes dans des carrés arrondis pastel, grilles 2×2 de raccourcis, étincelle « IA ».</li>
+  </ul>
+  <h3 style="margin-top:20px">Prochaine étape</h3>
+  <p style="margin:0">
+    Tu choisis D ou E (ou tu piques des morceaux à l'une pour l'autre). Ensuite je décline agenda psy, fiche
+    psychologue et écran d'appel dans la piste retenue, puis seulement on touche à
+    <code>app_colors.dart</code>, <code>app_tokens.dart</code> et <code>app_theme.dart</code>.
+  </p>
+</div>
+
+</div>
+</body>
+</html>

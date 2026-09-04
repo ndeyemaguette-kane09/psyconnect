@@ -26,7 +26,6 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
 
-
     public SecurityConfig(
         JwtAuthenticationFilter jwtAuthenticationFilter,
         CustomUserDetailsService userDetailsService

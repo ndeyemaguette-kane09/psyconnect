@@ -1,5 +1,6 @@
 package com.example.userservice.service.impl;
 
+import com.example.userservice.client.NotificationClient;
 import com.example.userservice.dto.AdminReviewReportRequest;
 import com.example.userservice.dto.ReportResponse;
 import com.example.userservice.entity.*;
@@ -19,15 +20,18 @@ public class ReportServiceImpl implements ReportService {
     private final PsychologistReportRepository reportRepository;
     private final PatientProfileRepository patientProfileRepository;
     private final EvidenceStorageService evidenceStorage;
+    private final NotificationClient notificationClient;
 
     public ReportServiceImpl(
             PsychologistReportRepository reportRepository,
             PatientProfileRepository patientProfileRepository,
-            EvidenceStorageService evidenceStorage
+            EvidenceStorageService evidenceStorage,
+            NotificationClient notificationClient
     ) {
         this.reportRepository = reportRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.evidenceStorage = evidenceStorage;
+        this.notificationClient = notificationClient;
     }
 
     @Override
@@ -114,7 +118,33 @@ public class ReportServiceImpl implements ReportService {
             report.setAdminNote(request.getAdminNote());
         }
 
-        return mapToResponse(reportRepository.save(report));
+        PsychologistReport saved = reportRepository.save(report);
+        notifyPsychologist(saved, newStatus);
+
+        return mapToResponse(saved);
+    }
+
+    private void notifyPsychologist(PsychologistReport report, ReportStatus status) {
+        String title;
+        String message;
+
+        if (status == ReportStatus.REVIEWED) {
+            title = "Signalement traité";
+            message = "Un signalement vous concernant a été examiné par l'administration "
+                    + "et une mesure a été prise. Contactez le support pour plus d'informations.";
+        } else {
+            title = "Signalement classé sans suite";
+            message = "Un signalement vous concernant a été examiné par l'administration "
+                    + "et jugé non fondé. Aucune mesure n'a été prise à votre encontre.";
+        }
+
+        notificationClient.send(
+                report.getPsychologistProfileId(),
+                title,
+                message,
+                "SYSTEM",
+                "PSYCHOLOGIST"
+        );
     }
 
     @Override

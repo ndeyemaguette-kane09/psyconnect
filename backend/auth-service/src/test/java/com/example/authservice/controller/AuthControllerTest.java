@@ -29,8 +29,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// pas de JWT ici, on teste juste le controller
-// les mocks servent juste a faire demarrer le contexte de test
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {
@@ -116,10 +114,6 @@ class AuthControllerTest {
 
         when(authService.getCurrentUser(eq("patient@psyconnect.sn"))).thenReturn(response);
 
-        // Voir le commentaire équivalent dans AdminControllerTest : avec les
-        // filtres désactivés, @WithMockUser ne suffit pas à alimenter le
-        // paramètre "Authentication" du contrôleur ; on fixe le principal
-        // directement sur la requête MockMvc.
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken("patient@psyconnect.sn", null);
 

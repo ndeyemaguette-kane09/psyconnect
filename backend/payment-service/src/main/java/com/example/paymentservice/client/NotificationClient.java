@@ -47,9 +47,12 @@ public class NotificationClient {
         notification.put("userRole", userRole);
 
         HttpHeaders headers = new HttpHeaders();
-        String authorization = SecurityUtils.currentAuthorizationHeader();
-        if (authorization != null) {
-            headers.set("Authorization", authorization);
+        try {
+            String authorization = SecurityUtils.currentAuthorizationHeader();
+            if (authorization != null) {
+                headers.set("Authorization", authorization);
+            }
+        } catch (IllegalStateException ignored) {
         }
 
         restTemplate.exchange(
