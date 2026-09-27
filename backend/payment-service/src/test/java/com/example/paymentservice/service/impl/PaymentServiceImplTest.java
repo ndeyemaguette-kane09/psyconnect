@@ -1,6 +1,7 @@
 package com.example.paymentservice.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,8 +26,10 @@ import com.example.paymentservice.dto.PaymentResponse;
 import com.example.paymentservice.entity.Payment;
 import com.example.paymentservice.entity.PaymentMethod;
 import com.example.paymentservice.entity.PaymentStatus;
+import com.example.paymentservice.exception.ForbiddenOperationException;
 import com.example.paymentservice.repository.PaymentRepository;
 import com.example.paymentservice.repository.PlatformSettingsRepository;
+import com.example.paymentservice.repository.PsychologistWithdrawalRepository;
 import com.example.paymentservice.service.OwnershipResolver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,6 +55,9 @@ class PaymentServiceImplTest {
     private PlatformSettingsRepository platformSettingsRepository;
 
     @Mock
+    private PsychologistWithdrawalRepository psychologistWithdrawalRepository;
+
+    @Mock
     private AppointmentClient appointmentClient;
 
     // on verifie juste que PaymentServiceImpl appelle bien le client notif
@@ -72,6 +78,7 @@ class PaymentServiceImplTest {
         paymentService = new PaymentServiceImpl(
                 paymentRepository,
                 platformSettingsRepository,
+                psychologistWithdrawalRepository,
                 appointmentClient,
                 notificationClient,
                 ownershipResolver,
@@ -127,6 +134,7 @@ class PaymentServiceImplTest {
         when(appointmentClient.getAppointmentById(1L)).thenReturn(appointment);
         // pas de paiement existant, donc ca passe
         when(paymentRepository.findByAppointmentId(1L)).thenReturn(List.of());
+        when(ownershipResolver.getConsultationPrice(any())).thenReturn(new BigDecimal("15000"));
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
             Payment saved = invocation.getArgument(0);
             saved.setId(100L);
@@ -146,8 +154,48 @@ class PaymentServiceImplTest {
                 eq(10L),
                 eq("Paiement confirmé"),
                 any(String.class),
-                eq("PAYMENT")
+                eq("PAYMENT"),
+                eq("PATIENT")
         );
+    }
+
+    @Test
+    void createPayment_ignoresAmountSentByClient_andDebitsConsultationPrice() {
+
+        AppointmentSummary appointment = buildAppointment(1L, 10L, "CONFIRMED");
+
+        authenticateAsPatientOwning(10L);
+
+        when(appointmentClient.getAppointmentById(1L)).thenReturn(appointment);
+        when(paymentRepository.findByAppointmentId(1L)).thenReturn(List.of());
+        when(ownershipResolver.getConsultationPrice(any())).thenReturn(new BigDecimal("15000"));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PaymentResponse response = paymentService.createPayment(
+                buildRequest(1L, "1", PaymentMethod.SIMULATED_WAVE)
+        );
+
+        assertEquals(new BigDecimal("15000"), response.getAmount());
+        verify(walletClient).debit(10L, 15000.0);
+    }
+
+    @Test
+    void createPayment_missingConsultationPrice_throwsBeforeDebiting() {
+
+        AppointmentSummary appointment = buildAppointment(1L, 10L, "CONFIRMED");
+
+        authenticateAsPatientOwning(10L);
+
+        when(appointmentClient.getAppointmentById(1L)).thenReturn(appointment);
+        when(paymentRepository.findByAppointmentId(1L)).thenReturn(List.of());
+        when(ownershipResolver.getConsultationPrice(any())).thenReturn(null);
+
+        assertThrows(RuntimeException.class, () ->
+                paymentService.createPayment(buildRequest(1L, "15000", PaymentMethod.SIMULATED_WAVE))
+        );
+
+        verify(walletClient, never()).debit(any(), any());
+        verify(paymentRepository, never()).save(any());
     }
 
     @Test
@@ -335,6 +383,9 @@ class PaymentServiceImplTest {
         completed.setAmount(new BigDecimal("15000"));
         completed.setStatus(PaymentStatus.COMPLETED);
 
+        authenticateAsPatientOwning(10L);
+        when(appointmentClient.getAppointmentById(5L))
+                .thenReturn(buildCancelledAppointment(5L, 10L, LocalDateTime.now().plusHours(72)));
         when(paymentRepository.findByAppointmentId(5L)).thenReturn(List.of(completed));
         when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -354,11 +405,59 @@ class PaymentServiceImplTest {
         alreadyRefunded.setAmount(new BigDecimal("15000"));
         alreadyRefunded.setStatus(PaymentStatus.REFUNDED);
 
+        authenticateAsPatientOwning(10L);
+        when(appointmentClient.getAppointmentById(5L))
+                .thenReturn(buildCancelledAppointment(5L, 10L, LocalDateTime.now().plusHours(72)));
         when(paymentRepository.findByAppointmentId(5L)).thenReturn(List.of(alreadyRefunded));
 
         BigDecimal refunded = paymentService.refundCompletedPayments(5L, 10L);
 
         assertEquals(BigDecimal.ZERO, refunded);
         verify(walletClient, never()).credit(any(), any());
+    }
+
+    @Test
+    void refundCompletedPayments_appointmentNotCancelled_throwsWithoutCrediting() {
+
+        authenticateAsPatientOwning(10L);
+        AppointmentSummary confirmed = buildCancelledAppointment(5L, 10L, LocalDateTime.now().plusHours(72));
+        confirmed.setStatus("CONFIRMED");
+        when(appointmentClient.getAppointmentById(5L)).thenReturn(confirmed);
+
+        assertThrows(RuntimeException.class, () -> paymentService.refundCompletedPayments(5L, 10L));
+
+        verify(walletClient, never()).credit(any(), any());
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void refundCompletedPayments_lessThan48Hours_throwsWithoutCrediting() {
+
+        authenticateAsPatientOwning(10L);
+        when(appointmentClient.getAppointmentById(5L))
+                .thenReturn(buildCancelledAppointment(5L, 10L, LocalDateTime.now().plusHours(10)));
+
+        assertThrows(RuntimeException.class, () -> paymentService.refundCompletedPayments(5L, 10L));
+
+        verify(walletClient, never()).credit(any(), any());
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void refundCompletedPayments_otherPatientsAppointment_throwsForbidden() {
+
+        authenticateAsPatientOwning(99L);
+        when(appointmentClient.getAppointmentById(5L))
+                .thenReturn(buildCancelledAppointment(5L, 10L, LocalDateTime.now().plusHours(72)));
+
+        assertThrows(ForbiddenOperationException.class, () -> paymentService.refundCompletedPayments(5L, 10L));
+
+        verify(walletClient, never()).credit(any(), any());
+    }
+
+    private AppointmentSummary buildCancelledAppointment(Long id, Long patientId, LocalDateTime startTime) {
+        AppointmentSummary appointment = buildAppointment(id, patientId, "CANCELLED");
+        appointment.setStartTime(startTime);
+        return appointment;
     }
 }

@@ -32,7 +32,8 @@ public class RiskDetectionService {
             "en finir avec (ma vie|tout|cette vie|l'existence|mes jours)",
             "en finir une bonne fois pour toutes",
             "envie de mourir", "veux mourir", "j'aimerais mourir",
-            "plus envie de vivre", "envie de vivre", "ca ne vaut plus le coup de vivre",
+            "plus envie de vivre", "ca ne vaut plus le coup de vivre",
+            "(veux|vais|voudrais) en finir",
             "me faire du mal", "me blesser volontairement",
             "m'automutiler", "automutilation", "me scarifier", "scarification",
             "avaler (tous les |des )?medicaments", "faire une overdose",
@@ -74,6 +75,8 @@ public class RiskDetectionService {
                 .normalize(lower, Normalizer.Form.NFD)
                 .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
 
-        return withoutAccents;
+        return withoutAccents
+                .replaceAll("[\\u2018\\u2019\\u02BC\\u0060\\u00B4]", "'")
+                .replaceAll("\\s+", " ");
     }
 }

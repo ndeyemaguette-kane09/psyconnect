@@ -301,6 +301,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 22),
+                if (!_loading && _missingProfileFields.isNotEmpty)
+                  _ProfileReminder(
+                    missing: _missingProfileFields,
+                    onTap: _onIncompleteProfileTap,
+                  ),
                 AppListRow(
                   icon: Icons.book_outlined,
                   title: 'Mon journal',
@@ -311,7 +316,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   ),
                 ),
                 AppListRow(
-                  icon: Icons.question_answer_outlined,
+                  icon: Icons.spa_outlined,
                   title: 'Parler à Xalaat',
                   subtitle: 'Confidentiel et éphémère',
                   iconColor: AppColors.goldDark,
@@ -335,18 +340,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     ),
                     onTap: () => _openWallet(session!.profileId!),
                   ),
-
-                if (!_loading && _missingProfileFields.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  AppNoticeCard(
-                    icon: Icons.assignment_ind_outlined,
-                    title: 'Complétez votre profil',
-                    message:
-                        'Encore à renseigner : ${_missingProfileFields.join(', ')} '
-                        '(bouton « Modifier »).',
-                    onTap: _onIncompleteProfileTap,
-                  ),
-                ],
 
                 const SizedBox(height: 26),
 
@@ -461,7 +454,7 @@ class _HomeHero extends StatelessWidget {
                         Text(
                           greeting.toUpperCase(),
                           style: const TextStyle(
-                            color: AppColors.goldDark,
+                            color: AppColors.tealDark,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 2,
@@ -732,3 +725,75 @@ class _NextAppointmentCard extends StatelessWidget {
   }
 }
 
+class _ProfileReminder extends StatelessWidget {
+  const _ProfileReminder({required this.missing, required this.onTap});
+
+  final List<String> missing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 7, right: 21),
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    color: AppColors.goldDark,
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Complétez votre profil',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Encore à renseigner : ${missing.join(', ')}.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Padding(
+                  padding: EdgeInsets.only(top: 1),
+                  child: Text(
+                    'Compléter',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.teal,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.teal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

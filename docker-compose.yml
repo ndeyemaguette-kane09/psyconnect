@@ -248,6 +248,7 @@ services:
       EUREKA_URL: http://eureka-server:8761/eureka/
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
       JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      ML_SERVICE_URL: http://ml-service:8000
     depends_on:
       eureka-server:
         condition: service_healthy

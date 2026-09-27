@@ -813,12 +813,18 @@ class _AgendaCard extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: FilledButton(
-                            onPressed: onConfirm,
+                            onPressed: appointment.startTime.isAfter(DateTime.now())
+                                ? onConfirm
+                                : null,
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.teal,
                               minimumSize: const Size(0, 42),
                             ),
-                            child: const Text('Confirmer'),
+                            child: Text(
+                            appointment.startTime.isAfter(DateTime.now())
+                                ? 'Confirmer'
+                                : 'Date passée',
+                          ),
                           ),
                         ),
                       ],

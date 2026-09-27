@@ -23,6 +23,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   int _step = 0;
+  String? _registeredEmail;
+  String? _registeredPassword;
 
   // Étape 1 — compte
   final _accountFormKey = GlobalKey<FormState>();
@@ -88,21 +90,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _submitAccount(AuthProvider auth) async {
+  void _submitAccount(AuthProvider auth) {
     if (!_accountFormKey.currentState!.validate()) return;
+    auth.clearError();
+    setState(() => _step = 1);
+  }
+
+  Future<bool> _ensureAccount(AuthProvider auth) async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (_registeredEmail == email && _registeredPassword == password) {
+      return true;
+    }
     final ok = await auth.register(
       role: widget.role,
       account: RegisterAccountRequest(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: email,
+        password: password,
         pseudo: _pseudoController.text.trim(),
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
       ),
     );
-    if (ok && mounted) {
-      setState(() => _step = 1);
+    if (!ok) {
+      if (mounted) setState(() => _step = 0);
+      return false;
     }
+    _registeredEmail = email;
+    _registeredPassword = password;
+    return true;
   }
 
   Future<void> _submitProfile(AuthProvider auth) async {
@@ -115,6 +131,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
       return;
     }
+
+    if (!await _ensureAccount(auth)) return;
 
     final bool ok;
     if (_isPsychologist) {
