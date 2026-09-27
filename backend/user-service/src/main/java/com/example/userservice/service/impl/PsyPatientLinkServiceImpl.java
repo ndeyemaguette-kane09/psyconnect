@@ -1,5 +1,6 @@
 package com.example.userservice.service.impl;
 
+import com.example.userservice.client.AppointmentClient;
 import com.example.userservice.exception.ForbiddenOperationException;
 import com.example.userservice.exception.ResourceNotFoundException;
 import com.example.userservice.entity.PsyPatientLink;
@@ -17,15 +18,18 @@ public class PsyPatientLinkServiceImpl implements PsyPatientLinkService {
     private final PsyPatientLinkRepository linkRepository;
     private final PsychologistProfileRepository psychologistRepository;
     private final PatientProfileRepository patientRepository;
+    private final AppointmentClient appointmentClient;
 
     public PsyPatientLinkServiceImpl(
             PsyPatientLinkRepository linkRepository,
             PsychologistProfileRepository psychologistRepository,
-            PatientProfileRepository patientRepository
+            PatientProfileRepository patientRepository,
+            AppointmentClient appointmentClient
     ) {
         this.linkRepository = linkRepository;
         this.psychologistRepository = psychologistRepository;
         this.patientRepository = patientRepository;
+        this.appointmentClient = appointmentClient;
     }
 
     @Override
@@ -36,6 +40,11 @@ public class PsyPatientLinkServiceImpl implements PsyPatientLinkService {
         // upsert : si le lien existe déjà, pas de doublon grâce à la contrainte unique
         if (!linkRepository.existsByPsychologistProfileIdAndPatientProfileId(
                 psyProfileId, patientProfileId)) {
+            if (!appointmentClient.hasAcceptedAppointmentBetween(psyProfileId, patientProfileId)) {
+                throw new ForbiddenOperationException(
+                        "Vous ne pouvez suivre un patient qu'après avoir accepté un rendez-vous avec lui"
+                );
+            }
             PsyPatientLink link = new PsyPatientLink();
             link.setPsychologistProfileId(psyProfileId);
             link.setPatientProfileId(patientProfileId);

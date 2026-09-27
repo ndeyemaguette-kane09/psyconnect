@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../patient/models/questionnaire_models.dart';
 import '../../patient/screens/questionnaire_fill_screen.dart';
 import '../../patient/services/questionnaire_service.dart';
@@ -128,9 +127,23 @@ class _PatientQuestionnairesScreenState
       final entries = _completedOfType(type);
       if (entries.length < 2) continue;
       cards.add(_TrendCard(entries: entries));
-      cards.add(const SizedBox(height: 12));
+      cards.add(const SizedBox(height: 26));
     }
     return cards;
+  }
+
+  bool get _hasTrend => QuestionnaireType.values
+      .any((type) => _completedOfType(type).length >= 2);
+
+  void _openEvolution(String patientName) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _EvolutionScreen(
+          patientName: patientName,
+          cards: _trendCards(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -246,7 +259,10 @@ class _PatientQuestionnairesScreenState
                         padding:
                             const EdgeInsets.fromLTRB(16, 16, 16, 24),
                         children: [
-                          ..._trendCards(),
+                          if (_hasTrend) ...[
+                            _EvolutionLink(onTap: () => _openEvolution(name)),
+                            const SizedBox(height: 22),
+                          ],
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: Text(
@@ -261,7 +277,8 @@ class _PatientQuestionnairesScreenState
                                   ),
                             ),
                           ),
-                          for (var i = 0; i < _questionnaires.length; i++) ...[
+                          Container(height: 1, color: AppColors.border),
+                          for (var i = 0; i < _questionnaires.length; i++)
                             _QuestionnaireCard(
                               q: _questionnaires[i],
                               onTap: _questionnaires[i].isPending
@@ -271,13 +288,11 @@ class _PatientQuestionnairesScreenState
                                           builder: (_) =>
                                               QuestionnaireResultScreen(
                                             questionnaire: _questionnaires[i],
+                                            viewedByPsychologist: true,
                                           ),
                                         ),
                                       ),
                             ),
-                            if (i != _questionnaires.length - 1)
-                              const SizedBox(height: 10),
-                          ],
                         ],
                       ),
                     ),
@@ -296,18 +311,100 @@ String _shortDate(DateTime d) => '${d.day} ${_kShortMonths[d.month - 1]}';
 // Carte de suivi d'un questionnaire dans le temps. Une carte par type : les
 // échelles diffèrent (27 pour le PHQ-9, 21 pour le GAD-7) et superposer deux
 // axes sur un même graphique fausserait la lecture.
+class _EvolutionLink extends StatelessWidget {
+  const _EvolutionLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        side: BorderSide(color: AppColors.borderStrong),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.bar_chart_outlined, size: 20, color: AppColors.teal),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Voir l'évolution des scores",
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: AppColors.faint, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EvolutionScreen extends StatelessWidget {
+  const _EvolutionScreen({required this.patientName, required this.cards});
+
+  final String patientName;
+  final List<Widget> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.text),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Évolution des scores',
+              style: TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+            Text(
+              patientName,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        children: cards,
+      ),
+    );
+  }
+}
+
 class _TrendCard extends StatelessWidget {
   const _TrendCard({required this.entries});
 
   // Du plus ancien au plus récent, uniquement des mesures complétées.
   final List<Questionnaire> entries;
 
-  static const double _chartHeight = 56;
-  static const int _maxBars = 8;
+  static const int _maxRows = 8;
 
-  List<Questionnaire> get _shown => entries.length <= _maxBars
+  List<Questionnaire> get _shown => entries.length <= _maxRows
       ? entries
-      : entries.sublist(entries.length - _maxBars);
+      : entries.sublist(entries.length - _maxRows);
 
   DateTime _dateOf(Questionnaire q) => q.completedAt ?? q.sentAt;
 
@@ -316,152 +413,132 @@ class _TrendCard extends StatelessWidget {
     final shown = _shown;
     final first = shown.first;
     final last = shown.last;
-    final maxScore = last.maxScore;
     final diff = (last.score ?? 0) - (first.score ?? 0);
+    final since = _shortDate(_dateOf(first));
 
-    // Sur le PHQ-9 comme sur le GAD-7, un score qui baisse signifie des
-    // symptômes qui diminuent : une flèche descendante est une amélioration.
-    final Color deltaColor;
-    final IconData deltaIcon;
-    final String deltaLabel;
+    final String summary;
     if (diff < 0) {
-      deltaColor = AppColors.success;
-      deltaIcon = Icons.arrow_downward_rounded;
-      deltaLabel = '${-diff} point${-diff > 1 ? 's' : ''} de moins '
-          'qu\'au ${_shortDate(_dateOf(first))}';
+      summary = '${-diff} point${-diff > 1 ? 's' : ''} de moins depuis le '
+          '$since.';
     } else if (diff > 0) {
-      deltaColor = AppColors.warning;
-      deltaIcon = Icons.arrow_upward_rounded;
-      deltaLabel = '$diff point${diff > 1 ? 's' : ''} de plus '
-          'qu\'au ${_shortDate(_dateOf(first))}';
+      summary = '$diff point${diff > 1 ? 's' : ''} de plus depuis le $since.';
     } else {
-      deltaColor = AppColors.muted;
-      deltaIcon = Icons.remove_rounded;
-      deltaLabel = 'Stable depuis le ${_shortDate(_dateOf(first))}';
+      summary = 'Stable depuis le $since.';
     }
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: AppRadius.mdAll,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${last.typeName} · ${last.typeDescription}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.text,
-                  ),
-                ),
-              ),
-              Text(
-                '${entries.length} mesures',
-                style: const TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${last.typeName} · ${last.typeDescription}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            color: AppColors.text,
           ),
-          const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '${last.score}',
-                style: const TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.tealDark,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '/ $maxScore',
-                style: const TextStyle(color: AppColors.muted, fontSize: 13),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  last.severity ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          summary,
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 14),
+        Container(height: 1, color: AppColors.border),
+        for (var i = 0; i < shown.length; i++)
+          _TrendRow(
+            q: shown[i],
+            date: _shortDate(_dateOf(shown[i])),
+            latest: i == shown.length - 1,
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Icon(deltaIcon, size: 15, color: deltaColor),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  deltaLabel,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: deltaColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Colonnes : une par mesure, la plus récente en teal plein, les
-          // précédentes atténuées. Une seule teinte — la hauteur porte déjà
-          // l'information, la colorer par sévérité la doublerait.
-          SizedBox(
-            height: _chartHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (var i = 0; i < shown.length; i++) ...[
-                  Container(
-                    width: 14,
-                    height: _barHeight(shown[i].score ?? 0, maxScore),
-                    decoration: BoxDecoration(
-                      color: i == shown.length - 1
-                          ? AppColors.teal
-                          : AppColors.tealMid,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
-                      ),
-                    ),
-                  ),
-                  if (i != shown.length - 1) const SizedBox(width: 10),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(height: 1, color: AppColors.border),
-          const SizedBox(height: 7),
-          Text(
-            'du ${_shortDate(_dateOf(first))} au ${_shortDate(_dateOf(last))}',
-            style: const TextStyle(color: AppColors.faint, fontSize: 11.5),
-          ),
-        ],
-      ),
+      ],
     );
   }
+}
 
-  double _barHeight(int score, int maxScore) {
-    if (maxScore <= 0) return 3;
-    final h = (score / maxScore) * _chartHeight;
-    return h < 3 ? 3 : h;
+class _TrendRow extends StatelessWidget {
+  const _TrendRow({
+    required this.q,
+    required this.date,
+    required this.latest,
+  });
+
+  final Questionnaire q;
+  final String date;
+  final bool latest;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = q.score ?? 0;
+    final ratio = q.maxScore <= 0 ? 0.0 : (score / q.maxScore).clamp(0.0, 1.0);
+    final band = severityBandOf(q.type, score);
+    final label =
+        band.label == 'Modérément sévère' ? 'Mod. sévère' : band.label;
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 56,
+              child: Text(
+                date,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: latest ? FontWeight.w600 : FontWeight.w400,
+                  color: latest ? AppColors.text : AppColors.muted,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => Container(
+                  height: 6,
+                  color: const Color(0xFFEEEBE5),
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    width: constraints.maxWidth * ratio,
+                    height: 6,
+                    color: latest ? AppColors.tealDark : AppColors.tealMid,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 22,
+              child: Text(
+                '$score',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: latest ? FontWeight.w800 : FontWeight.w600,
+                  color: latest ? AppColors.text : AppColors.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 74,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: latest ? FontWeight.w600 : FontWeight.w400,
+                  color: latest ? AppColors.text : AppColors.muted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -471,148 +548,116 @@ class _QuestionnaireCard extends StatelessWidget {
   final Questionnaire q;
   final VoidCallback? onTap;
 
-  Color get _color {
-    if (q.score == null) return AppColors.muted;
-    final ratio = q.score! / q.maxScore;
-    if (ratio < 0.2) return const Color(0xFF2E7D32);
-    if (ratio < 0.4) return const Color(0xFF66BB6A);
-    if (ratio < 0.6) return const Color(0xFFFF9800);
-    if (ratio < 0.8) return const Color(0xFFF44336);
-    return const Color(0xFFB71C1C);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final sent = q.sentAt;
-    final sentLabel =
-        '${sent.day.toString().padLeft(2, '0')}/${sent.month.toString().padLeft(2, '0')}/${sent.year}';
+    final date = _shortDate(q.isPending ? q.sentAt : (q.completedAt ?? q.sentAt));
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(
-          color: q.signalsImmediateRisk
-              ? AppColors.emergency
-              : q.isPending
-                  ? AppColors.tealMid
-                  : _color.withValues(alpha: 0.4),
-          width: q.signalsImmediateRisk ? 1.4 : 1,
-        ),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      child: Row(
-        children: [
-          // cercle de score ou "en attente"
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: q.isPending
-                  ? AppColors.background
-                  : _color.withValues(alpha: 0.12),
-              border: Border.all(
-                color: q.isPending ? AppColors.tealMid : _color,
-                width: 2,
-              ),
-            ),
-            child: q.isPending
-                ? const Icon(Icons.hourglass_empty,
-                    color: AppColors.muted, size: 22)
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${q.score}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                          color: _color,
-                        ),
-                      ),
-                      Text(
-                        '/${q.maxScore}',
-                        style: TextStyle(
-                            color: _color,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      q.typeName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: q.isPending
-                            ? AppColors.background
-                            : _color.withValues(alpha: 0.1),
-                      ),
-                      child: Text(
-                        q.isPending ? 'En attente' : 'Complété',
-                        style: TextStyle(
-                          color: q.isPending ? AppColors.muted : _color,
-                          fontSize: 10,
+                SizedBox(
+                  width: 40,
+                  child: q.isPending
+                      ? const Text(
+                          '—',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.faint,
+                          ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${q.score ?? 0}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.text,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '/ ${q.maxScore}',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        q.isPending
+                            ? '${q.typeName} · envoyé le $date'
+                            : '${q.typeName} · $date',
+                        style: const TextStyle(
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
+                          color: AppColors.text,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  q.isPending
-                      ? 'Envoyé le $sentLabel · en attente de réponse'
-                      : '${q.severity} · envoyé le $sentLabel',
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 12),
-                ),
-                // Item 9 du PHQ-9 : signalé quel que soit le score total.
-                if (q.signalsImmediateRisk) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.priority_high_rounded,
-                          size: 14, color: AppColors.emergency),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Idées suicidaires signalées (item 9) — à traiter en '
-                          'priorité',
-                          style: const TextStyle(
-                            color: AppColors.emergency,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            height: 1.3,
+                      const SizedBox(height: 2),
+                      Text(
+                        q.isPending
+                            ? 'En attente de réponse'
+                            : (q.severity ?? ''),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                      // Item 9 du PHQ-9 : signalé quel que soit le score total.
+                      if (q.signalsImmediateRisk) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.only(left: 8),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                  color: Color(0xFF8E3B2A), width: 2),
+                            ),
+                          ),
+                          child: const Text(
+                            'Question 9 : idées suicidaires signalées. À '
+                            'aborder en priorité.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF8E3B2A),
+                              height: 1.35,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                ],
+                ),
+                if (!q.isPending)
+                  const Icon(Icons.chevron_right,
+                      color: AppColors.faint, size: 18),
               ],
             ),
           ),
-          if (!q.isPending)
-            const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
-        ],
+        ),
       ),
-    ),
     );
   }
 }

@@ -1,6 +1,8 @@
 package com.example.paymentservice.service.impl;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
@@ -126,13 +128,20 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         // Débite le solde, échoue si insuffisant
-        walletClient.debit(appointment.getPatientId(), request.getAmount().doubleValue());
+        BigDecimal amount = ownershipResolver.getConsultationPrice(appointment.getPsychologistId());
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException(
+                    "Le tarif de ce psychologue n'est pas renseigné : paiement impossible pour le moment"
+            );
+        }
+
+        walletClient.debit(appointment.getPatientId(), amount.doubleValue());
 
         // Si la sauvegarde échoue après le débit, on recrédit manuellement
         try {
             Payment payment = new Payment();
             payment.setAppointmentId(appointment.getId());
-            payment.setAmount(request.getAmount());
+            payment.setAmount(amount);
             payment.setMethod(PaymentMethod.WALLET);
             payment.setStatus(PaymentStatus.COMPLETED);
             payment.setTransactionReference(
@@ -163,7 +172,7 @@ public class PaymentServiceImpl implements PaymentService {
             try {
                 walletClient.credit(
                         appointment.getPatientId(),
-                        request.getAmount().doubleValue()
+                        amount.doubleValue()
                 );
             } catch (RuntimeException compensationFailure) {
                 // Le recrédit compensatoire a échoué : on logge et on relance l'erreur initiale
@@ -323,6 +332,25 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public BigDecimal refundCompletedPayments(Long appointmentId, Long patientId) {
+        AppointmentSummary appointment = appointmentClient.getAppointmentById(appointmentId);
+        if (!SecurityUtils.hasRole("PATIENT")
+                || !appointment.getPatientId().equals(patientId)
+                || !ownershipResolver.resolveOwnPatientId().equals(appointment.getPatientId())) {
+            throw new ForbiddenOperationException(
+                    "Vous ne pouvez demander le remboursement que de vos propres rendez-vous"
+            );
+        }
+        if (!"CANCELLED".equals(appointment.getStatus())) {
+            throw new RuntimeException(
+                    "Seul un rendez-vous annulé peut être remboursé"
+            );
+        }
+        if (appointment.getStartTime() == null
+                || Duration.between(LocalDateTime.now(), appointment.getStartTime()).toHours() < 48) {
+            throw new RuntimeException(
+                    "Remboursement impossible : l'annulation doit intervenir au moins 48 heures avant le rendez-vous"
+            );
+        }
 
         List<Payment> payments = paymentRepository.findByAppointmentId(appointmentId);
 

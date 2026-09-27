@@ -78,4 +78,31 @@ public class AppointmentClient {
     private boolean fallbackHasCompletedAppointment(Long psychologistId, Long patientId, Throwable t) {
         return false;
     }
+
+    @CircuitBreaker(name = "appointmentService")
+    @Retry(name = "appointmentService", fallbackMethod = "fallbackHasAcceptedAppointment")
+    public boolean hasAcceptedAppointmentBetween(Long psychologistId, Long patientId) {
+
+        HttpHeaders headers = new HttpHeaders();
+        String authorization = SecurityUtils.currentAuthorizationHeader();
+        if (authorization != null) {
+            headers.set("Authorization", authorization);
+        }
+
+        Boolean result = restTemplate.exchange(
+                appointmentServiceUrl + "/appointments/exists/between"
+                        + "?psychologistId=" + psychologistId
+                        + "&patientId=" + patientId
+                        + "&requireAccepted=true",
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                Boolean.class
+        ).getBody();
+
+        return Boolean.TRUE.equals(result);
+    }
+
+    private boolean fallbackHasAcceptedAppointment(Long psychologistId, Long patientId, Throwable t) {
+        return false;
+    }
 }

@@ -133,7 +133,7 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
                     ),
                   ),
                   icon: const Icon(Icons.account_circle_outlined,
-                      color: AppColors.tealDark),
+                      color: AppColors.tealDark, size: 34),
                 ),
               ],
             ),

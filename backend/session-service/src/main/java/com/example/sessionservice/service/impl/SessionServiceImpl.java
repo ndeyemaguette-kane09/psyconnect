@@ -40,7 +40,7 @@ public class SessionServiceImpl implements SessionService {
     // des deux ait sauvegarde la sienne : chacun cree alors sa propre session,
     // avec un meetingToken (donc un salon Jitsi) different -> les deux
     // participants se retrouvent chacun seul dans sa salle. C'est la cause
-    // reelle du bug "salle d'attente" remonte par magui, pas une simple absence
+    // reelle du bug "salle d'attente" constatee en test reel, pas une simple absence
     // de controle : le controle existait deja (existsByAppointmentIdAndStatus)
     // mais n'etait pas atomique avec la creation.
     // Limite assumee : ce verrou ne protege que cette instance JVM. Suffisant

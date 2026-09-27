@@ -124,10 +124,11 @@ public class AppointmentController {
     public ResponseEntity<Boolean> hasAnyAppointmentBetween(
             @RequestParam Long psychologistId,
             @RequestParam Long patientId,
-            @RequestParam(defaultValue = "false") boolean requireCompleted
+            @RequestParam(defaultValue = "false") boolean requireCompleted,
+            @RequestParam(defaultValue = "false") boolean requireAccepted
     ) {
         return ResponseEntity.ok(
-                appointmentService.hasAnyAppointmentBetween(psychologistId, patientId, requireCompleted)
+                appointmentService.hasAnyAppointmentBetween(psychologistId, patientId, requireCompleted, requireAccepted)
         );
     }
 }

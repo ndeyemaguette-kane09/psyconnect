@@ -14,8 +14,8 @@ jamais de remplacement d'un professionnel de santé).
   message *avant* tout appel au LLM. Si un signal de détresse
   (idées suicidaires, automutilation...) est détecté, le modèle n'est
   jamais sollicité : un message fixe et garanti est renvoyé directement,
-  avec les numéros d'urgence sénégalais (SAMU 1515, numéro vert santé
-  mentale 800 00 50 50, Police 17, Pompiers 18).
+  avec les numéros d'urgence sénégalais (SAMU 1515, numéro vert du
+  ministère de la Santé 800 00 50 50, Police 17, Pompiers 18).
 - **Modèle open source local** : aucune clé API, aucun appel à un service
   tiers. Le modèle (Mistral 7B Instruct par défaut) tourne via
   [Ollama](https://ollama.com), localement ou sur une machine du réseau du

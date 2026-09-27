@@ -66,16 +66,14 @@ public final class CompanionPrompts {
             """;
 
     public static final String SAFETY_FALLBACK_MESSAGE = """
-            Ce que tu traverses semble vraiment difficile, et je suis content·e que tu en aies parle. Je ne suis pas la bonne ressource pour t'accompagner sur ce point precis : c'est important que tu puisses en parler maintenant a quelqu'un de qualifie.
+            Ça a l'air très lourd en ce moment, et c'est courageux de l'avoir écrit. Tu mérites d'être écouté·e, maintenant.
 
-            Au Senegal, tu peux contacter :
-            - le SAMU (urgences medicales) : 1515, gratuit, 24h/24 ;
-            - le numero vert sante mentale du ministere de la Sante : 800 00 50 50.
+            Si tu peux, appelle une personne de confiance, ou l'un de ces numéros :
+            - le SAMU (urgences médicales) : 1515, gratuit, 24h/24 ;
+            - le numéro vert du ministère de la Santé : 800 00 50 50.
 
-            Si tu es en danger immediat ou si quelqu'un est en danger, appelle aussi la Police Secours (17) ou les Pompiers (18).
+            Si tu es en danger immédiat, appelle la Police Secours (17) ou les Pompiers (18).
 
-            Tu peux egalement reserver une consultation avec un psychologue sur PsyConnect dans la rubrique rendez-vous, mais si l'urgence est forte maintenant, privilegie un appel direct plutot qu'une reservation, qui n'est pas instantanee.
-
-            Tu n'es pas seul·e.
+            Tu comptes.
             """;
 }

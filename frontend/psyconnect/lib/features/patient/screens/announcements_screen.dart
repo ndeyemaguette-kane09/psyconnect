@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 
 class _Broadcast {
@@ -93,7 +92,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Annonces')),
+      appBar: AppBar(
+        title: const Text('Annonces'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        foregroundColor: AppColors.text,
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _load,
@@ -129,31 +133,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       );
     }
 
-    return ListView.separated(
+    return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-      itemCount: _broadcasts.length + 1,
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
-      itemBuilder: (context, i) {
-        if (i == 0) return const _Lead();
-        final b = _broadcasts[i - 1];
-        return _BroadcastEntry(broadcast: b, unread: _isUnread(b));
-      },
-    );
-  }
-}
-
-class _Lead extends StatelessWidget {
-  const _Lead();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        'Messages de l\'équipe PsyConnect, adressés à l\'ensemble des '
-        'utilisateurs de la plateforme.',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
+      children: [
+        for (final b in _broadcasts)
+          _BroadcastEntry(broadcast: b, unread: _isUnread(b)),
+        Container(height: 1, color: AppColors.border),
+      ],
     );
   }
 }
@@ -186,46 +172,33 @@ class _BroadcastEntry extends StatelessWidget {
 
     switch (broadcast.audience) {
       case 'PATIENTS':
-        return '$date · aux patients';
+        return '$date · Aux patients';
       case 'PSYCHOLOGISTS':
-        return '$date · aux psychologues';
+        return '$date · Aux psychologues';
       default:
-        return '$date · équipe PsyConnect';
+        return '$date · Équipe PsyConnect';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: AppRadius.mdAll,
-        border: Border.all(
-          color: unread ? AppColors.tealMid : AppColors.border,
-        ),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            color: unread ? AppColors.tealLight : AppColors.surfaceAlt,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-            child: Row(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 16, 0, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Expanded(
                   child: Text(
-                    _dateline.toUpperCase(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color:
-                          unread ? AppColors.tealDark : AppColors.textSecondary,
-                      letterSpacing: 0.9,
-                      fontWeight:
-                          unread ? FontWeight.w700 : FontWeight.w600,
+                    _dateline,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.muted,
                     ),
                   ),
                 ),
@@ -239,37 +212,39 @@ class _BroadcastEntry extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Nouveau',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.teal,
+                    ),
+                  ),
                 ],
               ],
             ),
-          ),
-          Container(
-            height: 1,
-            color: unread ? AppColors.tealMid : AppColors.border,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  broadcast.title,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    color: AppColors.tealDeep,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  broadcast.message,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.6,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 6),
+            Text(
+              broadcast.title,
+              style: const TextStyle(
+                fontSize: 16.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+                height: 1.3,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              broadcast.message,
+              style: const TextStyle(
+                fontSize: 14.5,
+                color: AppColors.textSecondary,
+                height: 1.55,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

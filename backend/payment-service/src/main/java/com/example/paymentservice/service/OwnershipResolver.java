@@ -19,6 +19,7 @@ import com.example.paymentservice.security.SecurityUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 // Résout l'identifiant de profil (patient ou psychologue) via l'id JWT, en appelant user-service.
@@ -50,6 +51,51 @@ public class OwnershipResolver {
     @Retry(name = "userService", fallbackMethod = "fallbackResolvePsychologistId")
     public Long resolveOwnPsychologistId() {
         return resolveOwnProfileId("/psychologists/by-auth-user/", "psychologue");
+    }
+
+    @SuppressWarnings("unchecked")
+    @CircuitBreaker(name = "userService")
+    @Retry(name = "userService", fallbackMethod = "fallbackConsultationPrice")
+    public BigDecimal getConsultationPrice(Long psychologistId) {
+
+        HttpHeaders headers = new HttpHeaders();
+        String authorization = SecurityUtils.currentAuthorizationHeader();
+        if (authorization != null) {
+            headers.set("Authorization", authorization);
+        }
+
+        try {
+            Map<String, Object> body = restTemplate.exchange(
+                    userServiceUrl + "/psychologists/" + psychologistId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    Map.class
+            ).getBody();
+
+            if (body == null || body.get("consultationPrice") == null) {
+                return null;
+            }
+
+            return new BigDecimal(body.get("consultationPrice").toString());
+
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new ResourceNotFoundException("Psychologue introuvable");
+        } catch (RestClientException ex) {
+            throw new ServiceUnavailableException(
+                    "user-service indisponible pour la lecture du tarif du psychologue",
+                    ex
+            );
+        }
+    }
+
+    private BigDecimal fallbackConsultationPrice(Long psychologistId, Throwable t) {
+        if (t instanceof ResourceNotFoundException || t instanceof ForbiddenOperationException) {
+            throw (RuntimeException) t;
+        }
+        throw new ServiceUnavailableException(
+                "Le service utilisateur est temporairement indisponible, merci de réessayer dans quelques instants",
+                t
+        );
     }
 
     @SuppressWarnings("unchecked")
