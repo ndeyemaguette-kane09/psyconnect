@@ -59,6 +59,7 @@ class _JournalScreenState extends State<JournalScreen> {
       builder: (_) => _JournalEntrySheet(
         entry: entry,
         journalService: _journalService,
+        onDelete: entry == null ? null : () => _delete(entry),
       ),
     );
     if (saved == true) await _load();
@@ -110,14 +111,6 @@ class _JournalScreenState extends State<JournalScreen> {
         elevation: 0,
         foregroundColor: AppColors.text,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openEditor(),
-        backgroundColor: AppColors.teal,
-        foregroundColor: Colors.white,
-        tooltip: 'Nouvelle entrée',
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add),
-      ),
       body: RefreshIndicator(
         onRefresh: _load,
         color: AppColors.teal,
@@ -160,18 +153,38 @@ class _JournalScreenState extends State<JournalScreen> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
-      itemCount: _entries.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, i) {
-        final entry = _entries[i];
-        return _JournalEntryCard(
-          entry: entry,
-          onTap: () => _openEditor(entry: entry),
-          onDelete: () => _delete(entry),
-        );
-      },
+    final children = <Widget>[
+      _WriteRow(onTap: () => _openEditor()),
+    ];
+    String? currentMonth;
+    for (final entry in _entries) {
+      final d = entry.createdAt;
+      final month = '${_kMonths[d.month - 1].toUpperCase()} ${d.year}';
+      if (month != currentMonth) {
+        currentMonth = month;
+        children.add(Padding(
+          padding: const EdgeInsets.fromLTRB(0, 22, 0, 8),
+          child: Text(
+            month,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+              color: AppColors.tealDark,
+            ),
+          ),
+        ));
+      }
+      children.add(_JournalEntryRow(
+        entry: entry,
+        onTap: () => _openEditor(entry: entry),
+      ));
+    }
+    children.add(Container(height: 1, color: AppColors.border));
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+      children: children,
     );
   }
 }
@@ -301,129 +314,134 @@ class _MoodPoint extends StatelessWidget {
   }
 }
 
-class _MoodGauge extends StatelessWidget {
-  const _MoodGauge({required this.rating});
+const _kMonths = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
 
-  final int rating;
+const _kWeekdays = [
+  'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche',
+];
+
+class _WriteRow extends StatelessWidget {
+  const _WriteRow({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(5, (i) {
-        final filled = i < rating;
-        return Container(
-          width: 6,
-          height: 14,
-          margin: EdgeInsets.only(right: i == 4 ? 0 : 3),
-          decoration: BoxDecoration(
-            color: filled ? AppColors.teal : AppColors.border,
+    return Material(
+      color: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        side: BorderSide(color: AppColors.borderStrong),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 19, color: AppColors.teal),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Écrire quelque chose…',
+                  style: TextStyle(fontSize: 14.5, color: AppColors.faint),
+                ),
+              ),
+            ],
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Carte d'une entrée
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _JournalEntryCard extends StatelessWidget {
-  const _JournalEntryCard({
-    required this.entry,
-    required this.onTap,
-    required this.onDelete,
-  });
+class _JournalEntryRow extends StatelessWidget {
+  const _JournalEntryRow({required this.entry, required this.onTap});
 
   final JournalEntry entry;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
-
-  static const _months = [
-    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-  ];
 
   String get _formattedDate {
     final d = entry.createdAt;
-    return '${d.day} ${_months[d.month - 1]} · '
+    return '${_kWeekdays[d.weekday - 1]} ${d.day} · '
         '${d.hour.toString().padLeft(2, '0')}h'
         '${d.minute.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(15, 12, 8, 15),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _formattedDate,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _formattedDate,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ),
+                    if (entry.moodRating != null)
+                      Text(
+                        _moodLabel(entry.moodRating!),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.tealDark,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  entry.content,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14.5,
+                    height: 1.55,
+                    color: AppColors.text,
                   ),
                 ),
-              ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                tooltip: 'Supprimer',
-                icon: const Icon(Icons.delete_outline,
-                    size: 19, color: AppColors.faint),
-                onPressed: onDelete,
-              ),
-            ],
-          ),
-          if (entry.moodRating != null) ...[
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  _MoodGauge(rating: entry.moodRating!),
-                  const SizedBox(width: 9),
-                  Text(
-                    _moodLabel(entry.moodRating!),
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.tealDark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          Padding(
-            padding: const EdgeInsets.only(right: 7),
-            child: Text(
-              entry.content,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, height: 1.5),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Feuille de création / édition
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _JournalEntrySheet extends StatefulWidget {
-  const _JournalEntrySheet({this.entry, required this.journalService});
+  const _JournalEntrySheet({
+    this.entry,
+    required this.journalService,
+    this.onDelete,
+  });
 
   final JournalEntry? entry;
   final JournalService journalService;
+  final VoidCallback? onDelete;
 
   @override
   State<_JournalEntrySheet> createState() => _JournalEntrySheetState();
@@ -577,6 +595,21 @@ class _JournalEntrySheetState extends State<_JournalEntrySheet> {
                       )
                     : Text(isEditing ? 'Enregistrer' : 'Ajouter au journal'),
               ),
+              if (isEditing && widget.onDelete != null) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () {
+                          Navigator.of(context).pop(false);
+                          widget.onDelete!();
+                        },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                  ),
+                  child: const Text('Supprimer cette entrée'),
+                ),
+              ],
             ],
           ),
         ),

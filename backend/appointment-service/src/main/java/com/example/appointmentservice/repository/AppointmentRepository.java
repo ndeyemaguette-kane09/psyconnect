@@ -61,6 +61,9 @@ boolean existsByPatientIdAndPsychologistId(Long patientId, Long psychologistId);
 boolean existsByPatientIdAndPsychologistIdAndStatus(
         Long patientId, Long psychologistId, AppointmentStatus status);
 
+boolean existsByPatientIdAndPsychologistIdAndStatusIn(
+        Long patientId, Long psychologistId, java.util.Collection<AppointmentStatus> statuses);
+
 // pour le rappel : RDV confirmés dans l'heure et pas encore notifiés
 List<Appointment> findByStatusAndStartTimeBetweenAndReminderSentFalse(
         AppointmentStatus status,

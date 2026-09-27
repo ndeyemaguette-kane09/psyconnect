@@ -458,7 +458,7 @@ class _PsyHero extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: AppColors.goldDark,
+                            color: AppColors.tealDark,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 2,
@@ -1041,12 +1041,18 @@ class _PlanningCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton(
-                    onPressed: onConfirm,
+                    onPressed: appointment.startTime.isAfter(DateTime.now())
+                        ? onConfirm
+                        : null,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.teal,
                       minimumSize: const Size(0, 40),
                     ),
-                    child: const Text('Confirmer'),
+                    child: Text(
+                    appointment.startTime.isAfter(DateTime.now())
+                        ? 'Confirmer'
+                        : 'Date passée',
+                  ),
                   ),
                 ),
               ],

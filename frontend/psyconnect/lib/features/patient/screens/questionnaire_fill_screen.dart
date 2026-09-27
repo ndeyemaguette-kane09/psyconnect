@@ -7,7 +7,7 @@ import '../services/questionnaire_service.dart';
 import 'emergency_screen.dart';
 
 // patient remplit un questionnaire PHQ-9 ou GAD-7
-// toutes les questions sur un ecran scrollable, radio buttons 0-3
+// une question par ecran, reponses 0-3
 class QuestionnaireFillScreen extends StatefulWidget {
   const QuestionnaireFillScreen({super.key, required this.questionnaire});
 
@@ -23,6 +23,7 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
 
   // reponses initialisees a -1 (non repondu)
   late List<int> _answers;
+  int _index = 0;
   bool _submitting = false;
 
   @override
@@ -31,30 +32,37 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
     _answers = List<int>.filled(widget.questionnaire.questions.length, -1);
   }
 
-  bool get _allAnswered => _answers.every((a) => a >= 0);
+  bool get _isLast => _index == widget.questionnaire.questions.length - 1;
 
-  Future<void> _submit() async {
-    if (!_allAnswered) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Veuillez répondre à toutes les questions.')),
-      );
+  void _next() {
+    if (_submitting || _answers[_index] < 0) return;
+    if (_isLast) {
+      _submit();
       return;
     }
+    setState(() => _index++);
+  }
 
+  void _previous() {
+    if (_index == 0) return;
+    setState(() => _index--);
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
     setState(() => _submitting = true);
     try {
       final result = await _service.answerQuestionnaire(
           widget.questionnaire.id, _answers);
       if (!mounted) return;
-      // remplacer cet ecran par l'ecran de resultats
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => QuestionnaireResultScreen(questionnaire: result),
-        ),
-      );
+      _openResult(result);
     } catch (e) {
+      final completed = await _findCompleted();
       if (!mounted) return;
+      if (completed != null) {
+        _openResult(completed);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e is ApiException ? e.message : 'Envoi échoué.'),
@@ -65,352 +73,222 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
     }
   }
 
+  Future<Questionnaire?> _findCompleted() async {
+    try {
+      final all = await _service.getMyQuestionnaires();
+      for (final q in all) {
+        if (q.id == widget.questionnaire.id && !q.isPending) return q;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  void _openResult(Questionnaire result) {
+    final atRisk = result.signalsImmediateRisk ||
+        (widget.questionnaire.type == QuestionnaireType.PHQ9 &&
+            _answers[kPhq9RiskItemIndex] >= kRiskThreshold);
+    // remplacer cet ecran par l'ecran de resultats
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => atRisk
+            ? _CareScreen(result: result)
+            : QuestionnaireResultScreen(questionnaire: result),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final q = widget.questionnaire;
+    final total = q.questions.length;
+    final item = q.questions[_index];
+    final selected = _answers[_index];
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.text),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              q.typeName,
-              style: const TextStyle(
-                  color: AppColors.text,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15),
-            ),
-            Text(
-              q.typeDescription,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-      ),
-      body: Column(
-        children: [
-          // barre de progression
-          LinearProgressIndicator(
-            value: _answers.where((a) => a >= 0).length /
-                q.questions.length,
-            backgroundColor: AppColors.tealMid,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.teal),
-            minHeight: 3,
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.tealLight,
-                  ),
-                  child: const Text(
-                    'Au cours des 2 dernières semaines, combien de jours avez-vous '
-                    'été gêné(e) par les problèmes suivants ?',
-                    style: TextStyle(
-                        color: AppColors.tealDark,
-                        fontSize: 13,
-                        height: 1.4),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ...q.questions.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final item = entry.value;
-                  final card = _QuestionCard(
-                    index: idx,
-                    question: item.question,
-                    selectedAnswer: _answers[idx],
-                    onAnswerSelected: (v) =>
-                        setState(() => _answers[idx] = v),
-                  );
-
-                  final flagged = q.type == QuestionnaireType.PHQ9 &&
-                      idx == kPhq9RiskItemIndex &&
-                      _answers[idx] >= kRiskThreshold;
-
-                  if (!flagged) return card;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      card,
-                      const _ImmediateSupportCard(),
-                      const SizedBox(height: 14),
-                    ],
-                  );
-                }),
-              ],
-            ),
-          ),
-          // bouton fixe en bas
-          Container(
-            color: AppColors.white,
-            padding:
-                const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: (_submitting || !_allAnswered) ? null : _submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.teal,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(
-                        _allAnswered
-                            ? 'Soumettre mes réponses'
-                            : '${_answers.where((a) => a < 0).length} question(s) restante(s)',
-                      ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuestionCard extends StatelessWidget {
-  const _QuestionCard({
-    required this.index,
-    required this.question,
-    required this.selectedAnswer,
-    required this.onAnswerSelected,
-  });
-
-  final int index;
-  final String question;
-  final int selectedAnswer;
-  final ValueChanged<int> onAnswerSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final answered = selectedAnswer >= 0;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(
-          color: answered ? AppColors.teal : AppColors.tealMid,
-          width: answered ? 1.5 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 24,
-                height: 24,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color:
-                      answered ? AppColors.teal : AppColors.background,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: answered ? Colors.white : AppColors.muted,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  question,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      height: 1.35),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...List.generate(kAnswerLabels.length, (i) {
-            final selected = selectedAnswer == i;
-            return GestureDetector(
-              onTap: () => onAnswerSelected(i),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected
-                              ? AppColors.teal
-                              : AppColors.tealMid,
-                          width: selected ? 5 : 2,
-                        ),
-                        color: AppColors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '$i — ${kAnswerLabels[i]}',
-                        style: TextStyle(
-                          color:
-                              selected ? AppColors.teal : AppColors.text,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-// ======================================================
-// ecran de resultats (apres soumission par le patient)
-// ======================================================
-class QuestionnaireResultScreen extends StatelessWidget {
-  const QuestionnaireResultScreen({super.key, required this.questionnaire});
-
-  final Questionnaire questionnaire;
-
-  // couleur selon la severite
-  Color _severityColor() {
-    final s = questionnaire.score ?? 0;
-    final max = questionnaire.maxScore;
-    final ratio = s / max;
-    if (ratio < 0.2) return const Color(0xFF2E7D32); // vert fonce
-    if (ratio < 0.4) return const Color(0xFF66BB6A); // vert
-    if (ratio < 0.6) return const Color(0xFFFF9800); // orange
-    if (ratio < 0.8) return const Color(0xFFF44336); // rouge
-    return const Color(0xFFB71C1C); // rouge fonce
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final score = questionnaire.score ?? 0;
-    final max = questionnaire.maxScore;
-    final severity = questionnaire.severity ?? '';
-    final color = _severityColor();
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.text),
         title: Text(
-          'Résultats ${questionnaire.typeName}',
+          q.typeName,
           style: const TextStyle(
-              color: AppColors.text,
-              fontWeight: FontWeight.w700,
-              fontSize: 15),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 16),
-            // cercle de score
-            Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withValues(alpha: 0.1),
-                border: Border.all(color: color, width: 4),
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$score',
-                    style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w900,
-                        color: color),
+                    'Question ${_index + 1} sur $total',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.muted,
+                    ),
                   ),
-                  Text(
-                    '/ $max',
-                    style: TextStyle(color: color, fontSize: 14),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      for (var i = 0; i < total; i++) ...[
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: i <= _index
+                                  ? AppColors.teal
+                                  : AppColors.border,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        if (i != total - 1) const SizedBox(width: 4),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              severity,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: color),
-              textAlign: TextAlign.center,
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
+                children: [
+                  const Text(
+                    'Au cours des deux dernières semaines, à quelle fréquence '
+                    'avez-vous été gêné(e) par…',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.muted,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    item.question,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  for (var i = 0; i < kAnswerLabels.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _AnswerOption(
+                        label: kAnswerLabels[i],
+                        selected: selected == i,
+                        onTap: _submitting
+                            ? null
+                            : () => setState(() => _answers[_index] = i),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              questionnaire.typeDescription,
-              style: const TextStyle(color: AppColors.muted, fontSize: 14),
-            ),
-            if (questionnaire.signalsImmediateRisk) ...[
-              const SizedBox(height: 24),
-              const _ImmediateSupportCard(),
-            ],
-            const SizedBox(height: 32),
-            // echelle de reference
-            _ScaleReference(type: questionnaire.type, score: score),
-            const SizedBox(height: 28),
-            const Text(
-              'Vos réponses ont été transmises à votre psychologue. '
-              'Ces résultats sont un outil d\'évaluation, pas un diagnostic.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: AppColors.muted, fontSize: 12, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context)
-                    .popUntil((route) => route.isFirst),
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.teal,
-                    padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: const Text('Retour à l\'accueil'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Row(
+                children: [
+                  if (_index > 0) ...[
+                    TextButton(
+                      onPressed: _submitting ? null : _previous,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.muted,
+                      ),
+                      child: const Text('Précédent'),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: (_submitting || selected < 0) ? null : _next,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.teal,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text(_isLast ? 'Voir mon résultat' : 'Continuer'),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnswerOption extends StatelessWidget {
+  const _AnswerOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(6),
+      side: BorderSide(
+        color: selected ? AppColors.teal : AppColors.borderStrong,
+        width: selected ? 1.5 : 1,
+      ),
+    );
+    return Material(
+      color: selected ? AppColors.tealSoft : AppColors.white,
+      shape: shape,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: shape,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected ? AppColors.tealDark : AppColors.text,
+                  ),
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check_circle_outline,
+                    color: AppColors.teal, size: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -420,145 +298,443 @@ class QuestionnaireResultScreen extends StatelessWidget {
 // Proposition d'aide immédiate, affichée lorsqu'un patient signale des idées
 // suicidaires à l'item 9 du PHQ-9. Volontairement non bloquante : c'est une
 // porte ouverte, pas une alerte.
-class _ImmediateSupportCard extends StatelessWidget {
-  const _ImmediateSupportCard();
+class _CareScreen extends StatelessWidget {
+  const _CareScreen({required this.result});
+
+  final Questionnaire result;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.emergency, width: 1.4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Vous n'avez pas à traverser ça seul(e)",
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            "Ce que vous venez d'indiquer mérite d'être entendu maintenant, "
-            "et pas seulement à votre prochain rendez-vous. Un psychologue "
-            "disponible peut vous répondre tout de suite.",
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.5,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const EmergencyScreen()),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 48, 24, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: AppColors.tealSoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.favorite_border,
+                      color: AppColors.teal, size: 26),
+                ),
               ),
-              icon: const Icon(Icons.phone_in_talk_outlined, size: 18),
-              label: const Text('Parler à quelqu\'un maintenant'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.emergency,
-                foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(vertical: 13),
+              const SizedBox(height: 24),
+              const Text(
+                'Ce que vous vivez compte',
+                style: TextStyle(
+                  fontSize: 27,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                  height: 1.2,
+                ),
               ),
-            ),
+              const SizedBox(height: 14),
+              const Text(
+                'Des pensées comme celles-là sont lourdes à porter. Vous '
+                "n'avez pas à attendre votre prochain rendez-vous pour en "
+                'parler.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                  height: 1.55,
+                ),
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EmergencyScreen()),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: const Text('Parler à un psychologue maintenant'),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Ou appelez le SAMU au 1515, gratuit, 24h/24.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.tealDark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        QuestionnaireResultScreen(questionnaire: result),
+                  ),
+                ),
+                style: TextButton.styleFrom(foregroundColor: AppColors.muted),
+                child: const Text(
+                  'Continuer vers mon résultat',
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.muted,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// barre d'echelle de reference
-class _ScaleReference extends StatelessWidget {
-  const _ScaleReference({required this.type, required this.score});
+class SeverityBand {
+  const SeverityBand(
+    this.label,
+    this.phrase,
+    this.min,
+    this.max,
+    this.color,
+    this.textColor,
+  );
 
-  final QuestionnaireType type;
-  final int score;
-
-  @override
-  Widget build(BuildContext context) {
-    final bands = type == QuestionnaireType.PHQ9
-        ? const [
-            _Band('Minimal', 0, 4, Color(0xFF2E7D32)),
-            _Band('Léger', 5, 9, Color(0xFF66BB6A)),
-            _Band('Modéré', 10, 14, Color(0xFFFF9800)),
-            _Band('Mod. sévère', 15, 19, Color(0xFFF44336)),
-            _Band('Sévère', 20, 27, Color(0xFFB71C1C)),
-          ]
-        : const [
-            _Band('Minimal', 0, 4, Color(0xFF2E7D32)),
-            _Band('Léger', 5, 9, Color(0xFF66BB6A)),
-            _Band('Modéré', 10, 14, Color(0xFFFF9800)),
-            _Band('Sévère', 15, 21, Color(0xFFB71C1C)),
-          ];
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Échelle d\'interprétation',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, fontSize: 13)),
-          const SizedBox(height: 10),
-          ...bands.map((b) {
-            final isActive = score >= b.min && score <= b.max;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration:
-                        BoxDecoration(color: b.color, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${b.label}  (${b.min}–${b.max})',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isActive
-                          ? FontWeight.w700
-                          : FontWeight.normal,
-                      color: isActive ? b.color : AppColors.muted,
-                    ),
-                  ),
-                  if (isActive) ...[
-                    const SizedBox(width: 6),
-                    Icon(Icons.arrow_left, color: b.color, size: 16),
-                    Text(
-                      'votre score',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: b.color,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-class _Band {
-  const _Band(this.label, this.min, this.max, this.color);
   final String label;
+  final String phrase;
   final int min;
   final int max;
   final Color color;
+  final Color textColor;
+}
+
+const _kPhq9Bands = [
+  SeverityBand('Minimale', 'minimale', 0, 4, Color(0xFF7FA88B),
+      Color(0xFF4E7A5C)),
+  SeverityBand('Légère', 'légère', 5, 9, Color(0xFFD8C08A),
+      Color(0xFF9A7B3A)),
+  SeverityBand('Modérée', 'modérée', 10, 14, Color(0xFFC98F3E),
+      Color(0xFF9A6A2A)),
+  SeverityBand('Modérément sévère', 'modérément sévère', 15, 19,
+      Color(0xFFB8613F), Color(0xFFA04F30)),
+  SeverityBand('Sévère', 'sévère', 20, 27, Color(0xFF8E3B2A),
+      Color(0xFF8E3B2A)),
+];
+
+const _kGad7Bands = [
+  SeverityBand('Minimale', 'minimale', 0, 4, Color(0xFF7FA88B),
+      Color(0xFF4E7A5C)),
+  SeverityBand('Légère', 'légère', 5, 9, Color(0xFFD8C08A),
+      Color(0xFF9A7B3A)),
+  SeverityBand('Modérée', 'modérée', 10, 14, Color(0xFFC98F3E),
+      Color(0xFF9A6A2A)),
+  SeverityBand('Sévère', 'sévère', 15, 21, Color(0xFF8E3B2A),
+      Color(0xFF8E3B2A)),
+];
+
+List<SeverityBand> severityBandsFor(QuestionnaireType type) =>
+    type == QuestionnaireType.PHQ9 ? _kPhq9Bands : _kGad7Bands;
+
+SeverityBand severityBandOf(QuestionnaireType type, int score) {
+  final bands = severityBandsFor(type);
+  for (final b in bands) {
+    if (score >= b.min && score <= b.max) return b;
+  }
+  return bands.last;
+}
+
+// ======================================================
+// ecran de resultats (apres soumission par le patient)
+// ======================================================
+class QuestionnaireResultScreen extends StatelessWidget {
+  const QuestionnaireResultScreen({
+    super.key,
+    required this.questionnaire,
+    this.viewedByPsychologist = false,
+  });
+
+  final Questionnaire questionnaire;
+  final bool viewedByPsychologist;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = questionnaire.score ?? 0;
+    final max = questionnaire.maxScore;
+    final bands = severityBandsFor(questionnaire.type);
+    final active = severityBandOf(questionnaire.type, score);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.text),
+        title: Text(
+          questionnaire.typeName,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                children: [
+                  Text(
+                    viewedByPsychologist
+                        ? 'Résultat du ${questionnaire.typeName}'
+                        : "Merci d'avoir répondu.",
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text.rich(
+                    TextSpan(
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: viewedByPsychologist
+                              ? 'Les réponses montrent des difficultés '
+                              : 'Vos réponses montrent des difficultés ',
+                        ),
+                        TextSpan(
+                          text: "d'intensité ${active.phrase}",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: active.textColor,
+                          ),
+                        ),
+                        TextSpan(
+                          text: viewedByPsychologist
+                              ? ' sur les deux semaines précédant la réponse.'
+                              : ' ces deux dernières semaines. Votre '
+                                  'psychologue les a reçues et pourra en '
+                                  'parler avec vous à votre prochaine '
+                                  'séance.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (questionnaire.signalsImmediateRisk) ...[
+                    const SizedBox(height: 18),
+                    if (viewedByPsychologist)
+                      Container(
+                        padding: const EdgeInsets.only(left: 8),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            left: BorderSide(
+                                color: Color(0xFF8E3B2A), width: 2),
+                          ),
+                        ),
+                        child: const Text(
+                          'Question 9 : idées suicidaires signalées. À '
+                          'aborder en priorité.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF8E3B2A),
+                            height: 1.35,
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.tealSoft,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Si ces pensées sont toujours là, vous pouvez '
+                              "en parler à quelqu'un dès maintenant.",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                                height: 1.45,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const EmergencyScreen()),
+                              ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.tealDark,
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: const Text(
+                                'Parler à un psychologue maintenant',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 30),
+                  _ScoreBar(bands: bands, score: score, max: max),
+                  const SizedBox(height: 22),
+                  Container(height: 1, color: AppColors.border),
+                  for (final b in bands)
+                    _BandRow(band: b, active: identical(b, active)),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Ce résultat est un repère, pas un diagnostic.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.muted,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: FilledButton(
+                onPressed: viewedByPsychologist
+                    ? () => Navigator.of(context).pop()
+                    : () => Navigator.of(context)
+                        .popUntil((route) => route.isFirst),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: Text(
+                  viewedByPsychologist ? 'Retour' : "Retour à l'accueil",
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreBar extends StatelessWidget {
+  const _ScoreBar({
+    required this.bands,
+    required this.score,
+    required this.max,
+  });
+
+  final List<SeverityBand> bands;
+  final int score;
+  final int max;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = score.clamp(0, max);
+    final ratio = (clamped + 0.5) / (max + 1);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment(ratio * 2 - 1, 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$score',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Container(width: 2, height: 10, color: AppColors.text),
+            ],
+          ),
+        ),
+        Row(
+          children: [
+            for (var i = 0; i < bands.length; i++) ...[
+              Expanded(
+                flex: bands[i].max - bands[i].min + 1,
+                child: Container(height: 10, color: bands[i].color),
+              ),
+              if (i != bands.length - 1) const SizedBox(width: 3),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Text('0',
+                style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+            const Spacer(),
+            Text('$max',
+                style:
+                    const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _BandRow extends StatelessWidget {
+  const _BandRow({required this.band, required this.active});
+
+  final SeverityBand band;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 13.5,
+      fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+      color: active ? AppColors.text : AppColors.muted,
+    );
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: band.color,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(band.label, style: style)),
+            Text('${band.min} – ${band.max}', style: style),
+          ],
+        ),
+      ),
+    );
+  }
 }

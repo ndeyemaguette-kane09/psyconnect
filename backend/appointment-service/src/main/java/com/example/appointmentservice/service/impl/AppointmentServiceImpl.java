@@ -299,6 +299,27 @@ public class AppointmentServiceImpl
                     "Seul le patient peut annuler ce rendez-vous"
             );
         }
+        if (newStatus == AppointmentStatus.CONFIRMED) {
+            if (appointment.getStatus() != AppointmentStatus.PENDING) {
+                throw new ForbiddenOperationException(
+                        "Seul un rendez-vous en attente peut être confirmé"
+                );
+            }
+            if (!appointment.getStartTime().isAfter(LocalDateTime.now())) {
+                throw new ForbiddenOperationException(
+                        "Ce rendez-vous est déjà passé : il ne peut plus être confirmé"
+                );
+            }
+        }
+
+        appointment.setStatus(
+                newStatus
+        );
+
+        Appointment updatedAppointment =
+                appointmentRepository.save(
+                        appointment
+                );
 
         boolean refunded = false;
 
@@ -313,15 +334,6 @@ public class AppointmentServiceImpl
                 refunded = true;
             }
         }
-
-        appointment.setStatus(
-                newStatus
-        );
-
-        Appointment updatedAppointment =
-                appointmentRepository.save(
-                        appointment
-                );
 
         String title;
         String message;
@@ -611,7 +623,13 @@ public class AppointmentServiceImpl
     }
 
     @Override
-    public boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted) {
+    public boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted, boolean requireAccepted) {
+        if (requireAccepted) {
+            return appointmentRepository.existsByPatientIdAndPsychologistIdAndStatusIn(
+                    patientId, psychologistId,
+                    java.util.List.of(AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED)
+            );
+        }
         if (requireCompleted) {
             return appointmentRepository.existsByPatientIdAndPsychologistIdAndStatus(
                     patientId, psychologistId, AppointmentStatus.COMPLETED

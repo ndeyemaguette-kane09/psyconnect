@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/app_ui.dart';
 import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../messaging/models/messaging_models.dart';
@@ -317,7 +316,16 @@ class _ConversationRow extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
               child: Row(
                 children: [
-                  AppAvatar(name: title, size: 48, showRing: false),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.teal.withValues(alpha: 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_outline,
+                        color: AppColors.teal, size: 26),
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(

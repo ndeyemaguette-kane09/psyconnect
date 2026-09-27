@@ -89,6 +89,7 @@ class AppointmentServiceImplTest {
     @DisplayName("Créneau psy occupé (RDV actif) → exception")
     void createAppointment_whenPsychologistSlotTaken_throwsException() {
         when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
+        when(ownershipResolver.isPsychologistVerified(PSYCHOLOGIST_ID)).thenReturn(true);
 
         // Le psy a déjà un RDV actif sur ce créneau
         when(appointmentRepository
@@ -106,6 +107,7 @@ class AppointmentServiceImplTest {
     @DisplayName("Créneau psy libre → pas d'exception levée pour le psy")
     void createAppointment_whenPsychologistSlotFree_proceedsToPatientCheck() {
         when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
+        when(ownershipResolver.isPsychologistVerified(PSYCHOLOGIST_ID)).thenReturn(true);
 
         // Psy libre, patient occupé → l'exception doit parler du patient
         when(appointmentRepository
@@ -130,6 +132,7 @@ class AppointmentServiceImplTest {
     @DisplayName("Patient a déjà un RDV actif sur ce créneau → exception")
     void createAppointment_whenPatientSlotTaken_throwsException() {
         when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
+        when(ownershipResolver.isPsychologistVerified(PSYCHOLOGIST_ID)).thenReturn(true);
 
         when(appointmentRepository
                 .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusIn(
@@ -151,6 +154,7 @@ class AppointmentServiceImplTest {
     @DisplayName("Créneau libre pour les deux → RDV créé avec succès")
     void createAppointment_whenNoConflict_createsAppointment() {
         when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
+        when(ownershipResolver.isPsychologistVerified(PSYCHOLOGIST_ID)).thenReturn(true);
 
         when(appointmentRepository
                 .existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusIn(

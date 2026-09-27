@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trajet de la recommandation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F7F9F9; --surface:#FFFFFF; --ink:#18212B; --muted:#5A6773; --line:#D3DBE0;
+  --accent:#1D6B66; --accent-soft:#E2EFEE; --warn:#A64B26; --warn-soft:#F6E7E0;
+  --c1:#1D6B66; --c2:#6E8FB3; --c3:#C9A24A;
+  --sans:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11171C; --surface:#182027; --ink:#E6ECEF; --muted:#9AA7B1; --line:#2E3A43;
+    --accent:#5FB8B0; --accent-soft:#1B3331; --warn:#E08A62; --warn-soft:#35231B;
+    --c1:#5FB8B0; --c2:#8FAAD0; --c3:#D9B866;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11171C; --surface:#182027; --ink:#E6ECEF; --muted:#9AA7B1; --line:#2E3A43;
+  --accent:#5FB8B0; --accent-soft:#1B3331; --warn:#E08A62; --warn-soft:#35231B;
+  --c1:#5FB8B0; --c2:#8FAAD0; --c3:#D9B866;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;padding:0 20px}
+.wrap{max-width:960px;margin:0 auto;padding-block:40px 64px;display:flex;flex-direction:column;gap:48px}
+header{display:flex;flex-direction:column;gap:10px;max-width:68ch}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-size:clamp(28px,4vw,38px);line-height:1.15;margin:0;font-weight:700;text-wrap:balance}
+h2{font-size:21px;margin:0;font-weight:700;text-wrap:balance}
+p{margin:0}
+.lead{color:var(--muted);font-size:16px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+section{display:flex;flex-direction:column;gap:18px}
+.sec-head{display:flex;flex-direction:column;gap:6px;max-width:70ch}
+.sec-head p{color:var(--muted)}
+figure{margin:0;display:flex;flex-direction:column;gap:10px}
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.scroll svg{display:block;min-width:720px;width:100%;height:auto;color:var(--ink)}
+figcaption{color:var(--muted);font-size:13.5px;max-width:75ch}
+
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.step{display:grid;grid-template-columns:44px 1fr 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}
+.num{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500;padding-top:2px}
+.step h3{margin:0 0 4px;font-size:15.5px;font-weight:600}
+.step .what{color:var(--muted);font-size:14px}
+.ex{font-family:var(--mono);font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;align-self:start}
+.ex .out{color:var(--warn)}
+.ex .ok{color:var(--accent)}
+.tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:1px}
+.tag.w{background:var(--warn-soft);color:var(--warn)}
+
+.formula{font-family:var(--mono);font-size:15px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;white-space:nowrap}
+.formula b{font-weight:500}
+.f1{color:var(--c1)} .f2{color:var(--c2)} .f3{color:var(--c3)}
+.bars{display:flex;flex-direction:column;gap:14px}
+.bar-row{display:grid;grid-template-columns:120px 1fr 64px;gap:12px;align-items:center}
+.bar-row .who{font-weight:600;font-size:14px}
+.bar-row .who span{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.track{height:22px;background:var(--line);border-radius:4px;display:flex;overflow:hidden}
+.track i{display:block;height:100%}
+.track .s1{background:var(--c1)} .track .s2{background:var(--c2)} .track .s3{background:var(--c3)}
+.score{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.excluded{font-size:13.5px;color:var(--warn)}
+.reading{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.reading div{border-top:2px solid var(--line);padding-top:10px;font-size:14px}
+.reading strong{display:block;margin-bottom:2px}
+
+.pitch{display:grid;grid-template-columns:repeat(2,1fr);gap:0 28px}
+.pitch div{padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}
+.pitch strong{display:block;font-size:14.5px;margin-bottom:2px}
+
+@media (max-width:680px){
+  .step{grid-template-columns:32px 1fr}
+  .step .ex{grid-column:2}
+  .reading,.pitch{grid-template-columns:1fr}
+  .bar-row{grid-template-columns:84px 1fr 52px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">PsyConnect · ml-service</span>
+  <h1>Trajet d'une recommandation de psychologue</h1>
+  <p class="lead">De l'appel de l'accueil patient jusqu'à la liste classée : qui appelle qui, quels filtres s'appliquent, et comment le score de chaque psy est calculé. Filtrage par contenu, sans entraînement, recalculé à chaque requête.</p>
+</header>
+
+<section>
+  <div class="sec-head">
+    <h2>1. Le circuit réseau</h2>
+    <p>ml-service ne parle jamais directement à user-service : il repasse par la passerelle, avec le jeton du patient.</p>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 900 400" role="img" aria-label="Flutter appelle la passerelle, qui route vers ml-service ; ml-service rappelle user-service via la passerelle avec le jeton du patient, puis renvoie le top N à Flutter. En cas d'échec, Flutter se replie sur les psys validés triés par note.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+        <marker id="arW" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--warn)"/></marker>
+      </defs>
+
+      <g font-family="Figtree, system-ui, sans-serif" font-size="12.5">
+        <rect x="20" y="170" width="170" height="66" rx="8" fill="var(--surface)" stroke="currentColor" stroke-width="1.3"/>
+        <text x="105" y="198" text-anchor="middle" font-weight="700" font-size="14" fill="currentColor">App Flutter</text>
+        <text x="105" y="218" text-anchor="middle" fill="var(--muted)">accueil patient</text>
+
+        <rect x="310" y="170" width="170" height="66" rx="8" fill="var(--surface)" stroke="currentColor" stroke-width="1.3"/>
+        <text x="395" y="198" text-anchor="middle" font-weight="700" font-size="14" fill="currentColor">API Gateway</text>
+        <text x="395" y="218" text-anchor="middle" fill="var(--muted)">:8080</text>
+
+        <rect x="650" y="50" width="230" height="84" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6"/>
+        <text x="765" y="82" text-anchor="middle" font-weight="700" font-size="14" fill="var(--accent)">ml-service</text>
+        <text x="765" y="102" text-anchor="middle" fill="var(--muted)">Python · FastAPI · :8000</text>
+        <text x="765" y="120" text-anchor="middle" fill="var(--muted)">pas dans Eureka · ne stocke rien</text>
+
+        <rect x="650" y="276" width="230" height="84" rx="8" fill="var(--surface)" stroke="currentColor" stroke-width="1.3"/>
+        <text x="765" y="308" text-anchor="middle" font-weight="700" font-size="14" fill="currentColor">user-service</text>
+        <text x="765" y="328" text-anchor="middle" fill="var(--muted)">Java · Spring</text>
+        <text x="765" y="346" text-anchor="middle" fill="var(--muted)">vérifie le jeton</text>
+
+        <line x1="190" y1="203" x2="306" y2="203" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <text x="248" y="192" text-anchor="middle" fill="currentColor">① GET + jeton</text>
+
+        <line x1="480" y1="182" x2="646" y2="82" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <text x="548" y="118" text-anchor="middle" fill="currentColor">② route fixe</text>
+        <text x="548" y="133" text-anchor="middle" fill="var(--muted)" font-size="11.5">ML_SERVICE_URL</text>
+
+        <line x1="668" y1="134" x2="484" y2="212" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arA)"/>
+        <text x="612" y="190" text-anchor="middle" fill="var(--accent)">③ 2 appels, jeton relayé</text>
+
+        <line x1="480" y1="226" x2="646" y2="304" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arA)"/>
+        <text x="530" y="290" text-anchor="middle" fill="var(--accent)" font-size="11.5">GET /patients/{id}</text>
+        <text x="530" y="306" text-anchor="middle" fill="var(--accent)" font-size="11.5">GET /psychologists?verifiedOnly=true</text>
+
+        <line x1="765" y1="274" x2="765" y2="138" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#arA)"/>
+        <text x="775" y="210" fill="var(--accent)" font-size="11.5">profil patient</text>
+        <text x="775" y="225" fill="var(--accent)" font-size="11.5">+ psys validés</text>
+
+        <path d="M650,66 L105,66 L105,166" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+        <text x="380" y="56" text-anchor="middle" fill="currentColor">④ top N classés par score (JSON)</text>
+
+        <line x1="105" y1="236" x2="105" y2="296" stroke="var(--warn)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arW)"/>
+        <text x="115" y="270" fill="var(--warn)" font-size="11.5">si erreur ou liste vide</text>
+        <rect x="20" y="300" width="250" height="60" rx="8" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="1.2" stroke-dasharray="5 4"/>
+        <text x="32" y="324" fill="var(--warn)" font-weight="600">Repli Flutter</text>
+        <text x="32" y="344" fill="currentColor" font-size="12">psys validés, triés par note, 5 premiers</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption>Les pointillés verts sont les lectures faites par ml-service, qui passent physiquement par la passerelle. ml-service ne vérifie pas le jeton lui-même : c'est user-service qui décide si l'appelant a le droit de lire le profil. Le repli garde l'accueil fonctionnel si ml-service tombe, mais ne retire pas les psys indisponibles.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>2. Ce qui se passe dans ml-service</h2>
+    <p>Suivi d'un vrai cas, exécuté sur <code>recommender.py</code> : une patiente wolophone à Dakar qui cherche de l'aide pour « Anxiété et troubles du sommeil ».</p>
+  </div>
+  <ol class="steps">
+    <li class="step">
+      <span class="num">01</span>
+      <div><h3>Réception <span class="tag">main.py</span></h3><p class="what"><code>patient_id</code> vient de l'URL, <code>top_n</code> vaut 5 par défaut, borné entre 1 et 20. Hors bornes : 422 sans rien exécuter.</p></div>
+      <div class="ex">GET /recommendations/42?top_n=5
+Authorization: Bearer …</div>
+    </li>
+    <li class="step">
+      <span class="num">02</span>
+      <div><h3>Lecture des données <span class="tag">user_service_client.py</span></h3><p class="what">Deux appels successifs, 5 s max chacun. Premier filtre : <code>verifiedOnly=true</code>, donc un psy refusé ou non approuvé par l'admin n'arrive jamais ici.</p></div>
+      <div class="ex">404 patient      → 404
+timeout / réseau → 502
+autre (401, 403) → 502</div>
+    </li>
+    <li class="step">
+      <span class="num">03</span>
+      <div><h3>Filtre de disponibilité <span class="tag w">2e filtre</span></h3><p class="what">On garde les psys dont <code>available</code> est vrai (absent = disponible). Aucun restant : liste vide.</p></div>
+      <div class="ex"><span class="ok">A, B, C gardés</span>
+<span class="out">D retiré (indisponible), malgré 5/5</span></div>
+    </li>
+    <li class="step">
+      <span class="num">04</span>
+      <div><h3>Construction des textes</h3><p class="what">Patient : langue + « Ce que vous recherchez » (champ <code>medicalHistory</code>). Psy : spécialité + bio + langues. La ville reste hors du texte.</p></div>
+      <div class="ex">patient : "Wolof Anxiété et troubles du sommeil"
+A       : "Anxiété TCC, anxiété, sommeil Wolof, Français"</div>
+    </li>
+    <li class="step">
+      <span class="num">05</span>
+      <div><h3>Nettoyage</h3><p class="what">Minuscules, accents retirés (NFKD), découpage <code>[a-z0-9]+</code>, suppression des mots vides et des mots d'une lettre.</p></div>
+      <div class="ex">patient : wolof anxiete troubles sommeil
+A : anxiete tcc anxiete sommeil wolof francais
+B : therapie couple conflits couple francais
+C : depression accompagnement depression wolof</div>
+    </li>
+    <li class="step">
+      <span class="num">06</span>
+      <div><h3>TF-IDF <span class="tag">numpy, à la main</span></h3><p class="what">Une ligne par texte, une colonne par mot. Un mot compte s'il est fréquent dans ce texte et rare dans les autres. <code>idf = ln((1+n)/(1+df)) + 1</code>, formule « smooth » de scikit-learn.</p></div>
+      <div class="ex">wolof    3 textes  idf 1,223
+anxiete  2 textes  idf 1,511
+troubles 1 texte   idf 1,916</div>
+    </li>
+    <li class="step">
+      <span class="num">07</span>
+      <div><h3>Score de chaque psy</h3><p class="what">Cosinus entre la ligne du patient et celle du psy, note ramenée sur 1, bonus si même ville (après nettoyage : « Thiès » = « thies »).</p></div>
+      <div class="ex">similarité A = 0,616
+similarité B = 0
+similarité C = 0,108</div>
+    </li>
+    <li class="step">
+      <span class="num">08</span>
+      <div><h3>Tri et réponse <span class="tag">schemas.py</span></h3><p class="what">Tri décroissant, <code>top_n</code> premiers. Chaque psy revient avec ses infos publiques et <code>contentSimilarity</code>, <code>cityMatch</code>, <code>score</code>.</p></div>
+      <div class="ex">1. A  0,570
+2. B  0,400
+3. C  0,365</div>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>3. La formule, décomposée</h2>
+    <p>Les poids viennent de <code>config.py</code> et se règlent par variables d'environnement. Leur somme fait 1, donc le score reste entre 0 et 1.</p>
+  </div>
+  <div class="formula">score = <b class="f1">0,6 × similarité</b> + <b class="f2">0,25 × (note / 5)</b> + <b class="f3">0,15 × même_ville</b></div>
+  <figure>
+    <div class="bars" role="img" aria-label="Scores : A 0,570, B 0,400, C 0,365, décomposés en contenu, note et ville.">
+      <div class="bar-row"><div class="who">Psy A<span>Thiès · 4/5</span></div><div class="track"><i class="s1" style="width:36.9%"></i><i class="s2" style="width:20%"></i></div><div class="score">0,570</div></div>
+      <div class="bar-row"><div class="who">Psy B<span>Dakar · 5/5</span></div><div class="track"><i class="s2" style="width:25%"></i><i class="s3" style="width:15%"></i></div><div class="score">0,400</div></div>
+      <div class="bar-row"><div class="who">Psy C<span>Dakar · 3/5</span></div><div class="track"><i class="s1" style="width:6.5%"></i><i class="s2" style="width:15%"></i><i class="s3" style="width:15%"></i></div><div class="score">0,365</div></div>
+    </div>
+    <div class="legend"><span><i style="background:var(--c1)"></i>contenu (0,6)</span><span><i style="background:var(--c2)"></i>note (0,25)</span><span><i style="background:var(--c3)"></i>même ville (0,15)</span><span>échelle : barre pleine = 1</span></div>
+    <p class="excluded">Psy D (Dakar, 5/5, spécialité anxiété) n'apparaît pas : écarté à l'étape 03 car indisponible.</p>
+  </figure>
+  <div class="reading">
+    <div><strong>A gagne hors de Dakar</strong>Le contenu pèse plus que la ville : anxiété et sommeil en commun.</div>
+    <div><strong>B passe devant C</strong>Aucun mot en commun, mais sa note de 5 et la ville compensent.</div>
+    <div><strong>C reste 3e</strong>Il ne partage que « wolof », le mot le plus répandu donc le moins pesant.</div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>4. Ce qu'on dit au jury avec ce schéma</h2>
+  </div>
+  <div class="pitch">
+    <div><strong>Pourquoi le contenu et pas le collaboratif</strong>Sans historique de réservations, le collaboratif ne produit rien (démarrage à froid). Le contenu marche dès le premier patient.</div>
+    <div><strong>Deux filtres avant tout calcul</strong>Approbation admin côté user-service, disponibilité côté ml-service. Un psy non validé n'est jamais proposé, quel que soit son score.</div>
+    <div><strong>Pas de dossier médical dans le calcul</strong>Seuls la langue et « Ce que vous recherchez » sont lus. Les antécédents structurés ne sont jamais appelés.</div>
+    <div><strong>Limites à annoncer soi-même</strong>Négation perdue, pas de racinisation ni de synonymes, nombre d'avis ignoré, 403 renvoyé en 502, pas d'évaluation chiffrée.</div>
+  </div>
+</section>
+</div>
+</body>
+</html>

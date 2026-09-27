@@ -41,7 +41,7 @@ List<AppointmentResponse> getAllAppointmentsForAdmin(String status);
 // a au moins un rendez-vous avec un patient donné. Pas de vérification d'ownership :
 // le contrôle de rôle est fait côté user-service avant d'appeler cet endpoint.
 // requireCompleted=false → n'importe quel statut ; true → seulement COMPLETED
-boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted);
+boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted, boolean requireAccepted);
 
 // suppression definitive d'un RDV annulé/refusé. patient proprietaire only,
 // un PENDING/CONFIRMED/COMPLETED ne peut pas etre supprimé

@@ -150,7 +150,6 @@ class _XalaatScreenState extends State<XalaatScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildDisclaimer(),
             Expanded(child: _buildMessageList()),
             if (_error != null) _buildErrorBanner(),
             _buildComposer(),
@@ -160,37 +159,19 @@ class _XalaatScreenState extends State<XalaatScreen> {
     );
   }
 
-  Widget _buildDisclaimer() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: AppColors.tealLight,
-      child: const Row(
-        children: [
-          Icon(Icons.lock_outline, size: 14, color: AppColors.tealDark),
-          SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              "Conversation confidentielle, jamais enregistrée. Xalaat ne "
-              "remplace pas un psychologue.",
-              style: TextStyle(fontSize: 11, color: AppColors.tealDark),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMessageList() {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      itemCount: _messages.length + (_sending ? 1 : 0),
+      itemCount: _messages.length + 1 + (_sending ? 1 : 0),
       itemBuilder: (context, i) {
-        if (i == _messages.length) {
+        if (i == 0) {
+          return const _ConfidentialNote();
+        }
+        if (i == _messages.length + 1) {
           return const _TypingBubble();
         }
-        return _MessageBubble(message: _messages[i]);
+        return _MessageBubble(message: _messages[i - 1]);
       },
     );
   }
@@ -306,28 +287,181 @@ class _FlaggedBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lines = content
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+
+    final children = <Widget>[];
+    var helplines = <String>[];
+    void flushHelplines() {
+      if (helplines.isEmpty) return;
+      children.add(Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: Column(
+          children: [for (final l in helplines) _HelplineRow(line: l)],
+        ),
+      ));
+      helplines = <String>[];
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final isClosing = i == lines.length - 1 && !line.startsWith('- ');
+      if (line.startsWith('- ')) {
+        helplines.add(line.substring(2));
+        continue;
+      }
+      flushHelplines();
+      children.add(Padding(
+        padding: EdgeInsets.only(top: isClosing ? 4 : 0, bottom: 10),
+        child: Text(
+          line,
+          style: isClosing
+              ? const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.tealDark,
+                  height: 1.4,
+                )
+              : const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.45,
+                ),
+        ),
+      ));
+    }
+    flushHelplines();
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(top: 4, bottom: 14),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
       decoration: BoxDecoration(
-        color: AppColors.goldLight,
-        border: Border.all(color: AppColors.gold),
+        color: AppColors.tealSoft,
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.support_agent, color: AppColors.gold, size: 18),
-              SizedBox(width: 8),
-              Text('Aide immédiate',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-            ],
+          const Text(
+            'Tu n’as pas à porter ça seul·e',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+              height: 1.3,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(content,
-              style: const TextStyle(color: AppColors.text, height: 1.4)),
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _HelplineRow extends StatelessWidget {
+  const _HelplineRow({required this.line});
+
+  final String line;
+
+  @override
+  Widget build(BuildContext context) {
+    var text = line.trim();
+    if (text.endsWith(';') || text.endsWith('.')) {
+      text = text.substring(0, text.length - 1).trim();
+    }
+    final sep = text.indexOf(' : ');
+    var label = sep == -1 ? text : text.substring(0, sep).trim();
+    final rest = sep == -1 ? '' : text.substring(sep + 3).trim();
+    final comma = rest.indexOf(',');
+    final number = comma == -1 ? rest : rest.substring(0, comma).trim();
+    final detail = comma == -1 ? '' : rest.substring(comma + 1).trim();
+    if (label.isNotEmpty) {
+      label = label[0].toUpperCase() + label.substring(1);
+    }
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (detail.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.muted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (number.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              Text(
+                number,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.tealDark,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfidentialNote extends StatelessWidget {
+  const _ConfidentialNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 18),
+      child: Row(
+        children: [
+          Expanded(child: Divider(height: 1, thickness: 1)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: SizedBox(
+              width: 220,
+              child: Text(
+                "Rien n'est enregistré. Xalaat ne remplace pas un psychologue.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: AppColors.muted,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+          Expanded(child: Divider(height: 1, thickness: 1)),
         ],
       ),
     );
