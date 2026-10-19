@@ -27,8 +27,8 @@ services:
     image: postgres:16-alpine
     container_name: psyconnect-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
       POSTGRES_DB: postgres          # base par défaut ; les 6 bases métier sont
                                      # créées par le script init-databases.sql
     volumes:
@@ -92,12 +92,13 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       DB_URL: jdbc:postgresql://postgres:5432/psyconnect_auth
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       # Vérification obligatoire du statut du profil psychologue au login.
       USER_SERVICE_URL: http://user-service:8082
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD manquant dans .env}
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
     depends_on:
@@ -116,10 +117,10 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       DB_URL: jdbc:postgresql://postgres:5432/psyconnect_user
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       # les justificatifs psy sont stockés dans ce volume persistant
       LICENSE_DOCS_DIR: uploads/license-documents
       # URL explicite avec port — sans ça, HTTP utilise le port 80 par défaut
@@ -143,10 +144,10 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       DB_URL: jdbc:postgresql://postgres:5432/psyconnect_appointment
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       NOTIFICATION_SERVICE_URL: http://notification-service:8086
       USER_SERVICE_URL: http://user-service:8082
     depends_on:
@@ -165,10 +166,10 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       DB_URL: jdbc:postgresql://postgres:5432/psyconnect_payment
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       NOTIFICATION_SERVICE_URL: http://notification-service:8086
     depends_on:
       postgres:
@@ -186,10 +187,10 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       DB_URL: jdbc:postgresql://postgres:5432/psyconnect_notification
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       # notification-service appelle user-service directement (hors Eureka)
       USER_SERVICE_URL: http://user-service:8082
     depends_on:
@@ -208,7 +209,7 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       # Ollama tourne nativement sur le Mac (accélération Metal).
       # Docker Desktop sur macOS résout host.docker.internal vers l'hôte automatiquement.
       # Sur Linux : ajouter `extra_hosts: ["host.docker.internal:host-gateway"]`
@@ -227,10 +228,10 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       DB_URL: jdbc:postgresql://postgres:5432/psyconnect_session
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -247,7 +248,7 @@ services:
     environment:
       EUREKA_URL: http://eureka-server:8761/eureka/
       ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
-      JWT_SECRET: myVerySecretKeyForPsyConnectApplicationJWT2026SecurityKey
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       ML_SERVICE_URL: http://ml-service:8000
     depends_on:
       eureka-server:

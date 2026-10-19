@@ -12,8 +12,8 @@ import '../services/session_service.dart';
 enum _CallPhase { loading, preCall, joining, ended }
 
 // ecran d'appel Jitsi Meet — remplace la simulation Agora
-// flux : preCall → startSession (backend) → jitsi.join() → conferenceTerminated
-//         → retour a preCall (PAS de endSession ici, voir _onConferenceTerminated)
+// flux : preCall -> startSession (backend) -> jitsi.join() -> conferenceTerminated
+//         -> retour a preCall (PAS de endSession ici, voir _onConferenceTerminated)
 // les deux participants (patient ET psy) ouvrent le meme room Jitsi via le
 // meetingToken retourne par le backend (psyconnect-{rdvId}-{uuid8}). Le
 // backend garantit desormais qu'un seul et meme salon existe par rendez-vous

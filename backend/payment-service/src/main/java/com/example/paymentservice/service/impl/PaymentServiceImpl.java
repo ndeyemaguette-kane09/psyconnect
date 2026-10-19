@@ -217,7 +217,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     // revenu brut + net d'un psy, total et du mois en cours.
     // Requête directe sur la table payments (psychologistId dupliqué depuis l'appointment)
-    // → aucun appel cross-service, donc pas de boucle d'ownership inter-service.
+    // -> aucun appel cross-service, donc pas de boucle d'ownership inter-service.
     @Override
     public PsychologistRevenueResponse getPsychologistRevenue(Long psychologistId) {
 
@@ -233,7 +233,7 @@ public class PaymentServiceImpl implements PaymentService {
             throw new ForbiddenOperationException("Accès réservé aux psychologues");
         }
 
-        // les anciens paiements (avant l'ajout de psychologistId) ont null → exclus,
+        // les anciens paiements (avant l'ajout de psychologistId) ont null -> exclus,
         // ce qui est acceptable pour un environnement de développement
         List<Payment> completedPayments = paymentRepository
                 .findByPsychologistIdAndStatus(psychologistId, PaymentStatus.COMPLETED);
@@ -316,7 +316,7 @@ public class PaymentServiceImpl implements PaymentService {
         withdrawal.setPsychologistId(psychologistId);
         withdrawal.setAmount(amount);
         withdrawal.setMethod(method);
-        // statut positionné par @PrePersist si null → COMPLETED
+        // statut positionné par @PrePersist si null -> COMPLETED
 
         return mapWithdrawal(withdrawalRepository.save(withdrawal));
     }
@@ -416,7 +416,7 @@ public class PaymentServiceImpl implements PaymentService {
     // historique détaillé des paiements reçus par un psy, du plus récent au plus ancien.
     // completed = paiement encaissé ; refunded = RDV annulé, argent rendu au patient.
     // Requête directe sur payments (psychologistId/patientId/startTime dupliqués
-    // depuis l'appointment à la création) → aucun appel cross-service.
+    // depuis l'appointment à la création) -> aucun appel cross-service.
     @Override
     public List<PaymentTransactionDto> getTransactionsByPsychologistId(Long psychologistId) {
 

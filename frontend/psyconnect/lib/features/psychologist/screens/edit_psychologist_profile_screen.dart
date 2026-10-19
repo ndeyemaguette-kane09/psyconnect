@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -160,142 +159,151 @@ class _EditPsychologistProfileScreenState
 
   @override
   Widget build(BuildContext context) {
+    final hasDocument = widget.psychologist.hasLicenseDocument == true;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        title: const Text('Modifier le profil', style: TextStyle(color: AppColors.text)),
-        iconTheme: const IconThemeData(color: AppColors.text),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            children: [
-              if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.errorBg,
-                  ),
-                  child: Text(_error!, style: const TextStyle(color: AppColors.rose)),
+      appBar: AppBar(),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Modifier mon profil',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
                 ),
-                const SizedBox(height: 16),
-              ],
-              SectionHeader(title: 'Informations professionnelles'),
-              const SizedBox(height: 10),
-              _FormCard(
-                children: [
-                  _field(_specialty, 'Spécialité', required: true),
-                  _field(_years, "Années d'expérience",
-                      keyboardType: TextInputType.number),
-                  _field(_price, 'Prix consultation (FCFA)',
-                      keyboardType: TextInputType.number),
-                  _field(_languages, 'Langues parlées',
-                      hint: 'Ex : Français, Wolof'),
-                  _field(_licenseNumber, 'Numéro de licence', isLast: true),
-                ],
               ),
-              const SizedBox(height: 22),
-              SectionHeader(title: 'Localisation'),
-              const SizedBox(height: 10),
-              _FormCard(
-                children: [
-                  _field(_city, 'Ville'),
-                  _field(
-                    _address,
-                    'Adresse du cabinet',
-                    hint: 'Visible par les patients pour les séances en cabinet',
-                    isLast: true,
-                  ),
-                ],
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 4, 4, 0),
+              child: Text(
+                'Ces informations apparaissent sur votre fiche, côté patient.',
+                style: TextStyle(fontSize: 15.5, color: AppColors.muted),
               ),
-              const SizedBox(height: 22),
-              SectionHeader(title: 'À propos'),
-              const SizedBox(height: 10),
-              _FormCard(
-                children: [
-                  _field(_bio, 'Bio', maxLines: 4, isLast: true),
-                ],
-              ),
-              const SizedBox(height: 22),
-              SectionHeader(title: 'Justificatif'),
-              const SizedBox(height: 10),
-              _FormCard(
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        widget.psychologist.hasLicenseDocument == true
-                            ? Icons.verified_outlined
-                            : Icons.error_outline,
-                        size: 18,
-                        color: widget.psychologist.hasLicenseDocument == true
-                            ? AppColors.teal
-                            : AppColors.rose,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.psychologist.hasLicenseDocument == true
-                              ? 'Un justificatif est déjà enregistré'
-                              : 'Aucun justificatif enregistré',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: _uploadingLicense ? null : _reuploadLicenseDocument,
-                    icon: _uploadingLicense
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.upload_file_outlined),
-                    label: Text(
-                      _newLicenseName ??
-                          (widget.psychologist.hasLicenseDocument == true
-                              ? 'Remplacer le justificatif'
-                              : 'Envoyer un justificatif'),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (_licenseUploadMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _licenseUploadMessage!,
-                      style: TextStyle(
-                        color: _licenseUploadError
-                            ? AppColors.rose
-                            : AppColors.teal,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 28),
-              FilledButton.icon(
-                onPressed: _saving ? null : _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.teal,
-                  minimumSize: const Size.fromHeight(50),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.dangerBg,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                icon: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.check, size: 18),
-                label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
+                child: Text(
+                  _error!,
+                  style:
+                      const TextStyle(color: AppColors.danger, fontSize: 14.5),
+                ),
               ),
             ],
+            const _Heading('Mon métier'),
+            _field(_specialty, 'Spécialité', required: true),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _field(_years, 'Expérience (ans)',
+                      keyboardType: TextInputType.number),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _field(_price, 'Prix (F CFA)',
+                      keyboardType: TextInputType.number),
+                ),
+              ],
+            ),
+            _field(_languages, 'Langues parlées', hint: 'Ex : Français, Wolof'),
+            _field(_licenseNumber, 'Numéro de licence', isLast: true),
+            const _Heading('Où me trouver'),
+            _field(_city, 'Ville'),
+            _field(
+              _address,
+              'Adresse du cabinet',
+              hint: 'Visible par les patients pour les séances en cabinet',
+              isLast: true,
+            ),
+            const _Heading('Ma présentation'),
+            _field(
+              _bio,
+              'Quelques mots pour vos patients',
+              maxLines: 5,
+              isLast: true,
+            ),
+            const _Heading('Justificatif de diplôme'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                hasDocument
+                    ? 'Un justificatif est déjà enregistré.'
+                    : 'Aucun justificatif enregistré pour l\'instant.',
+                style: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: hasDocument ? AppColors.teal : AppColors.goldDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                onPressed: _uploadingLicense ? null : _reuploadLicenseDocument,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.white,
+                  foregroundColor: AppColors.text,
+                ),
+                icon: _uploadingLicense
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_file_outlined, size: 20),
+                label: Text(
+                  _newLicenseName ??
+                      (hasDocument
+                          ? 'Remplacer le justificatif'
+                          : 'Envoyer un justificatif'),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            if (_licenseUploadMessage != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                child: Text(
+                  _licenseUploadMessage!,
+                  style: TextStyle(
+                    color:
+                        _licenseUploadError ? AppColors.danger : AppColors.teal,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+          child: FilledButton(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Enregistrer'),
           ),
         ),
       ),
@@ -312,7 +320,7 @@ class _EditPsychologistProfileScreenState
     TextInputType? keyboardType,
   }) {
     return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
@@ -320,11 +328,7 @@ class _EditPsychologistProfileScreenState
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          filled: true,
-          fillColor: AppColors.background,
-          border: OutlineInputBorder(
-            borderSide: BorderSide.none,
-          ),
+          alignLabelWithHint: maxLines > 1,
         ),
         validator: required
             ? (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null
@@ -334,19 +338,23 @@ class _EditPsychologistProfileScreenState
   }
 }
 
-class _FormCard extends StatelessWidget {
-  const _FormCard({required this.children});
+class _Heading extends StatelessWidget {
+  const _Heading(this.title);
 
-  final List<Widget> children;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 26, 4, 10),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w800,
+          color: AppColors.text,
+        ),
       ),
-      child: Column(children: children),
     );
   }
 }

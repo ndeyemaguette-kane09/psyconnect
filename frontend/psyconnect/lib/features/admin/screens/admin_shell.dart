@@ -76,64 +76,74 @@ class _AdminShellState extends State<AdminShell> {
         onPressed: () => _selectTab(_fabTabIndex),
         backgroundColor:
             _index == _fabTabIndex ? AppColors.tealDark : AppColors.teal,
-        elevation: 4,
-        shape: const CircleBorder(),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(28),
+            bottom: Radius.circular(12),
+          ),
+        ),
         tooltip: _pendingValidations > 0
-            ? 'Validation · $_pendingValidations en attente'
-            : 'Validation',
+            ? 'Validations · $_pendingValidations en attente'
+            : 'Validations',
         child: Badge(
           isLabelVisible: _pendingValidations > 0,
           label: Text('$_pendingValidations'),
-          child: const Icon(Icons.fact_check_rounded,
-              color: Colors.white, size: 28),
+          backgroundColor: AppColors.gold,
+          textColor: AppColors.text,
+          child: const Icon(Icons.fact_check_outlined,
+              color: Colors.white, size: 26),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: AppColors.white,
-        elevation: 8,
-        child: SizedBox(
-          height: 62,
-          child: Row(
-            children: [
-              _NavItem(
-                index: 0,
-                selectedIndex: _index,
-                icon: Icons.space_dashboard_outlined,
-                selectedIcon: Icons.space_dashboard,
-                label: 'Dashboard',
-                onTap: () => _selectTab(0),
-              ),
-              _NavItem(
-                index: 1,
-                selectedIndex: _index,
-                icon: Icons.people_outline,
-                selectedIcon: Icons.people,
-                label: 'Utilisateurs',
-                onTap: () => _selectTab(1),
-              ),
-              const Spacer(), // espace pour le FAB
-              _NavItem(
-                index: 3,
-                selectedIndex: _index,
-                icon: Icons.bar_chart_outlined,
-                selectedIcon: Icons.bar_chart,
-                label: 'Stats',
-                onTap: () => _selectTab(3),
-              ),
-              _NavItem(
-                index: 4,
-                selectedIndex: _index,
-                icon: Icons.settings_outlined,
-                selectedIcon: Icons.settings,
-                label: 'Paramètres',
-                badge: _pendingReports,
-                onTap: () => _selectTab(4),
-              ),
-            ],
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        child: BottomAppBar(
+          color: AppColors.white,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          child: SizedBox(
+            height: 70,
+            child: Row(
+              children: [
+                _NavItem(
+                  index: 0,
+                  selectedIndex: _index,
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  label: 'Accueil',
+                  onTap: () => _selectTab(0),
+                ),
+                _NavItem(
+                  index: 1,
+                  selectedIndex: _index,
+                  icon: Icons.people_outline,
+                  selectedIcon: Icons.people,
+                  label: 'Utilisateurs',
+                  onTap: () => _selectTab(1),
+                ),
+                const Spacer(),
+                _NavItem(
+                  index: 3,
+                  selectedIndex: _index,
+                  icon: Icons.bar_chart_outlined,
+                  selectedIcon: Icons.bar_chart,
+                  label: 'Stats',
+                  onTap: () => _selectTab(3),
+                ),
+                _NavItem(
+                  index: 4,
+                  selectedIndex: _index,
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  label: 'Réglages',
+                  badge: _pendingReports,
+                  onTap: () => _selectTab(4),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -176,20 +186,20 @@ class _NavItem extends StatelessWidget {
             Badge(
               isLabelVisible: badge > 0,
               label: Text('$badge', style: const TextStyle(fontSize: 10)),
-              backgroundColor: AppColors.rose,
+              backgroundColor: AppColors.teal,
               child: Icon(
                 selected ? selectedIcon : icon,
                 color: color,
                 size: 24,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 color: color,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               ),
             ),
           ],

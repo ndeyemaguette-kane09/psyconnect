@@ -10,8 +10,8 @@ import '../services/profile_service.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
-// Gère tout le flux d'inscription et de connexion : register → login →
-// createUserProfile → createPatientProfile / createPsychologistProfile.
+// Gère tout le flux d'inscription et de connexion : register -> login ->
+// createUserProfile -> createPatientProfile / createPsychologistProfile.
 // Utilise Provider pour que les écrans réagissent aux changements d'état.
 class AuthProvider extends ChangeNotifier {
   AuthProvider({

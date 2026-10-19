@@ -4,6 +4,24 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../models/psychologist_models.dart';
 
+String formatPrice(int value) {
+  final digits = value.toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
+}
+
+String? _firstSentence(String? text) {
+  if (text == null) return null;
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+  final end = trimmed.indexOf(RegExp(r'[.!?](\s|$)'));
+  return end == -1 ? trimmed : trimmed.substring(0, end + 1);
+}
+
 class PsychologistMiniCard extends StatelessWidget {
   const PsychologistMiniCard({
     super.key,
@@ -16,42 +34,53 @@ class PsychologistMiniCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    final details = [
+      psychologist.specialty,
+      if (psychologist.city != null && psychologist.city!.trim().isNotEmpty)
+        psychologist.city!,
+    ].join(' · ');
+
+    return InkWell(
       onTap: onTap,
-      padding: const EdgeInsets.all(13),
-      child: Row(
-        children: [
-          AppAvatar(name: psychologist.fullName, size: 46),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  psychologist.fullName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  psychologist.specialty,
-                  style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                _RatingRow(
-                  rating: psychologist.rating,
-                  totalReviews: psychologist.totalReviews,
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            AppAvatar(name: psychologist.fullName, size: 52),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    psychologist.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    details,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14, color: AppColors.muted),
+                  ),
+                  _RatingRow(
+                    rating: psychologist.rating,
+                    totalReviews: psychologist.totalReviews,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded,
-              color: AppColors.faint, size: 22),
-        ],
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.muted, size: 22),
+          ],
+        ),
       ),
     );
   }
@@ -69,97 +98,83 @@ class PsychologistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final price = psychologist.consultationPrice;
+    final quote = _firstSentence(psychologist.bio);
+    final details = [
+      psychologist.specialty,
+      if (psychologist.city != null && psychologist.city!.trim().isNotEmpty)
+        psychologist.city!,
+    ].join(' · ');
 
-    return AppCard(
+    return InkWell(
       onTap: onTap,
-      padding: const EdgeInsets.all(15),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppAvatar(name: psychologist.fullName, size: 54),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        psychologist.fullName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppAvatar(name: psychologist.fullName, size: 64),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          psychologist.fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
                       ),
-                    ),
-                    if (price != null) ...[
                       const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '$price F',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
-                              height: 1.2,
-                            ),
-                          ),
-                          const Text(
-                            'la séance',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppColors.muted,
-                              height: 1.2,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        price == null ? 'Tarif à venir' : '${formatPrice(price)} F',
+                        style: TextStyle(
+                          fontSize: price == null ? 13 : 15,
+                          fontWeight:
+                              price == null ? FontWeight.w600 : FontWeight.w700,
+                          color: price == null ? AppColors.muted : AppColors.text,
+                        ),
                       ),
                     ],
-                  ],
-                ),
-                const SizedBox(height: 5),
-                _RatingRow(
-                  rating: psychologist.rating,
-                  totalReviews: psychologist.totalReviews,
-                ),
-                const SizedBox(height: 9),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    AppPill(
-                      label: psychologist.specialty,
-                      icon: Icons.psychology_outlined,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    details,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14, color: AppColors.muted),
+                  ),
+                  if (quote != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      quote,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        height: 1.4,
+                        color: AppColors.text,
+                      ),
                     ),
-                    if (psychologist.city != null)
-                      AppPill(
-                        label: psychologist.city!,
-                        icon: Icons.place_outlined,
-                        color: AppColors.textSecondary,
-                        background: AppColors.surfaceAlt,
-                      ),
-                    if (price == null)
-                      const AppPill(
-                        label: 'Tarif non précisé',
-                        color: AppColors.muted,
-                        background: AppColors.surfaceAlt,
-                      ),
                   ],
-                ),
-              ],
+                  _RatingRow(
+                    rating: psychologist.rating,
+                    totalReviews: psychologist.totalReviews,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 6, top: 16),
-            child: Icon(Icons.chevron_right_rounded,
-                color: AppColors.faint, size: 22),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -176,25 +191,28 @@ class _RatingRow extends StatelessWidget {
     if (rating == null || rating == 0) {
       return const SizedBox.shrink();
     }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.star_rounded, color: AppColors.gold, size: 16),
-        const SizedBox(width: 3),
-        Text(
-          rating!.toStringAsFixed(1),
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
-        ),
-        if (totalReviews != null && totalReviews! > 0)
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, color: AppColors.gold, size: 16),
+          const SizedBox(width: 3),
           Text(
-            '  ($totalReviews avis)',
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            rating!.toStringAsFixed(1).replaceAll('.', ','),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
           ),
-      ],
+          if (totalReviews != null && totalReviews! > 0)
+            Text(
+              ' · $totalReviews avis',
+              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            ),
+        ],
+      ),
     );
   }
 }

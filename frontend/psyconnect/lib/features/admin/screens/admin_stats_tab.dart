@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/appointment_models.dart';
 import '../models/admin_models.dart';
@@ -61,7 +60,7 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
       if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
       buffer.write(digits[i]);
     }
-    return '$buffer FCFA';
+    return buffer.toString();
   }
 
   void _openAppointments(BuildContext context, AppointmentStatus status) {
@@ -72,158 +71,161 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
     );
   }
 
+  void _push(Widget page) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  }
+
   @override
   Widget build(BuildContext context) {
     final stats = _stats;
+
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
+        color: AppColors.teal,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
           children: [
-            Text('Statistiques', style: Theme.of(context).textTheme.displayMedium),
-            const SizedBox(height: 20),
+            Text(
+              'Statistiques',
+              style: Theme.of(context)
+                  .textTheme
+                  .displayLarge
+                  ?.copyWith(fontSize: 30),
+            ),
+            const SizedBox(height: 22),
             if (_loading)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
+                padding: EdgeInsets.symmetric(vertical: 60),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_error != null || stats == null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Text(_error ?? 'Aucune donnée.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.muted)),
-                      const SizedBox(height: 12),
-                      OutlinedButton(onPressed: _load, child: const Text('Réessayer')),
-                    ],
-                  ),
-                ),
+              AppErrorState(
+                message: _error ?? 'Aucune donnée.',
+                onRetry: _load,
               )
             else ...[
-              Row(
-                children: [
-                  _StatBox(
-                    value: '${stats.totalAppointments}',
-                    label: 'RDV au total',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AdminAppointmentsListScreen(),
-                      ),
-                    ),
-                  ),
-                  _StatBox(
-                    value: '${stats.totalPayments}',
-                    label: 'Paiements',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AdminPaymentsListScreen(),
-                      ),
-                    ),
-                  ),
-                ],
+              const Text(
+                'Revenu total encaissé',
+                style: TextStyle(fontSize: 16, color: AppColors.muted),
               ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.teal,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 4),
+              Text.rich(
+                TextSpan(
                   children: [
-                    const Text('Revenu total (paiements réussis)',
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Text(_formatXof(stats.totalRevenue),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    Text('${stats.completedPayments} paiement(s) réussi(s) sur ${stats.totalPayments}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    TextSpan(text: _formatXof(stats.totalRevenue)),
+                    const TextSpan(
+                      text: ' F CFA',
+                      style: TextStyle(
+                        fontSize: 22,
+                        color: AppColors.muted,
+                        letterSpacing: 0,
+                      ),
+                    ),
                   ],
                 ),
+                style: const TextStyle(
+                  fontSize: 46,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1.2,
+                  height: 1.05,
+                  color: AppColors.text,
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
+              Text(
+                '${stats.completedPayments} paiement'
+                '${stats.completedPayments > 1 ? 's' : ''} réussi'
+                '${stats.completedPayments > 1 ? 's' : ''} sur '
+                '${stats.totalPayments}',
+                style: const TextStyle(fontSize: 15, color: AppColors.muted),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => _push(const AdminPaymentsListScreen()),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                  ),
+                  child: const Text(
+                    'Voir les paiements',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
               // part de revenus de l'admin — taux reglable depuis l'onglet
               // Config, pas une valeur figee en dur
-              SizedBox(
-                width: double.infinity,
-                child: AppCard(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                borderColor: AppColors.tealMid,
-                shadow: const [],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Répartition du revenu',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                        Text('Commission : ${stats.commissionRatePercent.toStringAsFixed(0)}%',
-                            style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _RevenueShare(
-                            label: 'Plateforme (vous)',
-                            value: _formatXof(stats.platformRevenue),
-                            color: AppColors.gold,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _RevenueShare(
-                            label: 'Psychologues',
-                            value: _formatXof(stats.psychologistRevenue),
-                            color: AppColors.tealDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              const _Heading('Qui touche quoi'),
+              _Bar(parts: [
+                _Part(stats.platformRevenue, AppColors.gold),
+                _Part(stats.psychologistRevenue, AppColors.teal),
+              ]),
+              const SizedBox(height: 10),
+              _LegendRow(
+                color: AppColors.gold,
+                label: 'PsyConnect · commission '
+                    '${stats.commissionRatePercent.toStringAsFixed(0)} %',
+                value: '${_formatXof(stats.platformRevenue)} F',
+              ),
+              _LegendRow(
+                color: AppColors.teal,
+                label: 'Psychologues',
+                value: '${_formatXof(stats.psychologistRevenue)} F',
+              ),
+              const SizedBox(height: 28),
+              InkWell(
+                onTap: () => _push(const AdminAppointmentsListScreen()),
+                child: _Heading(
+                  '${stats.totalAppointments} rendez-vous au total',
+                  trailing: true,
                 ),
               ),
-              ),
-              const SizedBox(height: 24),
-              Text('Répartition des rendez-vous',
-                  style: Theme.of(context).textTheme.titleMedium),
+              _Bar(parts: [
+                _Part(stats.pendingAppointments.toDouble(), AppColors.gold),
+                _Part(stats.confirmedAppointments.toDouble(), AppColors.teal),
+                _Part(stats.completedAppointments.toDouble(), AppColors.faint),
+                _Part(stats.cancelledAppointments.toDouble(), AppColors.muted),
+                _Part(stats.rejectedAppointments.toDouble(), AppColors.rose),
+              ]),
               const SizedBox(height: 10),
-              _StatusRow(
-                  label: 'En attente',
-                  count: stats.pendingAppointments,
-                  color: AppColors.gold,
-                  onTap: () => _openAppointments(context, AppointmentStatus.pending)),
-              _StatusRow(
-                  label: 'Confirmés',
-                  count: stats.confirmedAppointments,
-                  color: AppColors.teal,
-                  onTap: () => _openAppointments(context, AppointmentStatus.confirmed)),
-              _StatusRow(
-                  label: 'Terminés',
-                  count: stats.completedAppointments,
-                  color: AppColors.tealDark,
-                  onTap: () => _openAppointments(context, AppointmentStatus.completed)),
-              _StatusRow(
-                  label: 'Annulés',
-                  count: stats.cancelledAppointments,
-                  color: AppColors.muted,
-                  onTap: () => _openAppointments(context, AppointmentStatus.cancelled)),
-              _StatusRow(
-                  label: 'Refusés',
-                  count: stats.rejectedAppointments,
-                  color: AppColors.rose,
-                  onTap: () => _openAppointments(context, AppointmentStatus.rejected)),
+              _LegendRow(
+                color: AppColors.gold,
+                label: 'En attente',
+                value: '${stats.pendingAppointments}',
+                onTap: () =>
+                    _openAppointments(context, AppointmentStatus.pending),
+              ),
+              _LegendRow(
+                color: AppColors.teal,
+                label: 'Confirmés',
+                value: '${stats.confirmedAppointments}',
+                onTap: () =>
+                    _openAppointments(context, AppointmentStatus.confirmed),
+              ),
+              _LegendRow(
+                color: AppColors.faint,
+                label: 'Terminés',
+                value: '${stats.completedAppointments}',
+                onTap: () =>
+                    _openAppointments(context, AppointmentStatus.completed),
+              ),
+              _LegendRow(
+                color: AppColors.muted,
+                label: 'Annulés',
+                value: '${stats.cancelledAppointments}',
+                onTap: () =>
+                    _openAppointments(context, AppointmentStatus.cancelled),
+              ),
+              _LegendRow(
+                color: AppColors.rose,
+                label: 'Refusés',
+                value: '${stats.rejectedAppointments}',
+                onTap: () =>
+                    _openAppointments(context, AppointmentStatus.rejected),
+              ),
             ],
           ],
         ),
@@ -232,102 +234,129 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
   }
 }
 
-class _StatBox extends StatelessWidget {
-  const _StatBox({required this.value, required this.label, this.onTap});
+class _Heading extends StatelessWidget {
+  const _Heading(this.title, {this.trailing = false});
 
-  final String value;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: AppCard(
-        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-        onTap: onTap,
-        borderColor: AppColors.tealMid,
-        shadow: const [],
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: AppSpacing.sm),
-        child: Column(
-                children: [
-                  Text(value,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 20, color: AppColors.tealDark)),
-                  const SizedBox(height: 4),
-                  Text(label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _RevenueShare extends StatelessWidget {
-  const _RevenueShare({required this.label, required this.value, required this.color});
-
-  final String label;
-  final String value;
-  final Color color;
+  final String title;
+  final bool trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
         children: [
-          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: color)),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          if (trailing)
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
         ],
       ),
     );
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({
-    required this.label,
-    required this.count,
+class _Part {
+  const _Part(this.value, this.color);
+
+  final double value;
+  final Color color;
+}
+
+class _Bar extends StatelessWidget {
+  const _Bar({required this.parts});
+
+  final List<_Part> parts;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = parts.where((p) => p.value > 0).toList();
+    if (visible.isEmpty) {
+      return Container(
+        height: 14,
+        decoration: BoxDecoration(
+          color: AppColors.sand,
+          borderRadius: BorderRadius.circular(7),
+        ),
+      );
+    }
+    return SizedBox(
+      height: 14,
+      child: Row(
+        children: [
+          for (var i = 0; i < visible.length; i++) ...[
+            if (i > 0) const SizedBox(width: 3),
+            Expanded(
+              flex: (visible[i].value * 100).round().clamp(1, 1 << 30),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: visible[i].color,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendRow extends StatelessWidget {
+  const _LegendRow({
     required this.color,
+    required this.label,
+    required this.value,
     this.onTap,
   });
 
-  final String label;
-  final int count;
   final Color color;
+  final String label;
+  final String value;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 16, color: AppColors.text),
               ),
-              const SizedBox(width: 10),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
-              Text('$count', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              if (onTap != null) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, size: 16, color: AppColors.muted),
-              ],
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right,
+                  size: 20, color: AppColors.muted),
             ],
-          ),
+          ],
         ),
       ),
     );

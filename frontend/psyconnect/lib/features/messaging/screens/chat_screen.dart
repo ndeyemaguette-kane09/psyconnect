@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -136,8 +135,26 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.otherDisplayName),
-        backgroundColor: AppColors.white,
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            AppAvatar(name: widget.otherDisplayName, size: 42),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                widget.otherDisplayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppColors.background,
         foregroundColor: AppColors.text,
         elevation: 0,
       ),
@@ -212,11 +229,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildComposer() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+      color: AppColors.background,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -228,18 +242,21 @@ class _ChatScreenState extends State<ChatScreen> {
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _send(),
               decoration: InputDecoration(
-                hintText: 'Écrire un message…',
+                hintText: 'Écrire un message',
                 filled: true,
-                fillColor: AppColors.surfaceAlt,
+                fillColor: AppColors.white,
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(26),
                   borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(26),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(26),
                   borderSide: const BorderSide(color: AppColors.teal),
                 ),
               ),
@@ -247,8 +264,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
           SizedBox(
-            width: 44,
-            height: 44,
+            width: 50,
+            height: 50,
             child: Material(
               color: AppColors.teal,
               shape: const CircleBorder(),
@@ -264,7 +281,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               strokeWidth: 2, color: AppColors.white),
                         )
                       : const Icon(Icons.send_rounded,
-                          size: 19, color: AppColors.white),
+                          size: 21, color: AppColors.white),
                 ),
               ),
             ),
@@ -309,23 +326,14 @@ class _DaySeparator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 14),
+      padding: const EdgeInsets.only(top: 8, bottom: 14),
       child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceAlt,
-            borderRadius: AppRadius.mdAll,
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Text(
-            _label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: AppColors.muted,
-            ),
+        child: Text(
+          _label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.muted,
           ),
         ),
       ),
@@ -351,9 +359,9 @@ class _MessageBubble extends StatelessWidget {
     final time = '${message.sentAt.hour.toString().padLeft(2, '0')}:'
         '${message.sentAt.minute.toString().padLeft(2, '0')}';
 
-    const big = Radius.circular(16);
-    const small = Radius.circular(6);
-    const tail = Radius.circular(4);
+    const big = Radius.circular(20);
+    const small = Radius.circular(8);
+    const tail = Radius.circular(6);
 
     final radius = isMine
         ? BorderRadius.only(
@@ -373,7 +381,7 @@ class _MessageBubble extends StatelessWidget {
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: EdgeInsets.only(bottom: lastOfGroup ? 12 : 3),
-        padding: const EdgeInsets.fromLTRB(13, 9, 13, 8),
+        padding: const EdgeInsets.fromLTRB(15, 11, 15, 9),
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
@@ -387,8 +395,8 @@ class _MessageBubble extends StatelessWidget {
             Text(
               message.content,
               style: TextStyle(
-                fontSize: 14.5,
-                height: 1.35,
+                fontSize: 16,
+                height: 1.4,
                 color: isMine ? AppColors.white : AppColors.text,
               ),
             ),
@@ -400,7 +408,7 @@ class _MessageBubble extends StatelessWidget {
                   Text(
                     time,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       color: isMine
                           ? AppColors.white.withValues(alpha: 0.75)
                           : AppColors.faint,

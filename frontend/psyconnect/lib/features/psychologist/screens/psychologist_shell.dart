@@ -229,66 +229,72 @@ class _PsychologistShellState extends State<PsychologistShell>
     return Scaffold(
       body: IndexedStack(index: _index, children: tabs),
 
-      // ── FAB central : Mes patients ───────────────────────────────────────
+      // FAB central : Mes patients
       floatingActionButton: FloatingActionButton(
         onPressed: () => _selectTab(_fabTabIndex),
         backgroundColor:
             _index == _fabTabIndex ? AppColors.tealDark : AppColors.teal,
-        elevation: 6,
-        shape: const CircleBorder(),
-        tooltip: 'Patients',
-        child: const Icon(Icons.people, color: Colors.white, size: 28),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(28),
+            bottom: Radius.circular(12),
+          ),
+        ),
+        tooltip: 'Mes patients',
+        child: const Icon(Icons.people_outline, color: Colors.white, size: 26),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // ── BottomAppBar : Accueil · Agenda   [FAB]   Messages · Stats ───────
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 9,
-        color: AppColors.white,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: const Color(0x330B3B34),
-        elevation: 14,
-        padding: EdgeInsets.zero,
-        child: SizedBox(
-          height: 66,
-          child: Row(
-            children: [
-              _NavItem(
-                index: 0,
-                selectedIndex: _index,
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home,
-                label: 'Accueil',
-                onTap: () => _selectTab(0),
-              ),
-              _NavItem(
-                index: 1,
-                selectedIndex: _index,
-                icon: Icons.calendar_today_outlined,
-                selectedIcon: Icons.calendar_today,
-                label: 'Agenda',
-                onTap: () => _selectTab(1),
-              ),
-              const Spacer(), // espace pour le FAB
-              _NavItem(
-                index: 3,
-                selectedIndex: _index,
-                icon: Icons.chat_bubble_outline,
-                selectedIcon: Icons.chat_bubble,
-                label: 'Messages',
-                badge: _unreadCount,
-                onTap: () => _selectTab(3),
-              ),
-              _NavItem(
-                index: 4,
-                selectedIndex: _index,
-                icon: Icons.bar_chart_outlined,
-                selectedIcon: Icons.bar_chart,
-                label: 'Stats',
-                onTap: () => _selectTab(4),
-              ),
-            ],
+      // BottomAppBar : Accueil · Agenda   [FAB]   Messages · Stats
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        child: BottomAppBar(
+          color: AppColors.white,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          child: SizedBox(
+            height: 70,
+            child: Row(
+              children: [
+                _NavItem(
+                  index: 0,
+                  selectedIndex: _index,
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  label: 'Accueil',
+                  onTap: () => _selectTab(0),
+                ),
+                _NavItem(
+                  index: 1,
+                  selectedIndex: _index,
+                  icon: Icons.calendar_today_outlined,
+                  selectedIcon: Icons.calendar_today,
+                  label: 'Agenda',
+                  onTap: () => _selectTab(1),
+                ),
+                const Spacer(),
+                _NavItem(
+                  index: 3,
+                  selectedIndex: _index,
+                  icon: Icons.chat_bubble_outline,
+                  selectedIcon: Icons.chat_bubble,
+                  label: 'Messages',
+                  badge: _unreadCount,
+                  onTap: () => _selectTab(3),
+                ),
+                _NavItem(
+                  index: 4,
+                  selectedIndex: _index,
+                  icon: Icons.bar_chart_outlined,
+                  selectedIcon: Icons.bar_chart,
+                  label: 'Activité',
+                  onTap: () => _selectTab(4),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -296,7 +302,7 @@ class _PsychologistShellState extends State<PsychologistShell>
   }
 }
 
-// ── Widget item de navigation ────────────────────────────────────────────────
+// Widget item de navigation
 
 class _NavItem extends StatelessWidget {
   final int index;
@@ -330,32 +336,23 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: selected ? AppColors.tealLight : Colors.transparent,
-              ),
-              child: Badge(
-                isLabelVisible: badge > 0,
-                label: Text('$badge', style: const TextStyle(fontSize: 10)),
-                backgroundColor: AppColors.rose,
-                child: Icon(
-                  selected ? selectedIcon : icon,
-                  color: color,
-                  size: 22,
-                ),
+            Badge(
+              isLabelVisible: badge > 0,
+              label: Text('$badge', style: const TextStyle(fontSize: 10)),
+              backgroundColor: AppColors.teal,
+              child: Icon(
+                selected ? selectedIcon : icon,
+                color: color,
+                size: 24,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 12,
                 color: color,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               ),
             ),
           ],
@@ -365,7 +362,7 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// ── Banner pop-up animé ──────────────────────────────────────────────────────
+// Banner pop-up animé
 
 class _NotifPopup extends StatefulWidget {
   const _NotifPopup({

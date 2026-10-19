@@ -34,6 +34,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
 
   bool _loading = true;
   bool _saving = false;
+  bool _editing = false;
   String? _error;
   MedicalHistory? _history;
 
@@ -107,6 +108,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
       setState(() {
         _history = updated;
         _saving = false;
+        _editing = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,151 +137,164 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
     return 'Dernière modification le $date par $who';
   }
 
+  void _cancelEditing() {
+    final history = _history;
+    setState(() {
+      _allergies.text = history?.allergies ?? '';
+      _chronicConditions.text = history?.chronicConditions ?? '';
+      _currentTreatments.text = history?.currentTreatments ?? '';
+      _psychiatricHistory.text = history?.psychiatricHistory ?? '';
+      _editing = false;
+      _error = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.patientName != null
-        ? 'Antécédents – ${widget.patientName}'
+        ? 'Antécédents de ${widget.patientName}'
         : 'Antécédents médicaux';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.white,
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.text,
         elevation: 0,
-        title: Text(title, style: const TextStyle(color: AppColors.text)),
-        iconTheme: const IconThemeData(color: AppColors.text),
+        actions: [
+          if (!_loading)
+            TextButton(
+              onPressed: _saving
+                  ? null
+                  : (_editing
+                      ? _cancelEditing
+                      : () => setState(() => _editing = true)),
+              child: Text(_editing ? 'Annuler' : 'Modifier'),
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.tealLight.withValues(alpha: 0.4),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.displayMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Row(
+                    children: [
+                      Icon(Icons.lock_outline,
+                          size: 16, color: AppColors.muted),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Visible seulement par le patient et les '
+                          'psychologues qui le suivent.',
+                          style:
+                              TextStyle(color: AppColors.muted, fontSize: 14),
+                        ),
                       ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.lock_outline, size: 18, color: AppColors.tealDark),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Visible uniquement par le patient et le(s) psychologue(s) '
-                              'qui le suivent.',
-                              style: TextStyle(color: AppColors.tealDark, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (_error != null) ...[
+                    Text(
+                      _error!,
+                      style: const TextStyle(
+                          color: AppColors.danger, fontSize: 14.5),
                     ),
                     const SizedBox(height: 16),
-                    if (_error != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.errorBg,
-                        ),
-                        child: Text(_error!, style: const TextStyle(color: AppColors.rose)),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    _field(
-                      controller: _allergies,
-                      label: 'Allergies',
-                      hint: 'Ex : pénicilline, arachides...',
-                      icon: Icons.warning_amber_outlined,
+                  ],
+                  _section(
+                    controller: _allergies,
+                    label: 'Allergies',
+                    hint: 'Ex : pénicilline, arachides...',
+                  ),
+                  _section(
+                    controller: _chronicConditions,
+                    label: 'Maladies chroniques',
+                    hint: 'Ex : diabète, hypertension...',
+                  ),
+                  _section(
+                    controller: _currentTreatments,
+                    label: 'Traitements en cours',
+                    hint: 'Médicaments, posologie...',
+                  ),
+                  _section(
+                    controller: _psychiatricHistory,
+                    label: 'Antécédents psychiatriques',
+                    hint: 'Hospitalisations, suivis antérieurs...',
+                  ),
+                  if (_lastUpdatedLabel != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _lastUpdatedLabel!,
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 14),
                     ),
-                    const SizedBox(height: 14),
-                    _field(
-                      controller: _chronicConditions,
-                      label: 'Maladies chroniques',
-                      hint: 'Ex : diabète, hypertension...',
-                      icon: Icons.monitor_heart_outlined,
-                    ),
-                    const SizedBox(height: 14),
-                    _field(
-                      controller: _currentTreatments,
-                      label: 'Traitements en cours',
-                      hint: 'Médicaments, posologie...',
-                      icon: Icons.medication_outlined,
-                    ),
-                    const SizedBox(height: 14),
-                    _field(
-                      controller: _psychiatricHistory,
-                      label: 'Antécédents psychiatriques',
-                      hint: 'Hospitalisations, suivis antérieurs...',
-                      icon: Icons.psychology_outlined,
-                    ),
-                    if (_lastUpdatedLabel != null) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        _lastUpdatedLabel!,
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                      ),
-                    ],
+                  ],
+                  if (_editing) ...[
                     const SizedBox(height: 24),
-                    FilledButton.icon(
+                    ElevatedButton(
                       onPressed: _saving ? null : _save,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.teal,
-                        minimumSize: const Size.fromHeight(50),
-                      ),
-                      icon: _saving
+                      child: _saving
                           ? const SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white),
                             )
-                          : const Icon(Icons.check, size: 18),
-                      label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
+                          : const Text('Enregistrer'),
                     ),
                   ],
-                ),
+                ],
               ),
-      ),
+            ),
     );
   }
 
-  Widget _field({
+  Widget _section({
     required TextEditingController controller,
     required String label,
     required String hint,
-    required IconData icon,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-      ),
+    final value = controller.text.trim();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: AppColors.teal),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: hint,
-              filled: true,
-              fillColor: AppColors.background,
-              border: OutlineInputBorder(
-                borderSide: BorderSide.none,
-              ),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.muted,
             ),
           ),
+          const SizedBox(height: 6),
+          if (_editing)
+            TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 4,
+              style: const TextStyle(fontSize: 16.5),
+              decoration: InputDecoration(hintText: hint),
+            )
+          else
+            Text(
+              value.isEmpty ? 'Non renseigné' : value,
+              style: TextStyle(
+                fontSize: 18,
+                height: 1.45,
+                color: value.isEmpty ? AppColors.muted : AppColors.text,
+              ),
+            ),
         ],
       ),
     );

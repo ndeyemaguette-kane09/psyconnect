@@ -46,9 +46,7 @@ class _XalaatScreenState extends State<XalaatScreen> {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
 
-  final List<_DisplayMessage> _messages = [
-    _DisplayMessage(role: 'assistant', content: _greeting),
-  ];
+  final List<_DisplayMessage> _messages = [];
   final List<CompanionTurn> _history = [
     const CompanionTurn(role: 'assistant', content: _greeting),
   ];
@@ -123,25 +121,29 @@ class _XalaatScreenState extends State<XalaatScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.white,
+        backgroundColor: AppColors.background,
         foregroundColor: AppColors.text,
         elevation: 0,
         titleSpacing: 0,
         title: const Row(
           children: [
             CircleAvatar(
-              radius: 16,
+              radius: 21,
               backgroundColor: AppColors.tealLight,
-              child: Icon(Icons.spa_outlined, color: AppColors.teal, size: 18),
+              child: Icon(Icons.chat_bubble_outline_rounded,
+                  color: AppColors.teal, size: 20),
             ),
             SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Xalaat', style: TextStyle(fontWeight: FontWeight.w700)),
-                Text('Compagnon de préparation',
-                    style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                Text(
+                  'Xalaat',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                Text('« pensée » en wolof',
+                    style: TextStyle(fontSize: 13, color: AppColors.muted)),
               ],
             ),
           ],
@@ -162,7 +164,7 @@ class _XalaatScreenState extends State<XalaatScreen> {
   Widget _buildMessageList() {
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       itemCount: _messages.length + 1 + (_sending ? 1 : 0),
       itemBuilder: (context, i) {
         if (i == 0) {
@@ -183,11 +185,11 @@ class _XalaatScreenState extends State<XalaatScreen> {
       color: AppColors.errorBg,
       child: Row(
         children: [
-          const Icon(Icons.error_outline, size: 16, color: AppColors.rose),
+          const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
           const SizedBox(width: 8),
           Expanded(
             child: Text(_error!,
-                style: const TextStyle(fontSize: 12, color: AppColors.rose)),
+                style: const TextStyle(fontSize: 14, color: AppColors.danger)),
           ),
         ],
       ),
@@ -196,11 +198,8 @@ class _XalaatScreenState extends State<XalaatScreen> {
 
   Widget _buildComposer() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(top: BorderSide(color: AppColors.tealMid)),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+      color: AppColors.background,
       child: Row(
         children: [
           Expanded(
@@ -211,13 +210,22 @@ class _XalaatScreenState extends State<XalaatScreen> {
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _send(),
               decoration: InputDecoration(
-                hintText: 'Écrire à Xalaat…',
+                hintText: 'Écrire à Xalaat',
                 filled: true,
-                fillColor: AppColors.tealLight,
+                fillColor: AppColors.white,
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(26),
                   borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(26),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(26),
+                  borderSide: const BorderSide(color: AppColors.teal),
                 ),
               ),
             ),
@@ -228,6 +236,7 @@ class _XalaatScreenState extends State<XalaatScreen> {
             style: IconButton.styleFrom(
               backgroundColor: AppColors.teal,
               foregroundColor: AppColors.white,
+              fixedSize: const Size(50, 50),
             ),
             icon: _sending
                 ? const SizedBox(
@@ -236,7 +245,7 @@ class _XalaatScreenState extends State<XalaatScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.white),
                   )
-                : const Icon(Icons.send_rounded, size: 18),
+                : const Icon(Icons.send_rounded, size: 21),
           ),
         ],
       ),
@@ -257,20 +266,41 @@ class _MessageBubble extends StatelessWidget {
 
     final isMine = message.role == 'user';
 
+    if (!isMine) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 18, right: 12),
+        child: Text(
+          message.content,
+          style: const TextStyle(
+            fontSize: 16.5,
+            height: 1.55,
+            color: AppColors.text,
+          ),
+        ),
+      );
+    }
+
     return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: Alignment.centerRight,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-        decoration: BoxDecoration(
-          color: isMine ? AppColors.teal : AppColors.white,
-          border: isMine ? null : Border.all(color: AppColors.tealMid),
+        margin: const EdgeInsets.only(bottom: 18, left: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          color: AppColors.tealLight,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(6),
+          ),
         ),
         child: Text(
           message.content,
-          style: TextStyle(color: isMine ? AppColors.white : AppColors.text),
+          style: const TextStyle(
+            fontSize: 16,
+            height: 1.4,
+            color: AppColors.tealDeep,
+          ),
         ),
       ),
     );
@@ -297,11 +327,8 @@ class _FlaggedBubble extends StatelessWidget {
     var helplines = <String>[];
     void flushHelplines() {
       if (helplines.isEmpty) return;
-      children.add(Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
+      children.add(Padding(
+        padding: const EdgeInsets.only(bottom: 12),
         child: Column(
           children: [for (final l in helplines) _HelplineRow(line: l)],
         ),
@@ -323,15 +350,15 @@ class _FlaggedBubble extends StatelessWidget {
           line,
           style: isClosing
               ? const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.tealDark,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFA9CDBE),
                   height: 1.4,
                 )
               : const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.45,
+                  fontSize: 16,
+                  color: Color(0xFFEDE8DF),
+                  height: 1.5,
                 ),
         ),
       ));
@@ -340,22 +367,39 @@ class _FlaggedBubble extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 4, bottom: 14),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      margin: const EdgeInsets.only(top: 4, bottom: 18),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
       decoration: BoxDecoration(
-        color: AppColors.tealSoft,
-        borderRadius: BorderRadius.circular(6),
+        color: AppColors.text,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 16, color: Color(0xFFD9D2C5)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Message de l'équipe PsyConnect, pas de l'IA",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFD9D2C5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Text(
-            'Tu n’as pas à porter ça seul·e',
+            'Tu n’as pas à porter ça seul·e.',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
-              height: 1.3,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.25,
             ),
           ),
           const SizedBox(height: 10),
@@ -387,50 +431,48 @@ class _HelplineRow extends StatelessWidget {
       label = label[0].toUpperCase() + label.substring(1);
     }
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  if (detail.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      detail,
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.muted),
-                    ),
-                  ],
-                ],
-              ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.emergency,
+              shape: BoxShape.circle,
             ),
-            if (number.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              Text(
-                number,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.tealDark,
+            child: const Icon(Icons.phone_outlined,
+                color: Colors.white, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  number.isEmpty ? label : '$label · $number',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
-              ),
-            ],
-          ],
-        ),
+                if (detail.isNotEmpty)
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.muted),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -442,27 +484,15 @@ class _ConfidentialNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.only(bottom: 18),
-      child: Row(
-        children: [
-          Expanded(child: Divider(height: 1, thickness: 1)),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: SizedBox(
-              width: 220,
-              child: Text(
-                "Rien n'est enregistré. Xalaat ne remplace pas un psychologue.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  color: AppColors.muted,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ),
-          Expanded(child: Divider(height: 1, thickness: 1)),
-        ],
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 22),
+      child: Text(
+        "Rien n'est enregistré. Xalaat ne remplace pas un psychologue.",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 13.5,
+          color: AppColors.muted,
+          height: 1.45,
+        ),
       ),
     );
   }
@@ -473,20 +503,21 @@ class _TypingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 10),
+          Text(
+            'Xalaat réfléchit…',
+            style: TextStyle(fontSize: 14.5, color: AppColors.muted),
+          ),
+        ],
       ),
     );
   }

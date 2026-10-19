@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -12,6 +11,7 @@ import '../../patient/models/appointment_models.dart';
 import '../../patient/services/appointment_service.dart';
 import '../../payment/models/payment_models.dart';
 import '../../payment/services/payment_service.dart';
+import '../utils/patient_name.dart';
 import 'session_recommendations_screen.dart';
 
 class AgendaTab extends StatefulWidget {
@@ -30,7 +30,7 @@ class _AgendaTabState extends State<AgendaTab> {
   List<Appointment> _appointments = [];
   Map<int, PatientProfile> _patientsById = {};
 
-  AppointmentStatus? _statusFilter;
+  _AgendaView _view = _AgendaView.upcoming;
 
   late DateTime _selectedDay;
   late DateTime _weekStart;
@@ -171,204 +171,246 @@ class _AgendaTabState extends State<AgendaTab> {
     }
   }
 
-  static const _groupOrder = [
-    AppointmentStatus.pending,
-    AppointmentStatus.confirmed,
-    AppointmentStatus.completed,
-    AppointmentStatus.cancelled,
-    AppointmentStatus.rejected,
-  ];
-
   void _joinCall(Appointment a) {
-    final patient = _patientsById[a.patientId];
-    final name = patient?.anonymousMode == true
-        ? 'Patient'
-        : patient != null
-            ? '${patient.firstName} ${patient.lastName}'.trim()
-            : 'Patient';
+    final name = _displayName(_patientsById[a.patientId]);
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => CallScreen(
         appointmentId: a.id,
-        peerName: name.isEmpty ? 'Patient' : name,
+        peerName: name,
         isVideo: a.consultationType == ConsultationType.video,
       ),
     ));
   }
 
-  Widget _buildCard(Appointment a) {
+  bool _canJoinCall(Appointment a) {
     final now = DateTime.now();
     final callWindowOpen =
         now.isAfter(a.startTime.subtract(const Duration(minutes: 10))) &&
         now.isBefore(a.endTime.add(const Duration(minutes: 30)));
-    final canJoinCall = a.status == AppointmentStatus.confirmed &&
+    return a.status == AppointmentStatus.confirmed &&
         (a.consultationType == ConsultationType.video ||
             a.consultationType == ConsultationType.audio) &&
         callWindowOpen;
+  }
 
-    return _AgendaCard(
-      appointment: a,
-      patient: _patientsById[a.patientId],
-      onConfirm: () => _updateStatus(a, AppointmentStatus.confirmed),
-      onReject: () => _updateStatus(a, AppointmentStatus.rejected),
-      onJoinCall: canJoinCall ? () => _joinCall(a) : null,
+  void _openDetail(Appointment a) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AppointmentDetailSheet(
+        appointment: a,
+        patient: _patientsById[a.patientId],
+      ),
     );
   }
 
-  List<Widget> _buildContentSlivers() {
-    if (_statusFilter != null) {
-      final filtered =
-          _appointments.where((a) => a.status == _statusFilter).toList();
-      if (filtered.isEmpty) {
-        return [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: AppEmptyState(
-              icon: Icons.event_busy_outlined,
-              title: 'Aucun rendez-vous',
-              message: 'Rien dans « ${_statusFilter!.label} » pour l\'instant.',
-            ),
-          ),
-        ];
-      }
-      return [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          sliver: SliverList.separated(
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) => const SizedBox.shrink(),
-            itemBuilder: (context, i) => _buildCard(filtered[i]),
+  List<Appointment> get _upcomingActive {
+    final now = DateTime.now();
+    return _appointments
+        .where((a) => _isActive(a) && a.endTime.isAfter(now))
+        .toList();
+  }
+
+  List<Appointment> get _pending => _appointments
+      .where((a) => a.status == AppointmentStatus.pending)
+      .toList();
+
+  List<Appointment> get _completed => _appointments
+      .where((a) => a.status == AppointmentStatus.completed)
+      .toList()
+      .reversed
+      .toList();
+
+  Widget _row(Appointment a) => _AgendaRow(
+        appointment: a,
+        patientName: _displayName(_patientsById[a.patientId]),
+        onTap: () => _openDetail(a),
+      );
+
+  Widget _request(Appointment a) => _RequestCard(
+        appointment: a,
+        patientName: _displayName(_patientsById[a.patientId]),
+        onConfirm: () => _updateStatus(a, AppointmentStatus.confirmed),
+        onReject: () => _updateStatus(a, AppointmentStatus.rejected),
+        onTap: () => _openDetail(a),
+      );
+
+  Widget _rowsGroup(List<Appointment> list) => AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Column(children: [for (final a in list) _row(a)]),
+      );
+
+  Widget _heading(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
           ),
         ),
+      );
+
+  Widget _quiet(String text) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 15.5,
+            height: 1.5,
+            color: AppColors.muted,
+          ),
+        ),
+      );
+
+  List<Widget> _upcomingView() {
+    final upcoming = _upcomingActive;
+    final pending = upcoming
+        .where((a) => a.status == AppointmentStatus.pending)
+        .toList();
+    final confirmed = upcoming
+        .where((a) => a.status != AppointmentStatus.pending)
+        .toList();
+    final next = confirmed.isNotEmpty ? confirmed.first : null;
+    final later = confirmed.skip(1).toList();
+
+    if (next == null && pending.isEmpty) {
+      return [
+        _quiet('Aucune consultation à venir. Les demandes de vos patients '
+            'apparaîtront ici.'),
       ];
     }
-
-    final items = _appointmentsOfSelectedDay;
-
     return [
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-        sliver: SliverToBoxAdapter(
-          child: _DayHeading(day: _selectedDay, count: items.length),
+      if (next != null) ...[
+        _NextPanel(
+          appointment: next,
+          patientName: _displayName(_patientsById[next.patientId]),
+          onOpen: () => _openDetail(next),
+          onJoinCall: _canJoinCall(next) ? () => _joinCall(next) : null,
         ),
+        const SizedBox(height: 24),
+      ],
+      if (pending.isNotEmpty) ...[
+        _heading('À confirmer'),
+        for (final a in pending)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _request(a),
+          ),
+        const SizedBox(height: 14),
+      ],
+      if (later.isNotEmpty) ...[
+        _heading('Ensuite'),
+        _rowsGroup(later),
+      ],
+    ];
+  }
+
+  List<Widget> _weekView() {
+    final items = _appointmentsOfSelectedDay;
+    final weekday = _kWeekdayNames[_selectedDay.weekday - 1];
+    final label = '${weekday[0].toUpperCase()}${weekday.substring(1)} '
+        '${_selectedDay.day} ${_kMonthNames[_selectedDay.month - 1]}';
+    return [
+      _WeekStrip(
+        weekStart: _weekStart,
+        selectedDay: _selectedDay,
+        today: _dateKey(DateTime.now()),
+        loadByDay: _loadByDay,
+        onSelectDay: _selectDay,
+        onPreviousWeek: () => _shiftWeek(-1),
+        onNextWeek: () => _shiftWeek(1),
+        onToday: _goToToday,
       ),
-      if (items.isEmpty)
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          sliver: SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 34),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
-                borderRadius: AppRadius.mdAll,
-              ),
-              child: const Text(
-                'Journée libre',
-                style: TextStyle(color: AppColors.muted, fontSize: 13.5),
-              ),
-            ),
-          ),
-        )
-      else
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          sliver: SliverList.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox.shrink(),
-            itemBuilder: (context, i) => _buildCard(items[i]),
-          ),
+      const SizedBox(height: 20),
+      _heading(label),
+      if (items.isEmpty) _quiet('Journée libre.') else _rowsGroup(items),
+    ];
+  }
+
+  List<Widget> _pendingView() {
+    final list = _pending;
+    if (list.isEmpty) return [_quiet('Aucune demande en attente.')];
+    return [
+      for (final a in list)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _request(a),
         ),
     ];
   }
 
+  List<Widget> _completedView() {
+    final list = _completed;
+    if (list.isEmpty) return [_quiet('Aucune consultation terminée.')];
+    return [_rowsGroup(list)];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final pendingCount = _pending.length;
+    final List<Widget> content;
+    switch (_view) {
+      case _AgendaView.upcoming:
+        content = _upcomingView();
+      case _AgendaView.week:
+        content = _weekView();
+      case _AgendaView.pending:
+        content = _pendingView();
+      case _AgendaView.completed:
+        content = _completedView();
+    }
+
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              sliver: SliverToBoxAdapter(
-                child: Text('Agenda',
-                    style: Theme.of(context).textTheme.displayMedium),
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Agenda',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
               ),
             ),
-            if (!_loading && _error == null && _appointments.isNotEmpty) ...[
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 0, 10),
-                sliver: SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 34,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.only(right: 20),
-                      itemCount: _groupOrder.length + 1,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, i) {
-                        final status = i == 0 ? null : _groupOrder[i - 1];
-                        final count = status == null
-                            ? 0
-                            : _appointments
-                                .where((a) => a.status == status)
-                                .length;
-                        final label = status == null
-                            ? 'Semaine'
-                            : count > 0
-                                ? '${status.label} ($count)'
-                                : status.label;
-                        return _FilterChip(
-                          label: label,
-                          selected: _statusFilter == status,
-                          onTap: () =>
-                              setState(() => _statusFilter = status),
-                        );
-                      },
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final v in _AgendaView.values)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _ViewChip(
+                        label: v == _AgendaView.pending && pendingCount > 0
+                            ? '${v.label} ($pendingCount)'
+                            : v.label,
+                        selected: _view == v,
+                        onTap: () => setState(() => _view = v),
+                      ),
                     ),
-                  ),
-                ),
+                ],
               ),
-              if (_statusFilter == null)
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                  sliver: SliverToBoxAdapter(
-                    child: _WeekStrip(
-                      weekStart: _weekStart,
-                      selectedDay: _selectedDay,
-                      today: _dateKey(DateTime.now()),
-                      loadByDay: _loadByDay,
-                      onSelectDay: _selectDay,
-                      onPreviousWeek: () => _shiftWeek(-1),
-                      onNextWeek: () => _shiftWeek(1),
-                      onToday: _goToToday,
-                    ),
-                  ),
-                ),
-            ],
+            ),
+            const SizedBox(height: 18),
             if (_loading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_error != null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: AppErrorState(message: _error!, onRetry: _load),
-              )
-            else if (_appointments.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: AppEmptyState(
-                  icon: Icons.event_available_outlined,
-                  title: 'Aucun rendez-vous',
-                  message:
-                      'Les demandes de consultation de vos patients '
-                      'apparaîtront ici.',
-                ),
-              )
+              AppErrorState(message: _error!, onRetry: _load)
             else
-              ..._buildContentSlivers(),
+              ...content,
           ],
         ),
       ),
@@ -376,32 +418,458 @@ class _AgendaTabState extends State<AgendaTab> {
   }
 }
 
+enum _AgendaView { upcoming, week, pending, completed }
+
+extension on _AgendaView {
+  String get label {
+    switch (this) {
+      case _AgendaView.upcoming:
+        return 'À venir';
+      case _AgendaView.week:
+        return 'Semaine';
+      case _AgendaView.pending:
+        return 'À confirmer';
+      case _AgendaView.completed:
+        return 'Terminées';
+    }
+  }
+}
+
+String _displayName(PatientProfile? p) => patientDisplayName(p);
+
+String _hour(DateTime d) => d.minute == 0
+    ? '${d.hour} h'
+    : '${d.hour} h ${d.minute.toString().padLeft(2, '0')}';
+
+String _capitalize(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+Color _statusColor(AppointmentStatus status) {
+  switch (status) {
+    case AppointmentStatus.pending:
+      return AppColors.goldDark;
+    case AppointmentStatus.confirmed:
+      return AppColors.teal;
+    case AppointmentStatus.completed:
+      return AppColors.muted;
+    case AppointmentStatus.cancelled:
+    case AppointmentStatus.rejected:
+      return AppColors.danger;
+  }
+}
+
 const _kWeekdayLetters = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 const _kWeekdayNames = [
-  'lundi',
-  'mardi',
-  'mercredi',
-  'jeudi',
-  'vendredi',
-  'samedi',
-  'dimanche',
+  'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',
 ];
 
 const _kMonthNames = [
-  'janvier',
-  'février',
-  'mars',
-  'avril',
-  'mai',
-  'juin',
-  'juillet',
-  'août',
-  'septembre',
-  'octobre',
-  'novembre',
-  'décembre',
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
 ];
+
+const _kMonthShort = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+class _ViewChip extends StatelessWidget {
+  const _ViewChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.teal : AppColors.sand,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.background : AppColors.text,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusLabel extends StatelessWidget {
+  const _StatusLabel({required this.status});
+
+  final AppointmentStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _statusColor(status),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        status.label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _DateTile extends StatelessWidget {
+  const _DateTile({required this.date, required this.pending});
+
+  final DateTime date;
+  final bool pending;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = pending ? const Color(0xFF7A561A) : AppColors.teal;
+    return Container(
+      width: 46,
+      height: 54,
+      decoration: BoxDecoration(
+        color: pending ? AppColors.goldLight : AppColors.tealLight,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(23),
+          bottom: Radius.circular(7),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 4),
+          Text(
+            '${date.day}',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              height: 1,
+              color: ink,
+            ),
+          ),
+          Text(
+            _kMonthShort[date.month - 1],
+            style: TextStyle(fontSize: 11, color: ink),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NextPanel extends StatelessWidget {
+  const _NextPanel({
+    required this.appointment,
+    required this.patientName,
+    required this.onOpen,
+    required this.onJoinCall,
+  });
+
+  final Appointment appointment;
+  final String patientName;
+  final VoidCallback onOpen;
+  final VoidCallback? onJoinCall;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = appointment.startTime;
+    final end = appointment.endTime;
+    final now = DateTime.now();
+    final days = DateTime(start.year, start.month, start.day)
+        .difference(DateTime(now.year, now.month, now.day))
+        .inDays;
+    final relative = days <= 0
+        ? "Aujourd'hui"
+        : days == 1
+            ? 'Demain'
+            : 'Dans $days jours';
+    final isVideo = appointment.consultationType == ConsultationType.video;
+
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      relative,
+                      style: const TextStyle(
+                        color: Color(0xFFC9DCD2),
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_capitalize(_kWeekdayNames[start.weekday - 1])} '
+                      '${start.day} ${_kMonthNames[start.month - 1]}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_hour(start)} – ${_hour(end)}',
+                      style: const TextStyle(
+                        color: Color(0xFFE3EDE7),
+                        fontSize: 17,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              AppAvatar(name: patientName, size: 52),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Avec $patientName · '
+            '${appointment.consultationType.label.toLowerCase()}',
+            style: const TextStyle(color: Color(0xFFE3EDE7), fontSize: 15.5),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (onJoinCall != null)
+                FilledButton.icon(
+                  onPressed: onJoinCall,
+                  icon: Icon(
+                    isVideo ? Icons.videocam_outlined : Icons.call_outlined,
+                    size: 20,
+                  ),
+                  label: Text(isVideo ? 'Rejoindre la visio' : 'Appeler'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.background,
+                    foregroundColor: AppColors.teal,
+                  ),
+                ),
+              TextButton(
+                onPressed: onOpen,
+                style: onJoinCall == null
+                    ? TextButton.styleFrom(
+                        backgroundColor: AppColors.background,
+                        foregroundColor: AppColors.teal,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 12),
+                      )
+                    : TextButton.styleFrom(
+                        foregroundColor: AppColors.background,
+                      ),
+                child: const Text(
+                  'Voir le détail',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequestCard extends StatelessWidget {
+  const _RequestCard({
+    required this.appointment,
+    required this.patientName,
+    required this.onConfirm,
+    required this.onReject,
+    required this.onTap,
+  });
+
+  final Appointment appointment;
+  final String patientName;
+  final VoidCallback onConfirm;
+  final VoidCallback onReject;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = appointment.startTime;
+    final future = start.isAfter(DateTime.now());
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  _DateTile(date: start, pending: true),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          patientName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        Text(
+                          '${_capitalize(_kWeekdayNames[start.weekday - 1])}, '
+                          '${_hour(start)} · '
+                          '${appointment.consultationType.label.toLowerCase()}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (future)
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: onConfirm,
+                        child: const Text('Accepter'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: onReject,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.sand,
+                          foregroundColor: AppColors.text,
+                        ),
+                        child: const Text('Refuser'),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Date passée sans réponse',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          color: AppColors.goldDark,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: onReject,
+                      child: const Text('Refuser'),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AgendaRow extends StatelessWidget {
+  const _AgendaRow({
+    required this.appointment,
+    required this.patientName,
+    required this.onTap,
+  });
+
+  final Appointment appointment;
+  final String patientName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = appointment.startTime;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            _DateTile(
+              date: start,
+              pending: appointment.status == AppointmentStatus.pending,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patientName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  Text(
+                    '${_capitalize(_kWeekdayNames[start.weekday - 1])}, '
+                    '${_hour(start)} · '
+                    '${appointment.consultationType.label.toLowerCase()}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            _StatusLabel(status: appointment.status),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _WeekStrip extends StatelessWidget {
   const _WeekStrip({
@@ -434,92 +902,87 @@ class _WeekStrip extends StatelessWidget {
     final start = days.first;
     final end = days.last;
     if (start.month == end.month) {
-      return '${start.day} – ${end.day} ${_kMonthNames[end.month - 1]} '
-          '${end.year}';
+      return 'Du ${start.day} au ${end.day} ${_kMonthNames[end.month - 1]}';
     }
-    return '${start.day} ${_kMonthNames[start.month - 1]} – '
-        '${end.day} ${_kMonthNames[end.month - 1]} ${end.year}';
+    return 'Du ${start.day} ${_kMonthNames[start.month - 1]} au '
+        '${end.day} ${_kMonthNames[end.month - 1]}';
   }
 
   bool get _isCurrentWeek => _days.any((d) => d == today);
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            IconButton(
-              onPressed: onPreviousWeek,
-              icon: const Icon(Icons.chevron_left, size: 22),
-              color: AppColors.textSecondary,
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Semaine précédente',
-            ),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: onPreviousWeek,
+                icon: const Icon(Icons.chevron_left, size: 24),
+                color: AppColors.text,
+                tooltip: 'Semaine précédente',
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
                       _rangeLabel,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.text,
                       ),
                     ),
-                  ),
-                  if (!_isCurrentWeek) ...[
-                    const SizedBox(width: 10),
-                    InkWell(
-                      onTap: onToday,
-                      borderRadius: AppRadius.smAll,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
-                        child: Text(
-                          'Aujourd\'hui',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.teal,
+                    if (!_isCurrentWeek)
+                      GestureDetector(
+                        onTap: onToday,
+                        child: const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Text(
+                            'Revenir à aujourd\'hui',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.teal,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
-                ],
-              ),
-            ),
-            IconButton(
-              onPressed: onNextWeek,
-              icon: const Icon(Icons.chevron_right, size: 22),
-              color: AppColors.textSecondary,
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Semaine suivante',
-            ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Row(
-          children: [
-            for (final day in _days)
-              Expanded(
-                child: _DayCell(
-                  day: day,
-                  selected: day == selectedDay,
-                  isToday: day == today,
-                  load: loadByDay[day] ?? 0,
-                  onTap: () => onSelectDay(day),
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Container(height: 1, color: AppColors.border),
-      ],
+              IconButton(
+                onPressed: onNextWeek,
+                icon: const Icon(Icons.chevron_right, size: 24),
+                color: AppColors.text,
+                tooltip: 'Semaine suivante',
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              for (final day in _days)
+                Expanded(
+                  child: _DayCell(
+                    day: day,
+                    selected: day == selectedDay,
+                    isToday: day == today,
+                    load: loadByDay[day] ?? 0,
+                    onTap: () => onSelectDay(day),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -542,7 +1005,7 @@ class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final numberColor = selected
-        ? Colors.white
+        ? AppColors.background
         : isToday
             ? AppColors.teal
             : AppColors.text;
@@ -550,51 +1013,48 @@ class _DayCell extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: AppRadius.smAll,
+      borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               _kWeekdayLetters[day.weekday - 1],
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.faint,
-                letterSpacing: 0.4,
-              ),
+              style: const TextStyle(fontSize: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 6),
-            AnimatedContainer(
-              duration: AppMotion.fast,
-              width: 32,
-              height: 32,
+            Container(
+              width: 38,
+              height: 44,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected ? AppColors.teal : Colors.transparent,
-                shape: BoxShape.circle,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(19),
+                  bottom: Radius.circular(8),
+                ),
               ),
               child: Text(
                 '${day.day}',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight:
-                      selected || isToday ? FontWeight.w700 : FontWeight.w600,
+                      selected || isToday ? FontWeight.w800 : FontWeight.w600,
                   color: numberColor,
                 ),
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 6),
             SizedBox(
-              height: 4,
+              height: 5,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var i = 0; i < dotCount; i++)
                     Container(
-                      width: 4,
-                      height: 4,
+                      width: 5,
+                      height: 5,
                       margin: const EdgeInsets.symmetric(horizontal: 1.5),
                       decoration: const BoxDecoration(
                         color: AppColors.teal,
@@ -605,258 +1065,6 @@ class _DayCell extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DayHeading extends StatelessWidget {
-  const _DayHeading({required this.day, required this.count});
-
-  final DateTime day;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final weekday = _kWeekdayNames[day.weekday - 1];
-    final label = '${weekday[0].toUpperCase()}${weekday.substring(1)} '
-        '${day.day} ${_kMonthNames[day.month - 1]}';
-    final suffix = count == 0 ? '' : ' · $count rendez-vous';
-
-    return SectionHeader(title: '$label$suffix');
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.teal : AppColors.white,
-      borderRadius: AppRadius.mdAll,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppMotion.fast,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.mdAll,
-            border: Border.all(
-              color: selected ? AppColors.teal : AppColors.border,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.textSecondary,
-              fontSize: 12.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AgendaCard extends StatelessWidget {
-  const _AgendaCard({
-    required this.appointment,
-    this.patient,
-    required this.onConfirm,
-    required this.onReject,
-    this.onJoinCall,
-  });
-
-  final Appointment appointment;
-  final PatientProfile? patient;
-  final VoidCallback onConfirm;
-  final VoidCallback onReject;
-  final VoidCallback? onJoinCall;
-
-  Color get _statusColor {
-    switch (appointment.status) {
-      case AppointmentStatus.pending:
-        return AppColors.warning;
-      case AppointmentStatus.confirmed:
-        return AppColors.teal;
-      case AppointmentStatus.completed:
-        return AppColors.muted;
-      case AppointmentStatus.cancelled:
-      case AppointmentStatus.rejected:
-        return AppColors.danger;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final start = appointment.startTime;
-    final time = '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')}';
-    final date = '${start.day.toString().padLeft(2, '0')}/'
-        '${start.month.toString().padLeft(2, '0')}';
-    final name = patient != null
-        ? '${patient!.firstName} ${patient!.lastName}'.trim()
-        : 'Patient';
-
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => _AppointmentDetailSheet(
-              appointment: appointment,
-              patient: patient,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 58,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            time,
-                            style: Theme.of(context)
-                                .textTheme
-                                .displaySmall
-                                ?.copyWith(
-                                  fontSize: 17,
-                                  color: AppColors.tealDeep,
-                                  height: 1.2,
-                                ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            date,
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              color: AppColors.faint,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name.isEmpty ? 'Patient' : name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14.5,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          AppPill(
-                            label: '${appointment.consultationType.label} · '
-                                '${appointment.status.label}',
-                            color: _statusColor,
-                            dense: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8, top: 2),
-                      child: Icon(Icons.chevron_right,
-                          color: AppColors.faint, size: 20),
-                    ),
-                  ],
-                ),
-                if (appointment.status == AppointmentStatus.pending)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 58, top: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: onReject,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.danger),
-                              foregroundColor: AppColors.danger,
-                              minimumSize: const Size(0, 42),
-                            ),
-                            child: const Text('Refuser'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: appointment.startTime.isAfter(DateTime.now())
-                                ? onConfirm
-                                : null,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.teal,
-                              minimumSize: const Size(0, 42),
-                            ),
-                            child: Text(
-                            appointment.startTime.isAfter(DateTime.now())
-                                ? 'Confirmer'
-                                : 'Date passée',
-                          ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (onJoinCall != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 58, top: 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: onJoinCall,
-                        icon: Icon(
-                          appointment.consultationType == ConsultationType.video
-                              ? Icons.video_call_outlined
-                              : Icons.call_outlined,
-                        ),
-                        label: Text(
-                          appointment.consultationType == ConsultationType.video
-                              ? 'Rejoindre l\'appel vidéo'
-                              : 'Rejoindre l\'appel audio',
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.teal,
-                          minimumSize: const Size(0, 42),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -910,24 +1118,16 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
       if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
       buffer.write(digits[i]);
     }
-    return '$buffer FCFA';
+    return '$buffer F CFA';
   }
 
   @override
   Widget build(BuildContext context) {
     final appointment = widget.appointment;
     final patient = widget.patient;
-    final name = patient != null
-        ? '${patient.firstName} ${patient.lastName}'.trim()
-        : 'Patient';
+    final name = _displayName(patient);
     final start = appointment.startTime;
     final end = appointment.endTime;
-    final date = '${start.day.toString().padLeft(2, '0')}/'
-        '${start.month.toString().padLeft(2, '0')}/${start.year}';
-    final timeRange = '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')} – '
-        '${end.hour.toString().padLeft(2, '0')}h'
-        '${end.minute.toString().padLeft(2, '0')}';
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -937,142 +1137,129 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: AppColors.white,
-            border: Border(top: BorderSide(color: AppColors.borderStrong)),
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
           ),
           child: ListView(
             controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
             children: [
               Center(
                 child: Container(
                   width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  color: AppColors.tealMid,
+                  height: 5,
+                  margin: const EdgeInsets.only(bottom: 18),
+                  decoration: BoxDecoration(
+                    color: AppColors.borderStrong,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
               ),
               Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.center,
-                    color: AppColors.tealLight,
-                    child: const Icon(Icons.person_outline,
-                        color: AppColors.tealDark, size: 24),
-                  ),
+                  AppAvatar(name: name, size: 52),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Text(name.isEmpty ? 'Patient' : name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 18)),
-                  ),
-                  if (patient?.anonymousMode == true)
-                    const AppPill(
-                      label: 'Mode anonyme',
-                      color: AppColors.muted,
-                      dense: true,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _DetailRow(
-                  icon: Icons.event_outlined, label: 'Date', value: date),
-              const SizedBox(height: 10),
-              _DetailRow(
-                  icon: Icons.schedule_outlined,
-                  label: 'Horaire',
-                  value: timeRange),
-              const SizedBox(height: 10),
-              _DetailRow(
-                icon: appointment.consultationType == ConsultationType.video
-                    ? Icons.videocam_outlined
-                    : appointment.consultationType == ConsultationType.audio
-                        ? Icons.call_outlined
-                        : appointment.consultationType ==
-                                ConsultationType.chat
-                            ? Icons.chat_outlined
-                            : Icons.meeting_room_outlined,
-                label: 'Type de consultation',
-                value: appointment.consultationType.label,
-              ),
-              const SizedBox(height: 10),
-              _DetailRow(
-                icon: Icons.info_outline,
-                label: 'Statut',
-                value: appointment.status.label,
-              ),
-              if (appointment.status == AppointmentStatus.completed) ...[
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Recommandations post-séance'),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () {
-                    final patName = patient != null
-                        ? (patient.anonymousMode == true
-                            ? 'Patient'
-                            : '${patient.firstName} ${patient.lastName}'.trim())
-                        : 'Patient';
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => SessionRecommendationsScreen(
-                        appointmentId: appointment.id,
-                        patientName: patName.isEmpty ? null : patName,
-                      ),
-                    ));
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.tealLight,
-                    ),
-                    child: const Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.assignment_outlined,
-                            color: AppColors.tealDark, size: 20),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Gérer les recommandations',
-                            style: TextStyle(
-                                color: AppColors.tealDark,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14),
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 20,
+                            color: AppColors.text,
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: AppColors.tealDark),
+                        if (patient?.anonymousMode == true)
+                          const Text(
+                            'Le patient a choisi le mode anonyme',
+                            style: TextStyle(
+                                fontSize: 14, color: AppColors.muted),
+                          ),
                       ],
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _DetailRow(
+                label: 'Date',
+                value: '${_capitalize(_kWeekdayNames[start.weekday - 1])} '
+                    '${start.day} ${_kMonthNames[start.month - 1]} '
+                    '${start.year}',
+              ),
+              _DetailRow(
+                label: 'Horaire',
+                value: '${_hour(start)} – ${_hour(end)}',
+              ),
+              _DetailRow(
+                label: 'Type',
+                value: appointment.consultationType.label,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Statut',
+                        style:
+                            TextStyle(fontSize: 16, color: AppColors.muted),
+                      ),
+                    ),
+                    _StatusLabel(status: appointment.status),
+                  ],
                 ),
-              ],
-              const SizedBox(height: 20),
-              const SectionHeader(title: 'Paiement'),
-              const SizedBox(height: 8),
-              if (_loadingPayment)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Center(
-                      child: SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))),
-                )
-              else if (_payment == null)
-                const Text('Aucun paiement enregistré pour ce rendez-vous.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13))
-              else ...[
+              ),
+              _DetailRow(
+                label: 'Paiement',
+                value: _loadingPayment
+                    ? '…'
+                    : _payment == null
+                        ? 'Aucun paiement'
+                        : _formatXof(_payment!.amount),
+              ),
+              if (_payment?.method != null)
                 _DetailRow(
-                  icon: Icons.payments_outlined,
-                  label: 'Montant payé',
-                  value: _formatXof(_payment!.amount),
-                ),
-                const SizedBox(height: 10),
-                _DetailRow(
-                  icon: Icons.account_balance_wallet_outlined,
                   label: 'Moyen de paiement',
-                  value: _payment!.method?.label ?? '—',
+                  value: _payment!.method!.label,
+                ),
+              if (appointment.status == AppointmentStatus.completed) ...[
+                const SizedBox(height: 18),
+                Material(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => SessionRecommendationsScreen(
+                          appointmentId: appointment.id,
+                          patientName: name,
+                        ),
+                      ));
+                    },
+                    child: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Recommandations après la séance',
+                              style: TextStyle(
+                                color: AppColors.text,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.chevron_right, color: AppColors.muted),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -1084,34 +1271,38 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.icon, required this.label, required this.value});
+  const _DetailRow({required this.label, required this.value});
 
-  final IconData icon;
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: AppColors.muted),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style:
-                      const TextStyle(color: AppColors.muted, fontSize: 11)),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, color: AppColors.tealDark)),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 16, color: AppColors.muted),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

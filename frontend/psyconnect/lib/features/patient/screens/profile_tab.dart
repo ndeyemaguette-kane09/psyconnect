@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/splash_screen.dart';
 import '../../auth/services/profile_service.dart';
 import '../../journal/screens/journal_screen.dart';
+import '../../payment/models/wallet_models.dart';
 import '../../payment/screens/wallet_screen.dart';
+import '../../payment/services/wallet_service.dart';
 import '../services/questionnaire_service.dart';
 import 'edit_profile_screen.dart';
 import 'medical_history_screen.dart';
@@ -26,11 +30,13 @@ class ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<ProfileTab> {
   final _profileService = ProfileService();
   final _questionnaireService = QuestionnaireService();
+  final _walletService = WalletService();
 
   bool _loading = true;
   UserProfile? _userProfile;
   PatientProfile? _patientProfile;
   int _pendingQuestionnaireCount = 0;
+  Wallet? _wallet;
 
   @override
   void initState() {
@@ -68,8 +74,16 @@ class _ProfileTabState extends State<ProfileTab> {
       // Échec silencieux : le badge reste à 0.
     }
 
+    Wallet? wallet;
+    if (patientId != null) {
+      try {
+        wallet = await _walletService.getWallet(patientId);
+      } catch (_) {}
+    }
+
     if (!mounted) return;
     setState(() {
+      _wallet = wallet;
       _userProfile = userProfile;
       _patientProfile = patientProfile;
       _pendingQuestionnaireCount = pendingCount;
@@ -112,177 +126,225 @@ class _ProfileTabState extends State<ProfileTab> {
     final name = _userProfile != null
         ? '${_userProfile!.firstName} ${_userProfile!.lastName}'.trim()
         : (session?.pseudo ?? '');
+    final displayName = name.isEmpty ? (session?.pseudo ?? '') : name;
+    final patientId = session?.profileId;
+    final userProfileId = session?.userProfileId;
+    final contactLine = [
+      if (_userProfile?.phoneNumber.isNotEmpty == true)
+        _userProfile!.phoneNumber,
+      if (_userProfile?.city != null && _userProfile!.city!.isNotEmpty)
+        _userProfile!.city!,
+    ].join(' · ');
 
     return SafeArea(
       child: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
           children: [
-            Text('Profil', style: Theme.of(context).textTheme.displayMedium),
-            const SizedBox(height: 8),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.teal,
-                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Row(
                   children: [
-                    const CircleAvatar(
-                      radius: 26,
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.white, size: 28),
-                    ),
+                    AppAvatar(name: displayName, size: 80),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            name.isEmpty ? (session?.pseudo ?? '') : name,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16),
+                            displayName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .displaySmall
+                                ?.copyWith(fontSize: 24),
                           ),
-                          if (_userProfile?.phoneNumber.isNotEmpty == true) ...[
-                            const SizedBox(height: 2),
-                            Text(_userProfile!.phoneNumber,
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 13)),
-                          ],
+                          if (contactLine.isNotEmpty)
+                            Text(
+                              contactLine,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          if (_userProfile != null && patientId != null)
+                            InkWell(
+                              onTap: _openEditProfile,
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4),
+                                child: Text(
+                                  'Modifier mon profil',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.teal,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Informations', style: Theme.of(context).textTheme.titleMedium),
-                  TextButton.icon(
-                    onPressed: (_userProfile == null || session?.profileId == null)
-                        ? null
-                        : _openEditProfile,
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Modifier'),
+              const SizedBox(height: 26),
+              const SectionHeader(
+                title: 'Mon suivi',
+                padding: EdgeInsets.symmetric(horizontal: 4),
+              ),
+              const SizedBox(height: 10),
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  children: [
+                    _NavRow(
+                      icon: Icons.book_outlined,
+                      label: 'Mon journal',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const JournalScreen()),
+                      ),
+                    ),
+                    _NavRow(
+                      icon: Icons.assignment_outlined,
+                      label: 'Questionnaires',
+                      iconColor: AppColors.goldDark,
+                      iconBackground: AppColors.goldLight,
+                      badge: _pendingQuestionnaireCount > 0
+                          ? _pendingQuestionnaireCount
+                          : null,
+                      onTap: () => Navigator.of(context)
+                          .push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const QuestionnaireHistoryScreen(),
+                            ),
+                          )
+                          .then((_) => _load()),
+                    ),
+                    _NavRow(
+                      icon: Icons.medical_information_outlined,
+                      label: 'Antécédents médicaux',
+                      iconColor: AppColors.text,
+                      iconBackground: AppColors.sand,
+                      onTap: patientId == null
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => MedicalHistoryScreen(
+                                    patientId: patientId,
+                                  ),
+                                ),
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+              if (patientId != null) ...[
+                const SizedBox(height: 14),
+                Material(
+                  color: AppColors.teal,
+                  borderRadius: AppRadius.mdAll,
+                  child: InkWell(
+                    borderRadius: AppRadius.mdAll,
+                    onTap: () => Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (_) => WalletScreen(patientId: patientId),
+                          ),
+                        )
+                        .then((_) => _load()),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Mon solde',
+                                  style: TextStyle(
+                                    color: Color(0xFFC9DCD2),
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                Text(
+                                  _wallet == null
+                                      ? 'Voir mon portefeuille'
+                                      : '${_wallet!.balance.toStringAsFixed(0)} F',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              color: Colors.white, size: 24),
+                        ],
+                      ),
+                    ),
                   ),
-                ],
+                ),
+              ],
+              const SizedBox(height: 26),
+              const SectionHeader(
+                title: 'Contact d\'urgence',
+                padding: EdgeInsets.symmetric(horizontal: 4),
               ),
-              const SizedBox(height: 10),
-              _InfoTile(
-                icon: Icons.location_city_outlined,
-                label: 'Ville',
-                value: _userProfile?.city,
-              ),
-              _InfoTile(
-                icon: Icons.public_outlined,
-                label: 'Pays',
-                value: _userProfile?.country,
-              ),
-              _InfoTile(
-                icon: Icons.language_outlined,
-                label: 'Langue préférée',
-                value: _patientProfile?.preferredLanguage,
-              ),
-              const SizedBox(height: 20),
-              Text('Contact d\'urgence',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 10),
-              _InfoTile(
-                icon: Icons.contact_phone_outlined,
+              const SizedBox(height: 6),
+              _InfoLine(
                 label: 'Nom',
                 value: _patientProfile?.emergencyContactName,
               ),
-              _InfoTile(
-                icon: Icons.phone_outlined,
+              _InfoLine(
                 label: 'Téléphone',
                 value: _patientProfile?.emergencyContactPhone,
               ),
-              const SizedBox(height: 20),
-              _NavRow(
-                icon: Icons.account_balance_wallet_outlined,
-                label: 'Mon solde PsyConnect',
-                onTap: session?.profileId == null
-                    ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                WalletScreen(patientId: session!.profileId!),
-                          ),
-                        ),
+              const SizedBox(height: 22),
+              const SectionHeader(
+                title: 'Mes informations',
+                padding: EdgeInsets.symmetric(horizontal: 4),
               ),
-              const SizedBox(height: 10),
-              _NavRow(
-                icon: Icons.book_outlined,
-                label: 'Mon journal',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const JournalScreen()),
-                ),
+              const SizedBox(height: 6),
+              _InfoLine(label: 'Ville', value: _userProfile?.city),
+              _InfoLine(label: 'Pays', value: _userProfile?.country),
+              _InfoLine(
+                label: 'Langue préférée',
+                value: _patientProfile?.preferredLanguage,
               ),
-              const SizedBox(height: 10),
-              _NavRow(
-                icon: Icons.assignment_outlined,
-                label: 'Mes questionnaires',
-                badge: _pendingQuestionnaireCount > 0
-                    ? _pendingQuestionnaireCount
-                    : null,
-                onTap: () => Navigator.of(context)
-                    .push(
-                      MaterialPageRoute(
-                        builder: (_) => const QuestionnaireHistoryScreen(),
-                      ),
-                    )
-                    .then((_) => _load()),
-              ),
-              const SizedBox(height: 10),
-              _NavRow(
-                icon: Icons.medical_information_outlined,
-                label: 'Antécédents médicaux',
-                onTap: session?.profileId == null
-                    ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => MedicalHistoryScreen(
-                              patientId: session!.profileId!,
-                            ),
-                          ),
-                        ),
-              ),
-              const SizedBox(height: 10),
-              _NavRow(
-                icon: Icons.settings_outlined,
+              const SizedBox(height: 18),
+              _TextLink(
                 label: 'Paramètres',
-                onTap: (session?.profileId == null || session?.userProfileId == null)
+                onTap: (patientId == null || userProfileId == null)
                     ? null
-                    : () => Navigator.of(context).push(
+                    : () => Navigator.of(context)
+                        .push(
                           MaterialPageRoute(
                             builder: (_) => SettingsScreen(
-                              userProfileId: session!.userProfileId!,
-                              patientId: session.profileId!,
+                              userProfileId: userProfileId,
+                              patientId: patientId,
                               patientProfile: _patientProfile,
                             ),
                           ),
-                        ).then((_) => _load()),
+                        )
+                        .then((_) => _load()),
               ),
-              const SizedBox(height: 28),
-              OutlinedButton.icon(
-                onPressed: _logout,
-                icon: const Icon(Icons.logout, color: AppColors.rose),
-                label: const Text('Se déconnecter',
-                    style: TextStyle(color: AppColors.rose)),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.rose),
-                  minimumSize: const Size.fromHeight(46),
-                ),
+              _TextLink(
+                label: 'Se déconnecter',
+                color: AppColors.danger,
+                onTap: _logout,
               ),
             ],
           ],
@@ -298,47 +360,66 @@ class _NavRow extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.badge,
+    this.iconColor = AppColors.teal,
+    this.iconBackground = AppColors.tealLight,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
-  // nombre affiché dans un badge rouge à droite (null = pas de badge)
   final int? badge;
+  final Color iconColor;
+  final Color iconBackground;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          border: Border.all(color: AppColors.tealMid),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.teal, size: 20),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBackground,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
             if (badge != null) ...[
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.rose,
+                  color: AppColors.goldDark,
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '$badge',
+                  '$badge à faire',
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700),
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
             ],
-            const Icon(Icons.chevron_right, color: AppColors.muted),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.muted, size: 22),
           ],
         ),
       ),
@@ -346,41 +427,66 @@ class _NavRow extends StatelessWidget {
   }
 }
 
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({required this.icon, required this.label, this.value});
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.label, this.value});
 
-  final IconData icon;
   final String label;
   final String? value;
 
   @override
   Widget build(BuildContext context) {
-    final display = (value == null || value!.isEmpty) ? 'Non renseigné' : value!;
+    final empty = value == null || value!.trim().isEmpty;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.teal, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12)),
-                  const SizedBox(height: 2),
-                  Text(display, style: const TextStyle(fontSize: 14)),
-                ],
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 16, color: AppColors.muted),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              empty ? 'Non renseigné' : value!,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: empty ? FontWeight.w500 : FontWeight.w700,
+                color: empty ? AppColors.muted : AppColors.text,
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TextLink extends StatelessWidget {
+  const _TextLink({
+    required this.label,
+    required this.onTap,
+    this.color = AppColors.text,
+  });
+
+  final String label;
+  final VoidCallback? onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: onTap == null ? AppColors.faint : color,
+          ),
         ),
       ),
     );

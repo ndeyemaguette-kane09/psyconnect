@@ -31,10 +31,10 @@ import com.example.appointmentservice.service.OwnershipResolver;
 /**
  * Tests unitaires pour le scoring PHQ-9 et GAD-7.
  *
- * PHQ-9 (dépression) : 9 questions × 0-3 → score 0-27
+ * PHQ-9 (dépression) : 9 questions × 0-3 -> score 0-27
  *   0-4 minimal | 5-9 léger | 10-14 modéré | 15-19 modérément sévère | 20-27 sévère
  *
- * GAD-7 (anxiété) : 7 questions × 0-3 → score 0-21
+ * GAD-7 (anxiété) : 7 questions × 0-3 -> score 0-21
  *   0-4 minimal | 5-9 léger | 10-14 modéré | 15-21 sévère
  */
 @ExtendWith(MockitoExtension.class)
@@ -95,12 +95,12 @@ class QuestionnaireServiceImplTest {
         return service.answerQuestionnaire(1L, req);
     }
 
-    // ── PHQ-9 ──────────────────────────────────────────────────────────────────
+    // PHQ-9
 
     @Test
-    @DisplayName("PHQ-9 score 27 (9×3) → Dépression sévère")
+    @DisplayName("PHQ-9 score 27 (9×3) -> Dépression sévère")
     void phq9_allMax_isSevereDepression() {
-        // 9 réponses à 3 → score max 27
+        // 9 réponses à 3 -> score max 27
         List<Integer> answers = Collections.nCopies(9, 3);
         QuestionnaireResponseDto resp = answer(QuestionnaireType.PHQ9, answers);
 
@@ -110,7 +110,7 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
-    @DisplayName("PHQ-9 score 0 → Dépression minimale")
+    @DisplayName("PHQ-9 score 0 -> Dépression minimale")
     void phq9_allZero_isMinimalDepression() {
         List<Integer> answers = Collections.nCopies(9, 0);
         QuestionnaireResponseDto resp = answer(QuestionnaireType.PHQ9, answers);
@@ -120,7 +120,7 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
-    @DisplayName("PHQ-9 score 10 → Dépression modérée")
+    @DisplayName("PHQ-9 score 10 -> Dépression modérée")
     void phq9_score10_isModerateDepression() {
         // 9 réponses dont certaines à 1 et certaines à 2 pour totaliser 10
         // ex: 1+2+1+2+1+1+1+0+1 = 10
@@ -132,7 +132,7 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
-    @DisplayName("PHQ-9 avec 8 réponses au lieu de 9 → IllegalArgumentException")
+    @DisplayName("PHQ-9 avec 8 réponses au lieu de 9 -> IllegalArgumentException")
     void phq9_wrongAnswerCount_throwsException() {
         Questionnaire q = buildQuestionnaire(QuestionnaireType.PHQ9);
         when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
@@ -147,7 +147,7 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
-    @DisplayName("PHQ-9 avec une réponse = 4 (hors plage 0-3) → IllegalArgumentException")
+    @DisplayName("PHQ-9 avec une réponse = 4 (hors plage 0-3) -> IllegalArgumentException")
     void phq9_invalidAnswerValue_throwsException() {
         Questionnaire q = buildQuestionnaire(QuestionnaireType.PHQ9);
         when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
@@ -161,10 +161,10 @@ class QuestionnaireServiceImplTest {
                 () -> service.answerQuestionnaire(1L, req));
     }
 
-    // ── GAD-7 ──────────────────────────────────────────────────────────────────
+    // GAD-7
 
     @Test
-    @DisplayName("GAD-7 score 21 (7×3) → Anxiété sévère")
+    @DisplayName("GAD-7 score 21 (7×3) -> Anxiété sévère")
     void gad7_allMax_isSevereAnxiety() {
         List<Integer> answers = Collections.nCopies(7, 3);
         QuestionnaireResponseDto resp = answer(QuestionnaireType.GAD7, answers);
@@ -174,9 +174,9 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
-    @DisplayName("GAD-7 score 7 → Anxiété légère")
+    @DisplayName("GAD-7 score 7 -> Anxiété légère")
     void gad7_score7_isMildAnxiety() {
-        // 7 réponses à 1 → score 7
+        // 7 réponses à 1 -> score 7
         List<Integer> answers = Collections.nCopies(7, 1);
         QuestionnaireResponseDto resp = answer(QuestionnaireType.GAD7, answers);
 
@@ -185,7 +185,7 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
-    @DisplayName("GAD-7 score 12 → Anxiété modérée")
+    @DisplayName("GAD-7 score 12 -> Anxiété modérée")
     void gad7_score12_isModerateAnxiety() {
         // ex: 2+2+2+2+1+1+2 = 12
         List<Integer> answers = List.of(2, 2, 2, 2, 1, 1, 2);
@@ -196,7 +196,7 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
-    @DisplayName("GAD-7 avec 9 réponses au lieu de 7 → IllegalArgumentException")
+    @DisplayName("GAD-7 avec 9 réponses au lieu de 7 -> IllegalArgumentException")
     void gad7_wrongAnswerCount_throwsException() {
         Questionnaire q = buildQuestionnaire(QuestionnaireType.GAD7);
         when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
@@ -210,10 +210,10 @@ class QuestionnaireServiceImplTest {
                 () -> service.answerQuestionnaire(1L, req));
     }
 
-    // ── Règle métier : questionnaire déjà complété ─────────────────────────────
+    // Règle métier : questionnaire déjà complété
 
     @Test
-    @DisplayName("Répondre à un questionnaire déjà COMPLETED → ForbiddenOperationException")
+    @DisplayName("Répondre à un questionnaire déjà COMPLETED -> ForbiddenOperationException")
     void answerQuestionnaire_alreadyCompleted_throwsForbidden() {
         Questionnaire q = buildQuestionnaire(QuestionnaireType.PHQ9);
         q.setStatus(QuestionnaireStatus.COMPLETED); // déjà rempli

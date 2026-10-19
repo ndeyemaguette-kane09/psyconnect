@@ -1,9 +1,9 @@
 package com.example.userservice.dto;
 
 // corps de POST /admin/notifications/broadcast
-// audience : "ALL" → tous les profils (patients + psys)
-//            "PATIENTS" → patients uniquement
-//            "PSYCHOLOGISTS" → psychologues uniquement
+// audience : "ALL" -> tous les profils (patients + psys)
+//            "PATIENTS" -> patients uniquement
+//            "PSYCHOLOGISTS" -> psychologues uniquement
 public class BroadcastRequest {
 
     private String title;

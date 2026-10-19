@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../messaging/models/messaging_models.dart';
@@ -200,54 +201,74 @@ class _MessagesTabState extends State<MessagesTab> {
               )
             else ...[
               if (_conversations.isNotEmpty)
-                SliverList.builder(
-                  itemCount: _conversations.length,
-                  itemBuilder: (context, i) {
-                    final conversation = _conversations[i];
-                    final psychologist =
-                        _psychologistsById[conversation.psychologistId];
-                    final name = psychologist?.fullName ?? 'Psychologue';
-                    return _ConversationRow(
-                      title: name,
-                      preview: conversation.lastMessagePreview,
-                      time: conversation.lastMessageAt,
-                      unreadCount: conversation.unreadCount,
-                      showDivider: i != _conversations.length - 1,
-                      onTap: () => _openConversation(conversation.id, name),
-                    );
-                  },
-                ),
-              if (_contactsWithoutConversation.isNotEmpty) ...[
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                   sliver: SliverToBoxAdapter(
-                    child: Text(
-                      'DÉMARRER UNE CONVERSATION',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.muted,
-                            letterSpacing: 0.9,
-                            fontWeight: FontWeight.w700,
-                          ),
+                    child: AppCard(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
+                      child: Column(
+                        children: [
+                          for (final conversation in _conversations)
+                            Builder(builder: (context) {
+                              final psychologist = _psychologistsById[
+                                  conversation.psychologistId];
+                              final name =
+                                  psychologist?.fullName ?? 'Psychologue';
+                              return _ConversationRow(
+                                title: name,
+                                preview: conversation.lastMessagePreview,
+                                time: conversation.lastMessageAt,
+                                unreadCount: conversation.unreadCount,
+                                onTap: () =>
+                                    _openConversation(conversation.id, name),
+                              );
+                            }),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                SliverList.builder(
-                  itemCount: _contactsWithoutConversation.length,
-                  itemBuilder: (context, i) {
-                    final psychologist = _contactsWithoutConversation[i];
-                    return _ConversationRow(
-                      title: psychologist.fullName,
-                      preview: null,
-                      time: null,
-                      unreadCount: 0,
-                      showDivider:
-                          i != _contactsWithoutConversation.length - 1,
-                      onTap: () => _startConversation(psychologist),
-                    );
-                  },
+              if (_contactsWithoutConversation.isNotEmpty) ...[
+                const SliverPadding(
+                  padding: EdgeInsets.fromLTRB(24, 26, 20, 10),
+                  sliver: SliverToBoxAdapter(
+                    child: SectionHeader(title: 'Démarrer une conversation'),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverToBoxAdapter(
+                    child: AppCard(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
+                      child: Column(
+                        children: [
+                          for (final psychologist
+                              in _contactsWithoutConversation)
+                            _ConversationRow(
+                              title: psychologist.fullName,
+                              preview: null,
+                              time: null,
+                              unreadCount: 0,
+                              onTap: () => _startConversation(psychologist),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(24, 16, 24, 32),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    'Vous pouvez écrire à un psychologue dès que vous avez un '
+                    'rendez-vous avec lui.',
+                    style: TextStyle(fontSize: 14, color: AppColors.muted),
+                  ),
+                ),
+              ),
             ],
           ],
         ),
@@ -262,7 +283,6 @@ class _ConversationRow extends StatelessWidget {
     required this.preview,
     required this.time,
     required this.unreadCount,
-    required this.showDivider,
     required this.onTap,
   });
 
@@ -270,7 +290,6 @@ class _ConversationRow extends StatelessWidget {
   final String? preview;
   final DateTime? time;
   final int unreadCount;
-  final bool showDivider;
   final VoidCallback onTap;
 
   static const _weekdays = [
@@ -281,6 +300,11 @@ class _ConversationRow extends StatelessWidget {
     'ven.',
     'sam.',
     'dim.',
+  ];
+
+  static const _months = [
+    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
   ];
 
   String get _timeLabel {
@@ -297,8 +321,8 @@ class _ConversationRow extends StatelessWidget {
     }
     if (diff == 1) return 'Hier';
     if (diff < 7) return _weekdays[t.weekday - 1];
-    return '${t.day.toString().padLeft(2, '0')}/'
-        '${t.month.toString().padLeft(2, '0')}/${t.year}';
+    final base = '${t.day} ${_months[t.month - 1]}';
+    return t.year == now.year ? base : '$base ${t.year}';
   }
 
   @override
@@ -306,92 +330,82 @@ class _ConversationRow extends StatelessWidget {
     final unread = unreadCount > 0;
     final timeLabel = _timeLabel;
 
-    return Material(
-      color: AppColors.white,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Row(
+            AppAvatar(name: title, size: 54),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.teal.withValues(alpha: 0.10),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.person_outline,
-                        color: AppColors.teal, size: 26),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 16,
                             fontWeight:
-                                unread ? FontWeight.w700 : FontWeight.w600,
+                                unread ? FontWeight.w800 : FontWeight.w700,
                             color: AppColors.text,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                      ),
+                      if (timeLabel.isNotEmpty) ...[
+                        const SizedBox(width: 8),
                         Text(
-                          preview ?? 'Démarrer la discussion',
+                          timeLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                unread ? FontWeight.w800 : FontWeight.w500,
+                            color: unread ? AppColors.teal : AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          preview ?? 'Aucun message pour le moment',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14.5,
                             height: 1.3,
-                            color: unread
-                                ? AppColors.textSecondary
-                                : AppColors.muted,
+                            color: unread ? AppColors.text : AppColors.muted,
                             fontWeight:
                                 unread ? FontWeight.w600 : FontWeight.w400,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (timeLabel.isNotEmpty)
-                        Text(
-                          timeLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight:
-                                unread ? FontWeight.w700 : FontWeight.w500,
-                            color: unread ? AppColors.teal : AppColors.faint,
-                          ),
-                        ),
+                      ),
                       if (unread) ...[
-                        const SizedBox(height: 7),
+                        const SizedBox(width: 8),
                         Container(
-                          constraints: const BoxConstraints(minWidth: 20),
-                          height: 20,
+                          constraints: const BoxConstraints(minWidth: 22),
+                          height: 22,
                           alignment: Alignment.center,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppColors.teal,
+                            borderRadius: BorderRadius.circular(11),
                           ),
                           child: Text(
                             unreadCount > 99 ? '99+' : '$unreadCount',
                             style: const TextStyle(
                               color: AppColors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
@@ -401,15 +415,6 @@ class _ConversationRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (showDivider)
-              const Padding(
-                padding: EdgeInsets.only(left: 82),
-                child: Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.border,
-                ),
-              ),
           ],
         ),
       ),

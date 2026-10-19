@@ -159,8 +159,8 @@ class _PatientShellState extends State<PatientShell>
     } catch (_) {}
   }
 
-  // Poll les notifs. Première exécution → peuple _seenNotifIds sans pop-up.
-  // Exécutions suivantes → affiche un pop-up pour chaque nouvel ID.
+  // Poll les notifs. Première exécution -> peuple _seenNotifIds sans pop-up.
+  // Exécutions suivantes -> affiche un pop-up pour chaque nouvel ID.
   Future<void> _pollNotifications() async {
     final profileId = context.read<AuthProvider>().session?.profileId;
     if (profileId == null) return;
@@ -236,7 +236,11 @@ class _PatientShellState extends State<PatientShell>
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      PatientHomeScreen(onOpenSearch: _goToSearch, onOpenProfile: _goToProfile),
+      PatientHomeScreen(
+        onOpenSearch: _goToSearch,
+        onOpenProfile: _goToProfile,
+        onOpenAppointments: () => _selectTab(2),
+      ),
       const PsychologistSearchScreen(),
       const AppointmentsTab(),
       const MessagesTab(),
@@ -246,70 +250,76 @@ class _PatientShellState extends State<PatientShell>
     return Scaffold(
       body: IndexedStack(index: _index, children: tabs),
 
-      // ── FAB central : Chercher un psychologue ────────────────────────────
+      // FAB central : Chercher un psychologue
       floatingActionButton: FloatingActionButton(
         onPressed: () => _selectTab(_fabTabIndex),
         backgroundColor:
             _index == _fabTabIndex ? AppColors.tealDark : AppColors.teal,
-        elevation: 6,
-        shape: const CircleBorder(),
-        tooltip: 'Chercher',
-        child: const Icon(Icons.search, color: Colors.white, size: 28),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(28),
+            bottom: Radius.circular(12),
+          ),
+        ),
+        tooltip: 'Trouver un psy',
+        child: const Icon(Icons.search, color: Colors.white, size: 26),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // ── BottomAppBar : Accueil · RDV   [FAB]   Messages · Profil ─────────
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 9,
-        color: AppColors.white,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: const Color(0x330B3B34),
-        elevation: 14,
-        padding: EdgeInsets.zero,
-        child: SizedBox(
-          height: 66,
-          child: Row(
-            children: [
-              _NavItem(
-                index: 0,
-                selectedIndex: _index,
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home,
-                label: 'Accueil',
-                onTap: () => _selectTab(0),
-              ),
-              _NavItem(
-                index: 2,
-                selectedIndex: _index,
-                icon: Icons.calendar_today_outlined,
-                selectedIcon: Icons.calendar_today,
-                label: 'RDV',
-                onTap: () => _selectTab(2),
-              ),
-              const Spacer(), // espace pour le FAB
-              _NavItem(
-                index: 3,
-                selectedIndex: _index,
-                icon: Icons.chat_bubble_outline,
-                selectedIcon: Icons.chat_bubble,
-                label: 'Messages',
-                badge: _unreadCount,
-                onTap: () => _selectTab(3),
-              ),
-              _NavItem(
-                index: 4,
-                selectedIndex: _index,
-                icon: Icons.person_outline,
-                selectedIcon: Icons.person,
-                label: 'Profil',
-                // Les questionnaires en attente vivent sous Profil > Mes
-                // questionnaires : le badge est porté par cet onglet, pas par
-                // l'accueil, sinon il désigne un écran où il n'y a rien à faire.
-                badge: _pendingQuestCount,
-                onTap: () => _selectTab(4),
-              ),
-            ],
+      // BottomAppBar : Accueil · RDV   [FAB]   Messages · Profil
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        child: BottomAppBar(
+          color: AppColors.white,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          child: SizedBox(
+            height: 70,
+            child: Row(
+              children: [
+                _NavItem(
+                  index: 0,
+                  selectedIndex: _index,
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  label: 'Accueil',
+                  onTap: () => _selectTab(0),
+                ),
+                _NavItem(
+                  index: 2,
+                  selectedIndex: _index,
+                  icon: Icons.calendar_today_outlined,
+                  selectedIcon: Icons.calendar_today,
+                  label: 'Séances',
+                  onTap: () => _selectTab(2),
+                ),
+                const Spacer(), // espace pour le FAB
+                _NavItem(
+                  index: 3,
+                  selectedIndex: _index,
+                  icon: Icons.chat_bubble_outline,
+                  selectedIcon: Icons.chat_bubble,
+                  label: 'Messages',
+                  badge: _unreadCount,
+                  onTap: () => _selectTab(3),
+                ),
+                _NavItem(
+                  index: 4,
+                  selectedIndex: _index,
+                  icon: Icons.person_outline,
+                  selectedIcon: Icons.person,
+                  label: 'Moi',
+                  // Les questionnaires en attente vivent sous Profil > Mes
+                  // questionnaires : le badge est porté par cet onglet, pas par
+                  // l'accueil, sinon il désigne un écran où il n'y a rien à faire.
+                  badge: _pendingQuestCount,
+                  onTap: () => _selectTab(4),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -317,7 +327,7 @@ class _PatientShellState extends State<PatientShell>
   }
 }
 
-// ── Widget item de navigation ────────────────────────────────────────────────
+// Widget item de navigation
 
 class _NavItem extends StatelessWidget {
   final int index;
@@ -351,32 +361,23 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: selected ? AppColors.tealLight : Colors.transparent,
-              ),
-              child: Badge(
-                isLabelVisible: badge > 0,
-                label: Text('$badge', style: const TextStyle(fontSize: 10)),
-                backgroundColor: AppColors.rose,
-                child: Icon(
-                  selected ? selectedIcon : icon,
-                  color: color,
-                  size: 22,
-                ),
+            Badge(
+              isLabelVisible: badge > 0,
+              label: Text('$badge', style: const TextStyle(fontSize: 10)),
+              backgroundColor: AppColors.teal,
+              child: Icon(
+                selected ? selectedIcon : icon,
+                color: color,
+                size: 24,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 12,
                 color: color,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               ),
             ),
           ],
@@ -386,7 +387,7 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// ── Banner pop-up animé ──────────────────────────────────────────────────────
+// Banner pop-up animé
 // Slide-down depuis le haut de l'écran, auto-dismiss géré par le shell.
 
 class _NotifPopup extends StatefulWidget {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../models/admin_models.dart';
 import '../services/admin_service.dart';
@@ -58,6 +57,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   _RoleFilter _filter = _RoleFilter.all;
   String? _busyUserId;
   int _page = 0;
+  String _query = '';
 
   @override
   void initState() {
@@ -208,122 +208,141 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
 
   List<UserAccount> get _filtered {
     final apiValue = _filter.apiValue;
-    if (apiValue == null) return _users;
-    return _users.where((u) => u.role == apiValue).toList();
+    final q = _query.trim().toLowerCase();
+    return _users.where((u) {
+      if (apiValue != null && u.role != apiValue) return false;
+      if (q.isEmpty) return true;
+      return u.fullName.toLowerCase().contains(q) ||
+          u.pseudo.toLowerCase().contains(q) ||
+          u.email.toLowerCase().contains(q);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final filtered = _filtered;
+
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              sliver: SliverToBoxAdapter(
-                child: Text('Utilisateurs',
-                    style: Theme.of(context).textTheme.displayMedium),
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Utilisateurs',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              sliver: SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 36,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final f in _RoleFilter.values)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(f.label),
-                            selected: _filter == f,
-                            selectedColor: AppColors.tealLight,
-                            onSelected: (_) => setState(() {
-                              _filter = f;
-                              _page = 0;
-                            }),
+            const SizedBox(height: 16),
+            TextField(
+              onChanged: (v) => setState(() {
+                _query = v;
+                _page = 0;
+              }),
+              decoration: const InputDecoration(
+                hintText: 'Rechercher un nom ou un e-mail',
+                prefixIcon: Icon(Icons.search),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final f in _RoleFilter.values)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Material(
+                        color: _filter == f ? AppColors.teal : AppColors.sand,
+                        shape: const StadiumBorder(),
+                        child: InkWell(
+                          customBorder: const StadiumBorder(),
+                          onTap: () => setState(() {
+                            _filter = f;
+                            _page = 0;
+                          }),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Center(
+                              child: Text(
+                                f.label,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: _filter == f
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  color: _filter == f
+                                      ? AppColors.background
+                                      : AppColors.text,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                    ],
-                  ),
-                ),
+                      ),
+                    ),
+                ],
               ),
             ),
+            const SizedBox(height: 16),
             if (_loading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_error != null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.muted)),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                            onPressed: _load, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  ),
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (filtered.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  _query.trim().isEmpty
+                      ? 'Aucun compte dans cette catégorie.'
+                      : 'Aucun compte ne correspond à « ${_query.trim()} ».',
+                  style:
+                      const TextStyle(fontSize: 15.5, color: AppColors.muted),
                 ),
               )
-            else if (_filtered.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Text('Aucun compte dans cette catégorie.',
-                      style: TextStyle(color: AppColors.muted)),
+            else ...[
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  children: [
+                    for (final user in paginate(filtered, _page, _pageSize))
+                      _UserRow(
+                        user: user,
+                        busy: _busyUserId == '${user.id}',
+                        onToggle: () => _toggleEnabled(user),
+                        onDelete: () => _confirmDelete(user),
+                        onResetPassword: () => _confirmResetPassword(user),
+                      ),
+                  ],
                 ),
-              )
-            else
-              _buildPagedList(_filtered),
+              ),
+              PageControls(
+                page: _page,
+                pageCount: pageCountFor(filtered.length, _pageSize),
+                onPageChanged: (p) => setState(() => _page = p),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
-
-  Widget _buildPagedList(List<UserAccount> filtered) {
-    final pageCount = pageCountFor(filtered.length, _pageSize);
-    final pageItems = paginate(filtered, _page, _pageSize);
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-      sliver: SliverList(
-        delegate: SliverChildListDelegate([
-          for (final user in pageItems) ...[
-            _UserCard(
-              user: user,
-              busy: _busyUserId == '${user.id}',
-              onToggle: () => _toggleEnabled(user),
-              onDelete: () => _confirmDelete(user),
-              onResetPassword: () => _confirmResetPassword(user),
-            ),
-            const SizedBox(height: 10),
-          ],
-          PageControls(
-            page: _page,
-            pageCount: pageCount,
-            onPageChanged: (p) => setState(() => _page = p),
-          ),
-          const SizedBox(height: 16),
-        ]),
-      ),
-    );
-  }
 }
 
-class _UserCard extends StatelessWidget {
-  const _UserCard({
+class _UserRow extends StatelessWidget {
+  const _UserRow({
     required this.user,
     required this.busy,
     required this.onToggle,
@@ -353,80 +372,86 @@ class _UserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = user.fullName.isEmpty ? user.pseudo : user.fullName;
-    return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: AppColors.tealMid,
-      shadow: const [],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor:
-                user.enabled ? AppColors.tealLight : AppColors.errorBg,
-            child: Icon(Icons.person,
-                color: user.enabled ? AppColors.tealDark : AppColors.rose),
-          ),
+          AppAvatar(name: name, size: 44),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text(user.email,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.tealLight,
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
                   ),
-                  child: Text(_roleLabel,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.tealDark,
-                          fontWeight: FontWeight.w600)),
                 ),
+                Text(
+                  '$_roleLabel · ${user.email}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(fontSize: 13.5, color: AppColors.muted),
+                ),
+                if (!user.enabled)
+                  const Text(
+                    'Compte suspendu',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.danger,
+                    ),
+                  ),
               ],
             ),
           ),
           if (busy)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             )
-          else
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(
-                  activeThumbColor: AppColors.teal,
-                  value: user.enabled,
-                  onChanged: (_) => onToggle(),
-                ),
-                // Suppression et réinitialisation réservées aux comptes non-admin :
-                // le backend refuse déjà ces opérations sur un compte ADMIN.
-                if (user.role != 'ADMIN')
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 20, color: AppColors.muted),
-                    onSelected: (value) {
-                      if (value == 'reset') onResetPassword();
-                      if (value == 'delete') onDelete();
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: 'reset',
-                        child: Text('Réinitialiser le mot de passe'),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Supprimer le compte',
-                            style: TextStyle(color: AppColors.rose)),
-                      ),
-                    ],
-                  ),
-              ],
+          else ...[
+            Switch(
+              value: user.enabled,
+              activeThumbColor: AppColors.white,
+              activeTrackColor: AppColors.teal,
+              onChanged: (_) => onToggle(),
             ),
+            // Suppression et réinitialisation réservées aux comptes non-admin :
+            // le backend refuse déjà ces opérations sur un compte ADMIN.
+            if (user.role != 'ADMIN')
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert,
+                    size: 20, color: AppColors.muted),
+                onSelected: (value) {
+                  if (value == 'reset') onResetPassword();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'reset',
+                    child: Text('Réinitialiser le mot de passe'),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Supprimer le compte',
+                        style: TextStyle(color: AppColors.danger)),
+                  ),
+                ],
+              )
+            else
+              const SizedBox(width: 48),
+          ],
         ],
       ),
     );

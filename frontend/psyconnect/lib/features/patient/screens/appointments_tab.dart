@@ -34,6 +34,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   Map<int, PsychologistProfile> _psychologistsById = {};
 
   AppointmentStatus? _statusFilter;
+  bool _weekView = false;
   Set<int> _paidAppointmentIds = {};
   Set<int> _reviewedPsychologistIds = {};
 
@@ -439,6 +440,100 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     );
   }
 
+  VoidCallback? _joinActionFor(
+      Appointment appointment, PsychologistProfile? psychologist) {
+    final now = DateTime.now();
+    final callWindowOpen = now.isAfter(
+            appointment.startTime.subtract(const Duration(minutes: 10))) &&
+        now.isBefore(appointment.endTime.add(const Duration(minutes: 30)));
+    final isCallType = appointment.consultationType == ConsultationType.video ||
+        appointment.consultationType == ConsultationType.audio;
+    if (appointment.status == AppointmentStatus.confirmed &&
+        isCallType &&
+        callWindowOpen) {
+      return () => _joinCall(appointment, psychologist);
+    }
+    return null;
+  }
+
+  List<Widget> _buildUpcomingSlivers() {
+    final now = DateTime.now();
+    final upcoming = _appointments
+        .where((a) =>
+            (a.status == AppointmentStatus.pending ||
+                a.status == AppointmentStatus.confirmed) &&
+            a.endTime.isAfter(now))
+        .toList()
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final pastCount = _appointments
+        .where((a) => a.status == AppointmentStatus.completed)
+        .length;
+    void showPast() =>
+        setState(() => _statusFilter = AppointmentStatus.completed);
+
+    if (upcoming.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: AppEmptyState(
+            icon: Icons.event_available_outlined,
+            title: 'Aucune séance à venir',
+            message: 'Vos prochaines séances apparaîtront ici.',
+            actionLabel: pastCount > 0 ? 'Voir les séances passées' : null,
+            onAction: pastCount > 0 ? showPast : null,
+          ),
+        ),
+      ];
+    }
+
+    final next = upcoming.first;
+    final nextPsychologist = _psychologistsById[next.psychologistId];
+    final rest = upcoming.skip(1).toList();
+
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+        sliver: SliverToBoxAdapter(
+          child: _NextSessionPanel(
+            appointment: next,
+            psychologist: nextPsychologist,
+            onDetail: () => _openDetail(next, nextPsychologist),
+            onJoinCall: _joinActionFor(next, nextPsychologist),
+          ),
+        ),
+      ),
+      if (rest.isNotEmpty) ...[
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(24, 26, 20, 10),
+          sliver: SliverToBoxAdapter(child: SectionHeader(title: 'Ensuite')),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList.separated(
+            itemCount: rest.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, i) => _buildCard(rest[i]),
+          ),
+        ),
+      ],
+      if (pastCount > 0)
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 14, 20, 32),
+          sliver: SliverToBoxAdapter(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: showPast,
+                child: Text('Voir les séances passées ($pastCount)'),
+              ),
+            ),
+          ),
+        )
+      else
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+    ];
+  }
+
   Widget _buildCard(Appointment appointment) {
     final psychologist = _psychologistsById[appointment.psychologistId];
     final now = DateTime.now();
@@ -466,6 +561,9 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   }
 
   List<Widget> _buildContentSlivers() {
+    if (_statusFilter == null && !_weekView) {
+      return _buildUpcomingSlivers();
+    }
     if (_statusFilter != null) {
       final filtered =
           _appointments.where((a) => a.status == _statusFilter).toList();
@@ -542,7 +640,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               sliver: SliverToBoxAdapter(
-                child: Text('Mes rendez-vous',
+                child: Text('Mes séances',
                     style: Theme.of(context).textTheme.displayMedium),
               ),
             ),
@@ -551,36 +649,54 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 0, 10),
                 sliver: SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 34,
+                    height: 38,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.only(right: 20),
-                      itemCount: _groupOrder.length + 1,
+                      itemCount: _groupOrder.length + 2,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (context, i) {
-                        final status = i == 0 ? null : _groupOrder[i - 1];
-                        final count = status == null
-                            ? 0
-                            : _appointments
-                                .where((a) => a.status == status)
-                                .length;
-                        final label = status == null
-                            ? 'Semaine'
-                            : count > 0
-                                ? '${status.label} ($count)'
-                                : status.label;
+                        if (i == 0) {
+                          return _FilterChip(
+                            label: 'À venir',
+                            selected: _statusFilter == null && !_weekView,
+                            onTap: () => setState(() {
+                              _statusFilter = null;
+                              _weekView = false;
+                            }),
+                          );
+                        }
+                        if (i == 1) {
+                          return _FilterChip(
+                            label: 'Semaine',
+                            selected: _weekView,
+                            onTap: () => setState(() {
+                              _statusFilter = null;
+                              _weekView = true;
+                            }),
+                          );
+                        }
+                        final status = _groupOrder[i - 2];
+                        final count = _appointments
+                            .where((a) => a.status == status)
+                            .length;
+                        final label = count > 0
+                            ? '${status.label} ($count)'
+                            : status.label;
                         return _FilterChip(
                           label: label,
                           selected: _statusFilter == status,
-                          onTap: () =>
-                              setState(() => _statusFilter = status),
+                          onTap: () => setState(() {
+                            _statusFilter = status;
+                            _weekView = false;
+                          }),
                         );
                       },
                     ),
                   ),
                 ),
               ),
-              if (_statusFilter == null)
+              if (_weekView)
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
                   sliver: SliverToBoxAdapter(
@@ -627,6 +743,11 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
 }
 
 const _kWeekdayLetters = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+const _kMonthShort = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
 
 const _kWeekdayNames = [
   'lundi',
@@ -768,7 +889,6 @@ class _WeekStrip extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        Container(height: 1, color: AppColors.border),
       ],
     );
   }
@@ -809,21 +929,23 @@ class _DayCell extends StatelessWidget {
             Text(
               _kWeekdayLetters[day.weekday - 1],
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppColors.faint,
-                letterSpacing: 0.4,
+                color: AppColors.muted,
               ),
             ),
             const SizedBox(height: 6),
             AnimatedContainer(
               duration: AppMotion.fast,
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 44,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected ? AppColors.teal : Colors.transparent,
-                shape: BoxShape.circle,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(18),
+                  bottom: Radius.circular(6),
+                ),
               ),
               child: Text(
                 '${day.day}',
@@ -898,29 +1020,82 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.teal : AppColors.white,
-      borderRadius: AppRadius.mdAll,
+      color: selected ? AppColors.teal : AppColors.sand,
+      shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppMotion.fast,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.mdAll,
-            border: Border.all(
-              color: selected ? AppColors.teal : AppColors.border,
-            ),
-          ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : AppColors.textSecondary,
-              fontSize: 12.5,
+              color: selected ? Colors.white : AppColors.text,
+              fontSize: 14,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+Color _statusSolid(AppointmentStatus status) {
+  switch (status) {
+    case AppointmentStatus.pending:
+      return AppColors.goldDark;
+    case AppointmentStatus.confirmed:
+      return AppColors.teal;
+    case AppointmentStatus.completed:
+      return AppColors.muted;
+    case AppointmentStatus.cancelled:
+    case AppointmentStatus.rejected:
+      return AppColors.danger;
+  }
+}
+
+Color _statusSoft(AppointmentStatus status) {
+  switch (status) {
+    case AppointmentStatus.pending:
+      return AppColors.goldLight;
+    case AppointmentStatus.confirmed:
+      return AppColors.tealLight;
+    case AppointmentStatus.completed:
+      return AppColors.surfaceAlt;
+    case AppointmentStatus.cancelled:
+    case AppointmentStatus.rejected:
+      return AppColors.dangerBg;
+  }
+}
+
+String _hourLabel(DateTime d) => d.minute == 0
+    ? '${d.hour} h'
+    : '${d.hour} h ${d.minute.toString().padLeft(2, '0')}';
+
+String _capitalize(String text) =>
+    text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';
+
+class _StatusLabel extends StatelessWidget {
+  const _StatusLabel({required this.status});
+
+  final AppointmentStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _statusSolid(status),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        status.label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -942,127 +1117,261 @@ class _AppointmentCard extends StatelessWidget {
   final VoidCallback? onJoinCall;
   final bool callNotYetOpen;
 
-  Color get _statusColor {
-    switch (appointment.status) {
-      case AppointmentStatus.pending:
-        return AppColors.gold;
-      case AppointmentStatus.confirmed:
-        return AppColors.teal;
-      case AppointmentStatus.completed:
-        return AppColors.muted;
-      case AppointmentStatus.cancelled:
-      case AppointmentStatus.rejected:
-        return AppColors.rose;
-    }
+  @override
+  Widget build(BuildContext context) {
+    final start = appointment.startTime;
+    final soft = _statusSoft(appointment.status);
+    final ink = appointment.status == AppointmentStatus.confirmed
+        ? AppColors.teal
+        : _statusSolid(appointment.status);
+    final when = '${_capitalize(_kWeekdayNames[start.weekday - 1])} '
+        '${_hourLabel(start)} · ${appointment.consultationType.label}';
+
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: soft,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(25),
+                    bottom: Radius.circular(8),
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 4),
+                    Text(
+                      '${start.day}',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        color: ink,
+                        height: 1,
+                      ),
+                    ),
+                    Text(
+                      _kMonthShort[start.month - 1],
+                      style: TextStyle(fontSize: 12, color: ink),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      psychologist?.fullName ?? 'Psychologue',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      when,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(fontSize: 14, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _StatusLabel(status: appointment.status),
+            ],
+          ),
+          if (appointment.status == AppointmentStatus.pending) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'En attente de confirmation du psychologue. Vous pourrez '
+              'payer une fois le rendez-vous confirmé.',
+              style: TextStyle(color: AppColors.muted, fontSize: 13.5),
+            ),
+          ],
+          if (callNotYetOpen) ...[
+            const SizedBox(height: 10),
+            Text(
+              "L'appel pourra être rejoint à partir de "
+              '${_hourLabel(appointment.startTime.subtract(const Duration(minutes: 10)))}.',
+              style: const TextStyle(color: AppColors.muted, fontSize: 13.5),
+            ),
+          ],
+          if (onJoinCall != null) ...[
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: onJoinCall,
+              icon: Icon(
+                appointment.consultationType == ConsultationType.video
+                    ? Icons.videocam
+                    : Icons.call,
+                size: 18,
+              ),
+              label: const Text('Rejoindre la séance'),
+            ),
+          ],
+        ],
+      ),
+    );
   }
+}
+
+class _NextSessionPanel extends StatelessWidget {
+  const _NextSessionPanel({
+    required this.appointment,
+    this.psychologist,
+    required this.onDetail,
+    this.onJoinCall,
+  });
+
+  final Appointment appointment;
+  final PsychologistProfile? psychologist;
+  final VoidCallback onDetail;
+  final VoidCallback? onJoinCall;
+
+  static const _soft = Color(0xFFC9DCD2);
+  static const _light = Color(0xFFE3EDE7);
 
   @override
   Widget build(BuildContext context) {
     final start = appointment.startTime;
-    final date = '${start.day.toString().padLeft(2, '0')}/'
-        '${start.month.toString().padLeft(2, '0')}/${start.year} à '
-        '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')}';
+    final end = appointment.endTime;
+    final now = DateTime.now();
+    final days = DateTime(start.year, start.month, start.day)
+        .difference(DateTime(now.year, now.month, now.day))
+        .inDays;
+    final relative = days <= 0
+        ? "Aujourd'hui"
+        : days == 1
+            ? 'Demain'
+            : 'Dans $days jours';
+    final name = psychologist?.fullName ?? 'votre psychologue';
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          border: Border.all(color: AppColors.tealMid),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildRow(context, date),
-            if (appointment.status == AppointmentStatus.pending) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'En attente de confirmation du psychologue. Vous pourrez '
-                'payer une fois le rendez-vous confirmé.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-            ],
-            if (callNotYetOpen) ...[
-              const SizedBox(height: 8),
-              Text(
-                "L'appel pourra être rejoint à partir de "
-                '${appointment.startTime.hour.toString().padLeft(2, '0')}h'
-                '${appointment.startTime.minute.toString().padLeft(2, '0')} '
-                '(10 minutes avant le créneau).',
-                style: const TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-            ],
-            if (onJoinCall != null) ...[
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: onJoinCall,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.teal,
-                  foregroundColor: Colors.white,
+    return AppPanel(
+      radius: AppRadius.lg,
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      relative,
+                      style: const TextStyle(color: _soft, fontSize: 15),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_capitalize(_kWeekdayNames[start.weekday - 1])} '
+                      '${start.day} ${_kMonthNames[start.month - 1]}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_hourLabel(start)} – ${_hourLabel(end)}',
+                      style: const TextStyle(color: _light, fontSize: 17),
+                    ),
+                  ],
                 ),
-                icon: Icon(
-                  appointment.consultationType == ConsultationType.video
-                      ? Icons.videocam
-                      : Icons.call,
-                  size: 18,
+              ),
+              const SizedBox(width: 12),
+              AppAvatar(name: name, size: 58),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Avec $name · ${appointment.consultationType.label}',
+            style: const TextStyle(color: _light, fontSize: 15.5),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            appointment.status == AppointmentStatus.pending
+                ? 'En attente de confirmation du psychologue'
+                : appointment.status.label,
+            style: const TextStyle(
+              color: _soft,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 6,
+            runSpacing: 8,
+            children: [
+              if (onJoinCall != null)
+                _PanelButton(
+                  label: 'Rejoindre la séance',
+                  filled: true,
+                  onTap: onJoinCall!,
                 ),
-                label: const Text("Rejoindre l'appel"),
+              _PanelButton(
+                label: 'Voir le détail',
+                filled: onJoinCall == null,
+                onTap: onDetail,
               ),
             ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildRow(BuildContext context, String date) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          backgroundColor: AppColors.tealLight,
-          child: Icon(
-            appointment.consultationType == ConsultationType.video
-                ? Icons.videocam_outlined
-                : appointment.consultationType == ConsultationType.audio
-                    ? Icons.call_outlined
-                    : Icons.meeting_room_outlined,
-            color: AppColors.teal,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                psychologist?.fullName ?? 'Psychologue',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$date · ${appointment.consultationType.label}',
-                style: const TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: _statusColor.withValues(alpha: 0.12),
-          ),
+class _PanelButton extends StatelessWidget {
+  const _PanelButton({
+    required this.label,
+    required this.filled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool filled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: filled ? AppColors.background : Colors.transparent,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
           child: Text(
-            appointment.status.label,
+            label,
             style: TextStyle(
-                color: _statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+              color: filled ? AppColors.teal : Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
-        const SizedBox(width: 4),
-        const Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
-      ],
+      ),
     );
   }
 }
@@ -1143,183 +1452,195 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
     final name = psychologist?.fullName ?? 'Psychologue';
     final start = appointment.startTime;
     final end = appointment.endTime;
-    final date = '${start.day.toString().padLeft(2, '0')}/'
-        '${start.month.toString().padLeft(2, '0')}/${start.year}';
-    final timeRange = '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')} – '
-        '${end.hour.toString().padLeft(2, '0')}h'
-        '${end.minute.toString().padLeft(2, '0')}';
+    final date = '${_capitalize(_kWeekdayNames[start.weekday - 1])} '
+        '${start.day} ${_kMonthNames[start.month - 1]} ${start.year}';
+    final timeRange = '${_hourLabel(start)} – ${_hourLabel(end)} · '
+        '${appointment.consultationType.label}';
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.35,
-      maxChildSize: 0.9,
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
       expand: false,
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: AppColors.white,
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
           ),
           child: ListView(
             controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 32),
             children: [
               Center(
                 child: Container(
                   width: 40,
                   height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
+                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: AppColors.tealMid,
+                    color: AppColors.borderStrong,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.tealLight,
-                    child: Icon(Icons.person,
-                        color: AppColors.tealDark, size: 26),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 18)),
-                  ),
-                ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _StatusLabel(status: appointment.status),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                date,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  height: 1.15,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                timeRange,
+                style: const TextStyle(fontSize: 17, color: AppColors.muted),
               ),
               const SizedBox(height: 20),
-              _DetailRow(
-                  icon: Icons.event_outlined, label: 'Date', value: date),
-              const SizedBox(height: 10),
-              _DetailRow(
-                  icon: Icons.schedule_outlined,
-                  label: 'Horaire',
-                  value: timeRange),
-              const SizedBox(height: 10),
-              _DetailRow(
-                icon: appointment.consultationType == ConsultationType.video
-                    ? Icons.videocam_outlined
-                    : appointment.consultationType == ConsultationType.audio
-                        ? Icons.call_outlined
-                        : appointment.consultationType ==
-                                ConsultationType.chat
-                            ? Icons.chat_outlined
-                            : Icons.meeting_room_outlined,
-                label: 'Type de consultation',
-                value: appointment.consultationType.label,
+              AppCard(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    AppAvatar(name: name, size: 54),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          if (psychologist != null &&
+                              psychologist.specialty.isNotEmpty)
+                            Text(
+                              psychologist.specialty,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 10),
-              _DetailRow(
-                icon: Icons.info_outline,
-                label: 'Statut',
-                value: appointment.status.label,
-              ),
-              const SizedBox(height: 20),
-              const SectionHeader(title: 'Paiement'),
-              const SizedBox(height: 8),
+              const SizedBox(height: 22),
               if (_loadingPayment)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Center(
-                      child: SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))),
-                )
-              else if (_payment != null) ...[
-                _DetailRow(
-                  icon: Icons.payments_outlined,
-                  label: 'Montant payé',
-                  value: _formatXof(_payment!.amount),
-                ),
-                const SizedBox(height: 10),
-                _DetailRow(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: 'Moyen de paiement',
-                  value: _payment!.method?.label ?? '—',
-                ),
-              ] else if (widget.onPay != null)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _runAndClose(widget.onPay!),
-                    icon: const Icon(Icons.payments_outlined, size: 18),
-                    label: Text(
-                      psychologist?.consultationPrice != null
-                          ? 'Payer ${psychologist!.consultationPrice} F CFA'
-                          : 'Payer maintenant',
+                    child: SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
+                  ),
+                )
+              else if (_payment != null)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Séance payée',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          Text(
+                            _payment!.method?.label ?? 'Depuis votre solde',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      _formatXof(_payment!.amount),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ],
+                )
+              else if (widget.onPay != null)
+                ElevatedButton(
+                  onPressed: () => _runAndClose(widget.onPay!),
+                  child: Text(
+                    psychologist?.consultationPrice != null
+                        ? 'Payer ${_formatXof(psychologist!.consultationPrice!)}'
+                        : 'Payer maintenant',
                   ),
                 )
               else
-                const Text('Aucun paiement enregistré pour ce rendez-vous.',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13)),
-              if (widget.onReschedule != null || widget.onCancel != null) ...[
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Gérer le rendez-vous'),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (widget.onReschedule != null)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _runAndClose(widget.onReschedule!),
-                          icon: const Icon(Icons.event_repeat, size: 18),
-                          label: const Text('Reporter'),
-                        ),
-                      ),
-                    if (widget.onReschedule != null && widget.onCancel != null)
-                      const SizedBox(width: 8),
-                    if (widget.onCancel != null)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _runAndClose(widget.onCancel!),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.rose,
-                            side: const BorderSide(color: AppColors.rose),
-                          ),
-                          icon: const Icon(Icons.close, size: 18),
-                          label: const Text('Annuler'),
-                        ),
-                      ),
-                  ],
+                const Text(
+                  'Aucun paiement enregistré pour cette séance.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 14.5),
                 ),
-              ],
               if (widget.onReview != null) ...[
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Votre avis'),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _runAndClose(widget.onReview!),
-                    icon: Icon(
-                      widget.hasReview ? Icons.star : Icons.star_outline,
-                      size: 18,
-                    ),
-                    label: Text(widget.hasReview
-                        ? 'Modifier votre avis'
-                        : 'Laisser un avis'),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: () => _runAndClose(widget.onReview!),
+                  icon: Icon(
+                    widget.hasReview ? Icons.star : Icons.star_outline,
+                    size: 18,
                   ),
+                  label: Text(widget.hasReview
+                      ? 'Modifier votre avis'
+                      : 'Laisser un avis'),
                 ),
               ],
-              if (widget.onDelete != null) ...[
-                const SizedBox(height: 24),
-                Container(height: 1, color: AppColors.tealMid),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => _runAndClose(widget.onDelete!),
-                    style:
-                        TextButton.styleFrom(foregroundColor: AppColors.rose),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Supprimer ce rendez-vous'),
+              if (widget.onReschedule != null ||
+                  widget.onCancel != null ||
+                  widget.onDelete != null) ...[
+                const SizedBox(height: 18),
+                if (widget.onReschedule != null)
+                  _SheetLink(
+                    label: 'Déplacer la séance',
+                    onTap: () => _runAndClose(widget.onReschedule!),
                   ),
-                ),
+                if (widget.onCancel != null) ...[
+                  _SheetLink(
+                    label: 'Annuler la séance',
+                    color: AppColors.danger,
+                    onTap: () => _runAndClose(widget.onCancel!),
+                  ),
+                  const Text(
+                    'Remboursée sur votre solde si vous annulez au moins '
+                    '48 h avant.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+                if (widget.onDelete != null)
+                  _SheetLink(
+                    label: 'Supprimer de ma liste',
+                    color: AppColors.danger,
+                    onTap: () => _runAndClose(widget.onDelete!),
+                  ),
               ],
             ],
           ),
@@ -1329,36 +1650,32 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow(
-      {required this.icon, required this.label, required this.value});
+class _SheetLink extends StatelessWidget {
+  const _SheetLink({
+    required this.label,
+    required this.onTap,
+    this.color = AppColors.teal,
+  });
 
-  final IconData icon;
   final String label;
-  final String value;
+  final VoidCallback onTap;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: AppColors.muted),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style:
-                      const TextStyle(color: AppColors.muted, fontSize: 11)),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, color: AppColors.tealDark)),
-            ],
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: color,
           ),
         ),
-      ],
+      ),
     );
   }
 }

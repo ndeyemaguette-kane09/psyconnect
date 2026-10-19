@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/user_role.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -14,7 +13,7 @@ import 'admin_support_messages_tab.dart';
 // onglet "Paramètres" — 3 sections :
 //   1. Réglages plateforme (taux commission)
 //   2. Modération (accès aux signalements)
-//   3. Communication (broadcast annonce admin → utilisateurs)
+//   3. Communication (broadcast annonce admin -> utilisateurs)
 class AdminConfigTab extends StatefulWidget {
   const AdminConfigTab({super.key});
 
@@ -31,30 +30,23 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
   double _commissionRate = 20;
   final _rateController = TextEditingController();
 
-  // --- broadcast ---
-  final _titleController = TextEditingController();
-  final _messageController = TextEditingController();
-  // audience : 'ALL' | 'PATIENTS' | 'PSYCHOLOGISTS'
-  String _audience = 'ALL';
-  bool _sending = false;
-  String? _sendError;
-  String? _sendSuccess;
+  int _pendingReports = 0;
+  int _pendingMessages = 0;
 
   @override
   void initState() {
     super.initState();
     _loadRate();
+    _loadInbox();
   }
 
   @override
   void dispose() {
     _rateController.dispose();
-    _titleController.dispose();
-    _messageController.dispose();
     super.dispose();
   }
 
-  // ── commission ──────────────────────────────────────────────────────────────
+  // commission
 
   Future<void> _loadRate() async {
     setState(() => _loadingRate = true);
@@ -70,6 +62,18 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
       if (!mounted) return;
       setState(() => _loadingRate = false);
     }
+  }
+
+  Future<void> _loadInbox() async {
+    try {
+      final reports = await _adminService.listReports(status: 'PENDING');
+      if (mounted) setState(() => _pendingReports = reports.length);
+    } catch (_) {}
+    try {
+      final messages =
+          await _adminService.listSupportMessages(status: 'PENDING');
+      if (mounted) setState(() => _pendingMessages = messages.length);
+    } catch (_) {}
   }
 
   Future<void> _saveRate() async {
@@ -100,7 +104,297 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
     }
   }
 
-  // ── broadcast ────────────────────────────────────────────────────────────────
+  Future<void> _editRate() async {
+    _rateController.text = _commissionRate.toStringAsFixed(0);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Commission de la plateforme'),
+        content: TextField(
+          controller: _rateController,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            suffixText: '%',
+            hintText: 'Entre 0 et 100',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _saveRate();
+  }
+
+  Future<void> _open(Widget page) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+    if (mounted) _loadInbox();
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Se déconnecter ?'),
+        content: const Text(
+            'Vous devrez vous reconnecter pour accéder à l\'administration.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Se déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const SplashScreen()),
+      (route) => false,
+    );
+  }
+
+  // build
+
+  @override
+  Widget build(BuildContext context) {
+    final session = context.watch<AuthProvider>().session;
+    final pseudo = session?.pseudo ?? '';
+    final rate = _commissionRate.toStringAsFixed(0);
+    final rest = (100 - _commissionRate).toStringAsFixed(0);
+
+    return SafeArea(
+      bottom: false,
+      child: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([_loadRate(), _loadInbox()]);
+        },
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Réglages',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  AppAvatar(name: pseudo.isEmpty ? 'admin' : pseudo, size: 52),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pseudo,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        Text(
+                          session?.role.label ?? '',
+                          style: const TextStyle(
+                              fontSize: 14.5, color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 26),
+
+            // SECTION 1 : Réglages plateforme
+            const _Heading('Commission'),
+            Material(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(22),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Prélevée sur chaque paiement réussi',
+                            style: TextStyle(
+                                fontSize: 15, color: AppColors.muted),
+                          ),
+                          _loadingRate
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                )
+                              : Text(
+                                  '$rate %',
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.text,
+                                  ),
+                                ),
+                        ],
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed:
+                          _loadingRate || _savingRate ? null : _editRate,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.sand,
+                        foregroundColor: AppColors.text,
+                      ),
+                      child: _savingRate
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Modifier'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+              child: Text(
+                'Le reste, $rest %, revient au psychologue.',
+                style: const TextStyle(fontSize: 14, color: AppColors.muted),
+              ),
+            ),
+            const SizedBox(height: 26),
+
+            // SECTION 2 : Modération
+            const _Heading('Modération'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Column(
+                children: [
+                  _MenuRow(
+                    icon: Icons.flag_outlined,
+                    tint: AppColors.goldLight,
+                    ink: AppColors.goldDark,
+                    title: 'Signalements',
+                    subtitle: 'Plaintes de patients contre un psy',
+                    count: _pendingReports,
+                    onTap: () => _open(const AdminReportsPage()),
+                  ),
+                  _MenuRow(
+                    icon: Icons.chat_bubble_outline,
+                    tint: AppColors.sand,
+                    ink: AppColors.text,
+                    title: 'Messages des utilisateurs',
+                    subtitle: 'Écrits depuis « Écrire à l\'équipe »',
+                    count: _pendingMessages,
+                    onTap: () => _open(const AdminSupportMessagesPage()),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 26),
+
+            // SECTION 3 : Communication
+            const _Heading('Communication'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: _MenuRow(
+                icon: Icons.campaign_outlined,
+                tint: AppColors.tealLight,
+                ink: AppColors.teal,
+                title: 'Envoyer une annonce',
+                subtitle: 'À tout le monde, aux patients ou aux psys',
+                onTap: () => _open(const _BroadcastPage()),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // déconnexion
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _logout,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                ),
+                child: const Text(
+                  'Se déconnecter',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BroadcastPage extends StatefulWidget {
+  const _BroadcastPage();
+
+  @override
+  State<_BroadcastPage> createState() => _BroadcastPageState();
+}
+
+class _BroadcastPageState extends State<_BroadcastPage> {
+  final _adminService = AdminService();
+
+  // --- broadcast ---
+  final _titleController = TextEditingController();
+  final _messageController = TextEditingController();
+  // audience : 'ALL' | 'PATIENTS' | 'PSYCHOLOGISTS'
+  String _audience = 'ALL';
+  bool _sending = false;
+  String? _sendError;
+  String? _sendSuccess;
+
+  static const _audiences = [
+    ('ALL', 'Tout le monde'),
+    ('PATIENTS', 'Patients'),
+    ('PSYCHOLOGISTS', 'Psychologues'),
+  ];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
 
   Future<void> _sendBroadcast() async {
     final title = _titleController.text.trim();
@@ -137,315 +431,126 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
     }
   }
 
-  // ── build ────────────────────────────────────────────────────────────────────
+  void _clearFeedback() {
+    if (_sendError == null && _sendSuccess == null) return;
+    setState(() {
+      _sendError = null;
+      _sendSuccess = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final session = context.watch<AuthProvider>().session;
-
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+    return Scaffold(
+      appBar: AppBar(),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
         children: [
-          Text('Paramètres',
-              style: Theme.of(context).textTheme.displayMedium),
-          const SizedBox(height: 16),
-
-          // carte profil admin
-          AppCard(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            borderColor: AppColors.tealMid,
-            shadow: const [],
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 26,
-                  backgroundColor: AppColors.tealLight,
-                  child: Icon(Icons.admin_panel_settings,
-                      color: AppColors.tealDark),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(session?.pseudo ?? '',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 15)),
-                      const SizedBox(height: 2),
-                      Text(session?.role.label ?? '',
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              'Nouvelle annonce',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
             ),
           ),
-          const SizedBox(height: 28),
-
-          // ── SECTION 1 : Réglages plateforme ─────────────────────────────────
-          _SectionHeader(
-            icon: Icons.tune,
-            title: 'Réglages plateforme',
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Pourcentage prélevé sur chaque paiement réussi — le reste revient '
-            'au psychologue.',
-            style: TextStyle(
-                color: AppColors.muted, fontSize: 12, height: 1.3),
-          ),
-          const SizedBox(height: 12),
-          AppCard(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            borderColor: AppColors.tealMid,
-            shadow: const [],
-            child: _loadingRate
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _rateController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          decoration: const InputDecoration(
-                            suffixText: '%',
-                            labelText: 'Commission',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton(
-                        onPressed: _savingRate ? null : _saveRate,
-                        style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.teal),
-                        child: _savingRate
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white),
-                              )
-                            : const Text('Enregistrer'),
-                      ),
-                    ],
-                  ),
-          ),
-          const SizedBox(height: 28),
-
-          // ── SECTION 2 : Modération ───────────────────────────────────────────
-          _SectionHeader(
-            icon: Icons.shield_outlined,
-            title: 'Modération',
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Consultez et traitez les signalements soumis par les patients '
-            'à l\'encontre de psychologues, ainsi que les messages envoyés '
-            'directement par les patients et les psychologues.',
-            style: TextStyle(
-                color: AppColors.muted, fontSize: 12, height: 1.3),
-          ),
-          const SizedBox(height: 12),
-          _ActionTile(
-            icon: Icons.flag_outlined,
-            label: 'Signalements psychologues',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                  builder: (_) => const _ReportsPage()),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 4, 4, 0),
+            child: Text(
+              'Elle apparaîtra dans « Annonces » chez les personnes choisies.',
+              style: TextStyle(fontSize: 15.5, color: AppColors.muted),
             ),
           ),
-          const SizedBox(height: 10),
-          _ActionTile(
-            icon: Icons.support_agent_outlined,
-            label: 'Messages des utilisateurs',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                  builder: (_) => const _SupportMessagesPage()),
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // ── SECTION 3 : Communication ────────────────────────────────────────
-          _SectionHeader(
-            icon: Icons.campaign_outlined,
-            title: 'Communication',
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Envoyez une annonce qui apparaîtra dans le centre de notifications '
-            'des utilisateurs ciblés.',
-            style: TextStyle(
-                color: AppColors.muted, fontSize: 12, height: 1.3),
-          ),
-          const SizedBox(height: 14),
-
-          // sélecteur d'audience
-          Row(
+          const SizedBox(height: 22),
+          const _Heading('Pour qui ?'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              _AudienceChip(
-                label: 'Tous',
-                value: 'ALL',
-                selected: _audience == 'ALL',
-                onTap: () => setState(() => _audience = 'ALL'),
-              ),
-              const SizedBox(width: 8),
-              _AudienceChip(
-                label: 'Patients',
-                value: 'PATIENTS',
-                selected: _audience == 'PATIENTS',
-                onTap: () => setState(() => _audience = 'PATIENTS'),
-              ),
-              const SizedBox(width: 8),
-              _AudienceChip(
-                label: 'Psys',
-                value: 'PSYCHOLOGISTS',
-                selected: _audience == 'PSYCHOLOGISTS',
-                onTap: () => setState(() => _audience = 'PSYCHOLOGISTS'),
-              ),
+              for (final (value, label) in _audiences)
+                _AudienceChip(
+                  label: label,
+                  selected: _audience == value,
+                  onTap: () => setState(() => _audience = value),
+                ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // titre
+          const SizedBox(height: 20),
           TextField(
             controller: _titleController,
             maxLength: 80,
-            decoration: InputDecoration(
-              labelText: 'Titre de l\'annonce',
-              filled: true,
-              fillColor: AppColors.white,
-              border: OutlineInputBorder(
-                  borderSide: const BorderSide(color: AppColors.tealMid)),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: const InputDecoration(
+              hintText: 'Titre de l\'annonce',
             ),
-            onChanged: (_) => setState(() {
-              _sendError = null;
-              _sendSuccess = null;
-            }),
-          ),
-          const SizedBox(height: 8),
-
-          // corps du message
-          TextField(
-            controller: _messageController,
-            maxLines: 4,
-            maxLength: 400,
-            decoration: InputDecoration(
-              labelText: 'Message',
-              filled: true,
-              fillColor: AppColors.white,
-              border: OutlineInputBorder(
-                  borderSide: const BorderSide(color: AppColors.tealMid)),
-              contentPadding: const EdgeInsets.all(14),
-            ),
-            onChanged: (_) => setState(() {
-              _sendError = null;
-              _sendSuccess = null;
-            }),
+            onChanged: (_) => _clearFeedback(),
           ),
           const SizedBox(height: 4),
-
-          // feedback
+          TextField(
+            controller: _messageController,
+            maxLines: 6,
+            maxLength: 400,
+            decoration: const InputDecoration(
+              hintText: 'Votre message…',
+              alignLabelWithHint: true,
+            ),
+            onChanged: (_) => _clearFeedback(),
+          ),
           if (_sendError != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.errorBg,
-                ),
-                child: Text(_sendError!,
-                    style: const TextStyle(
-                        color: AppColors.rose, fontSize: 12)),
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+              child: Text(
+                _sendError!,
+                style: const TextStyle(color: AppColors.danger, fontSize: 14.5),
               ),
             ),
           if (_sendSuccess != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.tealLight,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle_outline,
-                        color: AppColors.teal, size: 16),
-                    const SizedBox(width: 8),
-                    Text(_sendSuccess!,
-                        style: const TextStyle(
-                            color: AppColors.tealDark, fontSize: 12)),
-                  ],
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+              child: Text(
+                _sendSuccess!,
+                style: const TextStyle(
+                  color: AppColors.teal,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _sending ? null : _sendBroadcast,
-              icon: _sending
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.send_outlined),
-              label: const Text('Envoyer l\'annonce'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.teal,
-                minimumSize: const Size.fromHeight(48),
-              ),
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // déconnexion
-          OutlinedButton.icon(
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const SplashScreen()),
-                  (route) => false,
-                );
-              }
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.rose,
-              side: const BorderSide(color: AppColors.rose),
-              minimumSize: const Size.fromHeight(48),
-            ),
-            icon: const Icon(Icons.logout),
-            label: const Text('Se déconnecter'),
-          ),
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+          child: FilledButton(
+            onPressed: _sending ? null : _sendBroadcast,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+            child: _sending
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Envoyer l\'annonce'),
+          ),
+        ),
       ),
     );
   }
 }
 
 // page plein écran signalements accessible depuis la section Modération
-class _ReportsPage extends StatelessWidget {
-  const _ReportsPage();
+class AdminReportsPage extends StatelessWidget {
+  const AdminReportsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Signalements')),
+      appBar: AppBar(),
       body: const AdminReportsTab(),
     );
   }
@@ -453,71 +558,119 @@ class _ReportsPage extends StatelessWidget {
 
 // page plein écran messages "Contacter l'administrateur", accessible depuis
 // la section Modération
-class _SupportMessagesPage extends StatelessWidget {
-  const _SupportMessagesPage();
+class AdminSupportMessagesPage extends StatelessWidget {
+  const AdminSupportMessagesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(),
       body: const AdminSupportMessagesTab(),
     );
   }
 }
 
-// ── widgets locaux ────────────────────────────────────────────────────────────
+// widgets locaux
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.icon, required this.title});
+class _Heading extends StatelessWidget {
+  const _Heading(this.title);
 
-  final IconData icon;
   final String title;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.teal, size: 20),
-        const SizedBox(width: 8),
-        Text(title,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700, fontSize: 15)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: AppColors.text,
+        ),
+      ),
     );
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
     required this.icon,
-    required this.label,
+    required this.tint,
+    required this.ink,
+    required this.title,
+    required this.subtitle,
+    this.count = 0,
     required this.onTap,
   });
 
   final IconData icon;
-  final String label;
+  final Color tint;
+  final Color ink;
+  final String title;
+  final String subtitle;
+  final int count;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return InkWell(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-      borderColor: AppColors.tealMid,
-      shadow: const [],
-      child: Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
           children: [
-            Icon(icon, color: AppColors.teal, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, size: 19, color: ink),
             ),
-            const Icon(Icons.chevron_right,
-                color: AppColors.muted, size: 20),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style:
+                        const TextStyle(fontSize: 14, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            if (count > 0)
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.gold,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
+              )
+            else
+              const Icon(Icons.chevron_right,
+                  color: AppColors.muted, size: 22),
           ],
         ),
+      ),
     );
   }
 }
@@ -525,35 +678,31 @@ class _ActionTile extends StatelessWidget {
 class _AudienceChip extends StatelessWidget {
   const _AudienceChip({
     required this.label,
-    required this.value,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
-  final String value;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.teal : AppColors.white,
-          border: Border.all(
-              color: selected ? AppColors.teal : AppColors.tealMid),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppColors.muted,
+    return Material(
+      color: selected ? AppColors.teal : AppColors.sand,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              color: selected ? AppColors.background : AppColors.text,
+            ),
           ),
         ),
       ),

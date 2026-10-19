@@ -33,7 +33,7 @@ class AppTheme {
     return base.copyWith(
       textTheme: textTheme,
       shadowColor: _shadow,
-      dividerColor: AppColors.border,
+      dividerColor: Colors.transparent,
 
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
@@ -54,8 +54,8 @@ class AppTheme {
           disabledBackgroundColor: AppColors.tealMid,
           disabledForegroundColor: AppColors.white,
           minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
-          textStyle: GoogleFonts.figtree(
+          shape: const StadiumBorder(),
+          textStyle: GoogleFonts.nunitoSans(
             fontWeight: FontWeight.w700,
             fontSize: 15,
             letterSpacing: 0.1,
@@ -71,8 +71,8 @@ class AppTheme {
           foregroundColor: AppColors.white,
           minimumSize: const Size(0, 46),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
-          textStyle: GoogleFonts.figtree(
+          shape: const StadiumBorder(),
+          textStyle: GoogleFonts.nunitoSans(
             fontWeight: FontWeight.w700,
             fontSize: 15,
           ),
@@ -82,10 +82,10 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.teal,
           backgroundColor: AppColors.white,
-          side: const BorderSide(color: AppColors.tealMid, width: 1.4),
+          side: const BorderSide(color: AppColors.borderStrong, width: 1.4),
           minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
-          textStyle: GoogleFonts.figtree(
+          shape: const StadiumBorder(),
+          textStyle: GoogleFonts.nunitoSans(
             fontWeight: FontWeight.w700,
             fontSize: 14,
           ),
@@ -96,7 +96,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.teal,
           shape: RoundedRectangleBorder(borderRadius: AppRadius.smAll),
-          textStyle: GoogleFonts.figtree(
+          textStyle: GoogleFonts.nunitoSans(
             fontWeight: FontWeight.w700,
             fontSize: 14,
           ),
@@ -121,38 +121,38 @@ class AppTheme {
         prefixIconColor: AppColors.muted,
         suffixIconColor: AppColors.muted,
         border: OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.teal, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.danger, width: 1.3),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppColors.danger, width: 1.6),
         ),
         disabledBorder: OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
-          borderSide: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
-        labelStyle: GoogleFonts.figtree(color: AppColors.muted, fontSize: 14),
-        floatingLabelStyle: GoogleFonts.figtree(
+        labelStyle: GoogleFonts.nunitoSans(color: AppColors.muted, fontSize: 14),
+        floatingLabelStyle: GoogleFonts.nunitoSans(
           color: AppColors.teal,
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
-        hintStyle: GoogleFonts.figtree(color: AppColors.faint, fontSize: 14),
-        errorStyle: GoogleFonts.figtree(color: AppColors.danger, fontSize: 12),
-        helperStyle: GoogleFonts.figtree(color: AppColors.muted, fontSize: 12),
+        hintStyle: GoogleFonts.nunitoSans(color: AppColors.faint, fontSize: 14),
+        errorStyle: GoogleFonts.nunitoSans(color: AppColors.danger, fontSize: 12),
+        helperStyle: GoogleFonts.nunitoSans(color: AppColors.muted, fontSize: 12),
       ),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: AppColors.teal,
@@ -165,10 +165,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppRadius.mdAll,
-          side: const BorderSide(color: AppColors.border),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.white,
@@ -194,7 +191,7 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.text,
-        contentTextStyle: GoogleFonts.figtree(
+        contentTextStyle: GoogleFonts.nunitoSans(
           color: AppColors.white,
           fontSize: 13.5,
         ),
@@ -204,7 +201,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.smAll),
       ),
       dividerTheme: const DividerThemeData(
-        color: AppColors.border,
+        color: Colors.transparent,
         thickness: 1,
         space: 1,
       ),
@@ -222,23 +219,23 @@ class AppTheme {
           borderRadius: AppRadius.smAll,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        textStyle: GoogleFonts.figtree(color: AppColors.white, fontSize: 12),
+        textStyle: GoogleFonts.nunitoSans(color: AppColors.white, fontSize: 12),
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.white,
+        backgroundColor: AppColors.sand,
         selectedColor: AppColors.teal,
         disabledColor: AppColors.surfaceAlt,
         checkmarkColor: AppColors.white,
         showCheckmark: false,
-        side: const BorderSide(color: AppColors.borderStrong),
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
-        labelStyle: GoogleFonts.figtree(
+        side: BorderSide.none,
+        shape: const StadiumBorder(),
+        labelStyle: GoogleFonts.nunitoSans(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.text,
         ),
-        secondaryLabelStyle: GoogleFonts.figtree(
+        secondaryLabelStyle: GoogleFonts.nunitoSans(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.white,
@@ -248,9 +245,9 @@ class AppTheme {
         pressElevation: 0,
       ),
       badgeTheme: BadgeThemeData(
-        backgroundColor: AppColors.rose,
+        backgroundColor: AppColors.teal,
         textColor: AppColors.white,
-        textStyle: GoogleFonts.figtree(
+        textStyle: GoogleFonts.nunitoSans(
           fontSize: 10,
           fontWeight: FontWeight.w700,
           color: AppColors.white,
@@ -280,7 +277,7 @@ class AppTheme {
         }),
         checkColor: WidgetStateProperty.all(AppColors.white),
         side: const BorderSide(color: AppColors.borderStrong, width: 1.6),
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.smAll),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
@@ -297,7 +294,7 @@ class AppTheme {
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return GoogleFonts.figtree(
+          return GoogleFonts.nunitoSans(
             fontSize: 11,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             color: selected ? AppColors.teal : AppColors.muted,
@@ -316,11 +313,11 @@ class AppTheme {
         unselectedLabelColor: AppColors.muted,
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: Colors.transparent,
-        labelStyle: GoogleFonts.figtree(
+        labelStyle: GoogleFonts.nunitoSans(
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
-        unselectedLabelStyle: GoogleFonts.figtree(
+        unselectedLabelStyle: GoogleFonts.nunitoSans(
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -330,16 +327,16 @@ class AppTheme {
   }
 
   static TextTheme _textTheme(TextTheme base) {
-    final body = GoogleFonts.figtreeTextTheme(base);
+    final body = GoogleFonts.nunitoSansTextTheme(base);
 
     TextStyle display(
       double size, {
-      FontWeight weight = FontWeight.w700,
+      FontWeight weight = FontWeight.w800,
       Color? color,
       double height = 1.2,
-      double letterSpacing = -0.5,
+      double letterSpacing = -0.4,
     }) {
-      return GoogleFonts.figtree(
+      return GoogleFonts.nunitoSans(
         fontSize: size,
         fontWeight: weight,
         color: color ?? AppColors.text,
@@ -355,7 +352,7 @@ class AppTheme {
       double height = 1.45,
       double letterSpacing = 0,
     }) {
-      return GoogleFonts.figtree(
+      return GoogleFonts.nunitoSans(
         fontSize: size,
         fontWeight: weight,
         color: color ?? AppColors.text,
@@ -365,10 +362,8 @@ class AppTheme {
     }
 
     return body.copyWith(
-      displayLarge: display(34,
-          color: AppColors.tealDark, height: 1.14, letterSpacing: -0.9),
-      displayMedium: display(26,
-          color: AppColors.tealDark, height: 1.18, letterSpacing: -0.6),
+      displayLarge: display(34, height: 1.14, letterSpacing: -0.7),
+      displayMedium: display(26, height: 1.18, letterSpacing: -0.5),
       displaySmall: display(22, height: 1.2, letterSpacing: -0.5),
       headlineLarge: display(28, height: 1.18, letterSpacing: -0.7),
       headlineMedium: display(23, height: 1.2, letterSpacing: -0.5),

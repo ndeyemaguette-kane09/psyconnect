@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../models/psychologist_models.dart';
 import '../services/psychologist_service.dart';
+import '../widgets/psychologist_card.dart';
 import 'booking_screen.dart';
 import 'report_psychologist_screen.dart';
 
@@ -114,8 +115,7 @@ class _PsychologistProfileScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Profil'),
-        backgroundColor: AppColors.white,
+        backgroundColor: ready ? AppColors.tealLight : AppColors.background,
         foregroundColor: AppColors.text,
         elevation: 0,
         actions: [
@@ -126,13 +126,11 @@ class _PsychologistProfileScreenState
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(child: _buildBody()),
-            if (ready) _buildBookingBar(_psychologist!),
-          ],
-        ),
+      body: Column(
+        children: [
+          Expanded(child: _buildBody()),
+          if (ready) _buildBookingBar(_psychologist!),
+        ],
       ),
     );
   }
@@ -151,189 +149,176 @@ class _PsychologistProfileScreenState
 
     final p = _psychologist!;
     final theme = Theme.of(context);
+    final subtitle = [
+      p.specialty,
+      if (p.city != null && p.city!.trim().isNotEmpty) p.city!,
+    ].join(' · ');
+    final rating = p.rating;
+    final reviewsLabel = rating != null && rating > 0
+        ? '${rating.toStringAsFixed(1).replaceAll('.', ',')} · '
+            '${p.totalReviews ?? 0} avis'
+        : 'Pas encore d\'avis';
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+      padding: EdgeInsets.zero,
       children: [
-        // ── Identité ────────────────────────────────────────────────────
-        Center(
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 26),
+          decoration: const BoxDecoration(
+            color: AppColors.tealLight,
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+          ),
+          child: Center(child: AppAvatar(name: p.fullName, size: 124)),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AppAvatar(name: p.fullName, size: 88),
-              const SizedBox(height: 14),
               Text(
                 p.fullName,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.displayMedium,
               ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                alignment: WrapAlignment.center,
-                children: [
-                  AppPill(
-                    label: p.specialty,
-                    icon: Icons.psychology_outlined,
-                  ),
-                  if (p.availableForEmergency)
-                    const AppPill(
-                      label: 'Joignable en urgence',
-                      icon: Icons.emergency_outlined,
-                      color: AppColors.success,
-                      background: AppColors.successBg,
-                    ),
-                ],
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: AppColors.muted),
               ),
-              if (p.city != null || p.languages != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  [
-                    if (p.city != null) p.city!,
-                    if (p.languages != null) p.languages!,
-                  ].join(' · '),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
               if (p.profileVerified) ...[
                 const SizedBox(height: 10),
                 Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.verified_user_outlined,
-                        size: 15, color: AppColors.teal),
+                    const Icon(Icons.check_rounded,
+                        size: 18, color: AppColors.teal),
                     const SizedBox(width: 6),
-                    Text(
-                      p.hasLicenseDocument
-                          ? 'Profil vérifié · diplôme contrôlé'
-                          : 'Profil vérifié par PsyConnect',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.teal,
+                    Flexible(
+                      child: Text(
+                        p.hasLicenseDocument
+                            ? 'Diplôme vérifié par l\'équipe PsyConnect'
+                            : 'Profil vérifié par l\'équipe PsyConnect',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.teal,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ],
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 22),
-
-        // ── Chiffres clés ───────────────────────────────────────────────
-        AppCard(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _Stat(
-                  value: p.rating != null && p.rating! > 0
-                      ? p.rating!.toStringAsFixed(1)
-                      : '—',
-                  label: 'Note',
-                ),
-                const VerticalDivider(width: 1),
-                _Stat(value: '${p.totalReviews ?? 0}', label: 'Avis'),
-                const VerticalDivider(width: 1),
-                _Stat(
-                  value: p.yearsOfExperience != null
-                      ? '${p.yearsOfExperience} ans'
-                      : '—',
-                  label: 'Expérience',
-                ),
-                const VerticalDivider(width: 1),
-                _Stat(
-                  value: p.consultationPrice != null
-                      ? '${p.consultationPrice} F'
-                      : '—',
-                  label: 'Séance',
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        if (p.offersFreeSessions) ...[
-          const SizedBox(height: 16),
-          const AppNoticeCard(
-            icon: Icons.favorite_border_rounded,
-            title: 'Consultations solidaires',
-            message: 'Ce psychologue propose des séances gratuites aux '
-                'patients qui ne peuvent pas payer. Indiquez-le au moment de '
-                'votre demande de rendez-vous.',
-            accent: AppColors.success,
-            background: AppColors.successBg,
-          ),
-        ],
-
-        // ── Présentation ────────────────────────────────────────────────
-        if (p.bio != null && p.bio!.isNotEmpty) ...[
-          const SizedBox(height: 26),
-          const SectionHeader(title: 'À propos'),
-          const SizedBox(height: 10),
-          Text(p.bio!, style: theme.textTheme.bodyMedium),
-        ],
-
-        // ── Cabinet ─────────────────────────────────────────────────────
-        if (p.address != null && p.address!.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          AppCard(
-            padding: const EdgeInsets.all(14),
-            borderColor: AppColors.border,
-            shadow: const [],
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.location_on_outlined,
-                    color: AppColors.teal, size: 20),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Adresse du cabinet',
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(p.address!, style: theme.textTheme.bodySmall),
-                    ],
+              if (p.availableForEmergency) ...[
+                const SizedBox(height: 4),
+                const Text(
+                  'Répond aussi aux urgences',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.danger,
                   ),
                 ),
               ],
-            ),
+              const SizedBox(height: 24),
+              _Fact(label: 'Avis des patients', value: reviewsLabel),
+              if (p.yearsOfExperience != null)
+                _Fact(
+                  label: 'Expérience',
+                  value: '${p.yearsOfExperience} ans',
+                ),
+              if (p.languages != null && p.languages!.trim().isNotEmpty)
+                _Fact(label: 'Langues', value: p.languages!),
+              if (p.offersFreeSessions) ...[
+                const SizedBox(height: 16),
+                const AppNoticeCard(
+                  icon: Icons.favorite_border_rounded,
+                  title: 'Consultations solidaires',
+                  message: 'Ce psychologue propose des séances gratuites aux '
+                      'patients qui ne peuvent pas payer. Indiquez-le au '
+                      'moment de votre demande de rendez-vous.',
+                  accent: AppColors.success,
+                  background: AppColors.successBg,
+                ),
+              ],
+              if (p.bio != null && p.bio!.isNotEmpty) ...[
+                const SizedBox(height: 26),
+                const SectionHeader(title: 'Sa présentation'),
+                const SizedBox(height: 8),
+                Text(
+                  p.bio!,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.55,
+                    color: AppColors.text,
+                  ),
+                ),
+              ],
+              if (p.address != null && p.address!.isNotEmpty) ...[
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: const BoxDecoration(
+                        color: AppColors.goldLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.location_on_outlined,
+                          color: AppColors.goldDark, size: 21),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cabinet',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          Text(
+                            p.address!,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (!_reviewsLoading && _reviews.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                const SectionHeader(
+                  title: 'Ce qu\'en disent ses patients',
+                  subtitle: 'Avis anonymes, laissés après une séance terminée.',
+                ),
+                const SizedBox(height: 12),
+                ..._reviews.map((r) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _ReviewTile(review: r),
+                    )),
+              ],
+              if (p.createdAt != null) ...[
+                const SizedBox(height: 24),
+                Text(
+                  'Sur PsyConnect depuis ${_monthYear(p.createdAt!)}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.muted),
+                ),
+              ],
+            ],
           ),
-        ],
-
-        // ── Avis ────────────────────────────────────────────────────────
-        if (!_reviewsLoading && _reviews.isNotEmpty) ...[
-          const SizedBox(height: 26),
-          SectionHeader(
-            title: 'Avis (${_reviews.length})',
-            subtitle: 'Anonymes, laissés par des patients ayant terminé une '
-                'séance avec ce psychologue.',
-          ),
-          const SizedBox(height: 12),
-          ..._reviews.map((r) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ReviewTile(review: r),
-              )),
-        ],
-
-        // ── Ancienneté ──────────────────────────────────────────────────
-        if (p.createdAt != null) ...[
-          const SizedBox(height: 24),
-          Center(
-            child: Text(
-              'Sur PsyConnect depuis ${_monthYear(p.createdAt!)}',
-              style: const TextStyle(fontSize: 12, color: AppColors.faint),
-            ),
-          ),
-        ],
+        ),
       ],
     );
   }
@@ -347,11 +332,13 @@ class _PsychologistProfileScreenState
       '${_months[d.month - 1]} ${d.year}';
 
   Widget _buildBookingBar(PsychologistProfile p) {
+    final price = p.consultationPrice;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+      padding: EdgeInsets.fromLTRB(
+          20, 14, 20, 14 + MediaQuery.of(context).padding.bottom),
       decoration: const BoxDecoration(
         color: AppColors.white,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: Row(
         children: [
@@ -361,33 +348,25 @@ class _PsychologistProfileScreenState
             children: [
               const Text(
                 'La séance',
-                style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+                style: TextStyle(fontSize: 13.5, color: AppColors.muted),
               ),
-              const SizedBox(height: 1),
               Text(
-                p.consultationPrice != null
-                    ? '${p.consultationPrice} F'
-                    : 'Non précisé',
+                price != null ? '${formatPrice(price)} F' : 'Non précisé',
                 style: TextStyle(
-                  fontSize: p.consultationPrice != null ? 17 : 13,
-                  fontWeight: FontWeight.w700,
-                  color: p.consultationPrice != null
-                      ? AppColors.text
-                      : AppColors.muted,
+                  fontSize: price != null ? 19 : 14,
+                  fontWeight: FontWeight.w800,
+                  color: price != null ? AppColors.text : AppColors.muted,
                   height: 1.2,
                 ),
               ),
             ],
           ),
-          const SizedBox(width: 18),
+          const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
               onPressed: p.available ? _openBooking : null,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(0, 50),
-              ),
               child: Text(
-                p.available ? 'Réserver une séance' : 'Indisponible',
+                p.available ? 'Choisir un créneau' : 'Indisponible',
               ),
             ),
           ),
@@ -397,9 +376,40 @@ class _PsychologistProfileScreenState
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sous-widgets
-// ─────────────────────────────────────────────────────────────────────────────
+class _Fact extends StatelessWidget {
+  const _Fact({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 16, color: AppColors.muted),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Tuile affichant un avis anonyme : note et commentaire uniquement, sans
 /// aucune donnée d'identité du patient (cf. ReviewResponse côté backend).
@@ -412,9 +422,7 @@ class _ReviewTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final rating = review.rating ?? 0;
     return AppCard(
-      padding: const EdgeInsets.all(14),
-      borderColor: AppColors.border,
-      shadow: const [],
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -430,42 +438,11 @@ class _ReviewTile extends StatelessWidget {
           ),
           if (review.comment != null && review.comment!.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(review.comment!,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 17,
-              color: AppColors.tealDark,
+            Text(
+              review.comment!,
+              style: const TextStyle(fontSize: 15.5, height: 1.5),
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 11),
-          ),
+          ],
         ],
       ),
     );

@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                     ],
 
-                    // ── Carte formulaire ─────────────────────────────────
+                    // Carte formulaire
                     Container(
                       padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
                       decoration: BoxDecoration(
@@ -192,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ── En-tête de marque ────────────────────────────────────────────────────────
+// En-tête de marque
 
 class _BrandHeader extends StatelessWidget {
   const _BrandHeader();
@@ -306,7 +306,7 @@ class _ReassuranceItem extends StatelessWidget {
   }
 }
 
-// ── Carte affichée quand le compte est suspendu par l'administrateur ─────────
+// Carte affichée quand le compte est suspendu par l'administrateur
 // Remplace le bandeau d'erreur générique. Affiche les coordonnées admin
 // pour que l'utilisateur sache qui contacter.
 

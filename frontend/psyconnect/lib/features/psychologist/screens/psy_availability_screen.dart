@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/availability_models.dart';
 import '../services/availability_service.dart';
@@ -36,7 +37,7 @@ class _PsyAvailabilityScreenState extends State<PsyAvailabilityScreen> {
 
   static const _durations = [30, 45, 60, 90, 120];
   static const _durationLabels = [
-    '30 min', '45 min', '1h', '1h30', '2h'
+    '30 min', '45 min', '1 h', '1 h 30', '2 h'
   ];
 
   @override
@@ -124,125 +125,141 @@ class _PsyAvailabilityScreenState extends State<PsyAvailabilityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.text),
-        title: const Text(
-          'Mes disponibilités',
-          style: TextStyle(
-              color: AppColors.text,
-              fontWeight: FontWeight.w700,
-              fontSize: 16),
-        ),
-        actions: [
-          if (!_loading)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: FilledButton(
-                onPressed: _saving ? null : _save,
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.teal,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 8)),
-                child: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Enregistrer',
-                        style: TextStyle(fontSize: 13)),
-              ),
-            ),
-        ],
-      ),
+      appBar: AppBar(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _ErrorView(error: _error!, onRetry: _load)
+              ? AppErrorState(message: _error!, onRetry: _load)
               : _buildForm(),
+      bottomNavigationBar: _loading || _error != null
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                child: FilledButton(
+                  onPressed: _saving ? null : _save,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Enregistrer'),
+                ),
+              ),
+            ),
     );
   }
 
   Widget _buildForm() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Mes disponibilités',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(4, 4, 4, 0),
+          child: Text(
+            'Les patients réservent seulement sur ces créneaux.',
+            style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+          ),
+        ),
+        const SizedBox(height: 22),
         // durée de créneau
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.white,
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Durée d\'une consultation',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
           ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(_durations.length, (i) {
+              final dur = _durations[i];
+              final selected = dur == _slotDurationMinutes;
+              return Material(
+                color: selected ? AppColors.teal : AppColors.sand,
+                shape: const StadiumBorder(),
+                child: InkWell(
+                  customBorder: const StadiumBorder(),
+                  onTap: () => setState(() => _slotDurationMinutes = dur),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 9),
+                    child: Text(
+                      _durationLabels[i],
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w600,
+                        color:
+                            selected ? AppColors.background : AppColors.text,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 24),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
+          child: Text(
+            'Ma semaine',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
+          ),
+        ),
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Durée de chaque consultation',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-              const SizedBox(height: 4),
-              const Text(
-                'S\'applique à tous les jours de la semaine.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: List.generate(_durations.length, (i) {
-                  final dur = _durations[i];
-                  final selected = dur == _slotDurationMinutes;
-                  return ChoiceChip(
-                    label: Text(_durationLabels[i]),
-                    selected: selected,
-                    onSelected: (_) =>
-                        setState(() => _slotDurationMinutes = dur),
-                    selectedColor: AppColors.teal,
-                    labelStyle: TextStyle(
-                      color: selected ? Colors.white : AppColors.text,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    backgroundColor: AppColors.background,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(
-                          color: selected ? AppColors.teal : AppColors.tealMid),
-                    ),
-                  );
+            children: List.generate(7, (i) {
+              final day = i + 1;
+              return _DayRow(
+                day: day,
+                enabled: _dayEnabled[day],
+                startHour: _startHour[day],
+                endHour: _endHour[day],
+                slotDurationMinutes: _slotDurationMinutes,
+                onToggle: (v) => setState(() => _dayEnabled[day] = v),
+                onStartHourChanged: (h) => setState(() {
+                  _startHour[day] = h;
+                  if (_endHour[day] <= h) _endHour[day] = h + 1;
                 }),
-              ),
-            ],
+                onEndHourChanged: (h) => setState(() {
+                  _endHour[day] = h;
+                  if (_startHour[day] >= h) _startHour[day] = h - 1;
+                }),
+              );
+            }),
           ),
         ),
-        const SizedBox(height: 16),
-        const Text('Planning hebdomadaire',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-        const SizedBox(height: 4),
-        const Text(
-          'Activez les jours travaillés et définissez vos horaires.',
-          style: TextStyle(color: AppColors.muted, fontSize: 12),
-        ),
-        const SizedBox(height: 12),
-        ...List.generate(7, (i) {
-          final day = i + 1; // 1=Lundi ... 7=Dim
-          return _DayRow(
-            day: day,
-            enabled: _dayEnabled[day],
-            startHour: _startHour[day],
-            endHour: _endHour[day],
-            slotDurationMinutes: _slotDurationMinutes,
-            onToggle: (v) => setState(() => _dayEnabled[day] = v),
-            onStartHourChanged: (h) => setState(() {
-              _startHour[day] = h;
-              if (_endHour[day] <= h) _endHour[day] = h + 1;
-            }),
-            onEndHourChanged: (h) => setState(() {
-              _endHour[day] = h;
-              if (_startHour[day] >= h) _startHour[day] = h - 1;
-            }),
-          );
-        }),
       ],
     );
   }
@@ -276,53 +293,52 @@ class _DayRow extends StatelessWidget {
         ? ((endHour - startHour) * 60 / slotDurationMinutes).floor()
         : 0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(
-          color: enabled ? AppColors.teal : AppColors.tealMid,
-          width: enabled ? 1.5 : 1,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      kWeekdayLabels[day],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    Text(
+                      enabled
+                          ? '$startHour h – $endHour h · $slotCount créneau'
+                              '${slotCount > 1 ? 'x' : ''}'
+                          : 'Fermé',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: enabled ? AppColors.teal : AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Switch(
                 value: enabled,
                 onChanged: onToggle,
-                activeThumbColor: AppColors.teal,
+                activeThumbColor: AppColors.white,
+                activeTrackColor: AppColors.teal,
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  kWeekdayLabels[day],
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: enabled ? AppColors.text : AppColors.muted,
-                  ),
-                ),
-              ),
-              if (enabled && slotCount > 0)
-                Text(
-                  '$slotCount créneau${slotCount > 1 ? 'x' : ''}',
-                  style: const TextStyle(
-                      color: AppColors.teal,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600),
-                ),
             ],
           ),
           if (enabled) ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                const SizedBox(width: 4),
                 const Text('De',
-                    style:
-                        TextStyle(color: AppColors.muted, fontSize: 13)),
+                    style: TextStyle(color: AppColors.muted, fontSize: 15)),
                 const SizedBox(width: 8),
                 _HourDropdown(
                   value: startHour,
@@ -332,8 +348,7 @@ class _DayRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 const Text('à',
-                    style:
-                        TextStyle(color: AppColors.muted, fontSize: 13)),
+                    style: TextStyle(color: AppColors.muted, fontSize: 15)),
                 const SizedBox(width: 8),
                 _HourDropdown(
                   value: endHour,
@@ -368,17 +383,14 @@ class _HourDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <DropdownMenuItem<int>>[];
     for (int h = min; h <= max; h++) {
-      items.add(DropdownMenuItem(
-        value: h,
-        child: Text('${h.toString().padLeft(2, '0')}h00'),
-      ));
+      items.add(DropdownMenuItem(value: h, child: Text('$h h')));
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border.all(color: AppColors.tealMid),
+        color: AppColors.sand,
+        borderRadius: BorderRadius.circular(999),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -387,35 +399,13 @@ class _HourDropdown extends StatelessWidget {
           onChanged: (v) {
             if (v != null) onChanged(v);
           },
+          borderRadius: BorderRadius.circular(16),
           style: const TextStyle(
-              color: AppColors.text, fontWeight: FontWeight.w600),
+            color: AppColors.text,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
           isDense: true,
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.error, required this.onRetry});
-
-  final String error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(error,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted)),
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
-          ],
         ),
       ),
     );

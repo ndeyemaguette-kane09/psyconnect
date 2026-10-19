@@ -203,7 +203,7 @@ class _BookingScreenState extends State<BookingScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
                 children: [
-                  // ── Avec qui ────────────────────────────────────────────
+                  // Avec qui
                   AppCard(
                     padding: const EdgeInsets.all(14),
                     child: Row(
@@ -245,7 +245,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
                   const SizedBox(height: 26),
 
-                  // ── Modalité ────────────────────────────────────────────
+                  // Modalité
                   const SectionHeader(
                     title: 'Modalité de consultation',
                     subtitle: 'Comment souhaitez-vous être reçu ?',
@@ -272,7 +272,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
                   const SizedBox(height: 26),
 
-                  // ── Date ────────────────────────────────────────────────
+                  // Date
                   const SectionHeader(title: 'Date'),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -300,7 +300,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
                   const SizedBox(height: 26),
 
-                  // ── Heure ───────────────────────────────────────────────
+                  // Heure
                   SectionHeader(
                     title: 'Heure',
                     subtitle: _availableSlots.isEmpty
@@ -336,7 +336,6 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(height: 20),
                     AppCard(
                       color: AppColors.dangerBg,
-                      shadow: const [],
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,7 +376,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
             ),
 
-            // ── Barre de confirmation ─────────────────────────────────────
+            // Barre de confirmation
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
               decoration: const BoxDecoration(
@@ -442,9 +441,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Sous-widgets
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SelectableChip extends StatelessWidget {
   const _SelectableChip({

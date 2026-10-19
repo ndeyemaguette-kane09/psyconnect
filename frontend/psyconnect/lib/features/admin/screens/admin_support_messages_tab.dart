@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/support_message_models.dart';
 import '../services/admin_service.dart';
@@ -52,10 +51,7 @@ class _AdminSupportMessagesTabState extends State<AdminSupportMessagesTab> {
   }
 
   void _showDetail(SupportMessageModel message) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => _SupportMessageDetailSheet(
         message: message,
         adminService: _service,
@@ -67,109 +63,100 @@ class _AdminSupportMessagesTabState extends State<AdminSupportMessagesTab> {
           });
         },
       ),
-    );
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
+    const filters = [
+      ('PENDING', 'À traiter'),
+      ('RESOLVED', 'Traités'),
+      (null, 'Tous'),
+    ];
+
     return SafeArea(
+      top: false,
       child: RefreshIndicator(
         onRefresh: _load,
-        child: Column(
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Messages',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
                 children: [
-                  Text('Messages',
-                      style: Theme.of(context).textTheme.displayMedium),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _FilterChip(
-                          label: 'Tous',
-                          selected: _statusFilter == null,
-                          onTap: () => _applyFilter(null),
-                        ),
-                        const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'En attente',
-                          selected: _statusFilter == 'PENDING',
-                          onTap: () => _applyFilter('PENDING'),
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'Traités',
-                          selected: _statusFilter == 'RESOLVED',
-                          onTap: () => _applyFilter('RESOLVED'),
-                          color: AppColors.teal,
-                        ),
-                      ],
+                  for (final (value, label) in filters)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _FilterChip(
+                        label: label,
+                        selected: _statusFilter == value,
+                        onTap: () => _applyFilter(value),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? ListView(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(40),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(_error!,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          color: AppColors.muted)),
-                                  const SizedBox(height: 12),
-                                  OutlinedButton(
-                                      onPressed: _load,
-                                      child: const Text('Réessayer')),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      : _messages.isEmpty
-                          ? ListView(
-                              children: const [
-                                Padding(
-                                  padding: EdgeInsets.all(40),
-                                  child: Center(
-                                    child: Text(
-                                      'Aucun message pour le moment.',
-                                      style:
-                                          TextStyle(color: AppColors.muted),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-                              itemCount: _messages.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (_, i) => _SupportMessageCard(
-                                message: _messages[i],
-                                onTap: () => _showDetail(_messages[i]),
-                              ),
-                            ),
-            ),
+            const SizedBox(height: 16),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (_messages.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Aucun message pour le moment.',
+                  style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              )
+            else
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  children: [
+                    for (final m in _messages)
+                      _SupportMessageCard(
+                        message: m,
+                        onTap: () => _showDetail(m),
+                      ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+const _kMonths = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+String _fmtDate(DateTime d) => '${d.day} ${_kMonths[d.month - 1]} ${d.year}';
+
+String _senderName(SupportMessageModel m) {
+  final name = m.senderName?.trim() ?? '';
+  return name.isNotEmpty ? name : '${m.senderRoleLabel} #${m.senderProfileId}';
 }
 
 class _SupportMessageCard extends StatelessWidget {
@@ -180,24 +167,18 @@ class _SupportMessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor =
-        message.status == 'PENDING' ? Colors.orange : AppColors.teal;
-    final hasName = message.senderName != null &&
-        message.senderName!.trim().isNotEmpty;
-    final senderLine = hasName
-        ? '${message.senderName} · ${message.senderRoleLabel}'
-        : '${message.senderRoleLabel} #${message.senderProfileId}';
+    final pending = message.status == 'PENDING';
+    final name = _senderName(message);
+    final d = message.createdAt;
 
-    return AppCard(
+    return InkWell(
       onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: AppColors.tealMid,
-      shadow: const [],
-      child: Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.support_agent,
-                  color: AppColors.tealDark, size: 20),
+            AppAvatar(name: name, size: 44),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -207,70 +188,69 @@ class _SupportMessageCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          message.subject,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14),
+                          name,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-                          border: Border.all(
-                              color: statusColor.withValues(alpha: 0.4)),
-                        ),
-                        child: Text(
-                          message.statusLabel,
+                      if (d != null)
+                        Text(
+                          '${d.day} ${_kMonths[d.month - 1]}',
                           style: TextStyle(
-                              fontSize: 11,
-                              color: statusColor,
-                              fontWeight: FontWeight.w600),
+                            fontSize: 13,
+                            fontWeight:
+                                pending ? FontWeight.w800 : FontWeight.w400,
+                            color: pending ? AppColors.teal : AppColors.muted,
+                          ),
                         ),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
                   Text(
-                    senderLine,
-                    style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
+                    '${message.senderRoleLabel} · ${message.subject}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(fontSize: 13.5, color: AppColors.muted),
                   ),
-                  const SizedBox(height: 4),
                   Text(
                     message.message,
-                    style: const TextStyle(
-                        color: AppColors.text, fontSize: 12),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                  if (message.createdAt != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _formatDate(message.createdAt!),
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 11),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: pending ? AppColors.text : AppColors.muted,
                     ),
-                  ],
+                  ),
+                  if (pending)
+                    Container(
+                      margin: const EdgeInsets.only(top: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'À traiter',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
           ],
         ),
+      ),
     );
-  }
-
-  static String _formatDate(DateTime d) {
-    const months = [
-      'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 }
 
@@ -366,182 +346,176 @@ class _SupportMessageDetailSheetState
 
   @override
   Widget build(BuildContext context) {
+    final name = _senderName(_message);
     final hasName = _message.senderName != null &&
         _message.senderName!.trim().isNotEmpty;
-    final senderLine = hasName
-        ? '${_message.senderName} (${_message.senderRoleLabel})'
-        : '${_message.senderRoleLabel} #${_message.senderProfileId}';
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-      ),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 24),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.tealMid,
-                ),
+    final phone = _message.senderPhone?.trim() ?? '';
+
+    return Scaffold(
+      appBar: AppBar(),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              _message.subject,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+                height: 1.2,
               ),
             ),
-            Row(
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
               children: [
-                const Icon(Icons.support_agent,
-                    color: AppColors.tealDark, size: 22),
-                const SizedBox(width: 10),
+                AppAvatar(name: name, size: 48),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    _message.subject,
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      Text(
+                        [
+                          _message.senderRoleLabel,
+                          if (phone.isNotEmpty) phone,
+                          if (_message.createdAt != null)
+                            _fmtDate(_message.createdAt!),
+                        ].join(' · '),
+                        style: const TextStyle(
+                            fontSize: 14, color: AppColors.muted),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            _InfoRow('Expéditeur', senderLine),
-            if (_message.senderPhone != null &&
-                _message.senderPhone!.trim().isNotEmpty)
-              _InfoRow('Téléphone', _message.senderPhone!),
-            _InfoRow('Statut', _message.statusLabel),
-            if (_message.createdAt != null)
-              _InfoRow('Envoyé le', _fmtDate(_message.createdAt!)),
-            const SizedBox(height: 12),
-            Text('Message', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text(_message.message,
-                style: Theme.of(context).textTheme.bodyMedium),
-            if (_message.adminReply != null &&
-                _message.adminReply!.trim().isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.tealLight,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _message.repliedAt != null
-                          ? 'Votre réponse (${_fmtDate(_message.repliedAt!)})'
-                          : 'Votre réponse',
-                      style: const TextStyle(
-                          color: AppColors.tealDark,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
+            child: Text(
+              '« ${_message.message.trim()} »',
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.55,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          if (_message.adminReply != null &&
+              _message.adminReply!.trim().isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.tealLight,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _message.repliedAt != null
+                        ? 'Votre réponse, le ${_fmtDate(_message.repliedAt!)}'
+                        : 'Votre réponse',
+                    style: const TextStyle(
+                      color: AppColors.teal,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
                     ),
-                    const SizedBox(height: 6),
-                    Text(_message.adminReply!,
-                        style: const TextStyle(
-                            color: AppColors.tealDark, fontSize: 13)),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Text('Répondre à l\'expéditeur',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _replyController,
-              maxLines: 4,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                hintText: 'Votre réponse sera envoyée en notification à '
-                    '${hasName ? _message.senderName : 'l\'expéditeur'}…',
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(
-                  borderSide: const BorderSide(color: AppColors.tealMid),
-                ),
-                contentPadding: const EdgeInsets.all(12),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _message.adminReply!,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 15.5,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (_actionError != null) ...[
-              const SizedBox(height: 12),
-              Text(_actionError!,
-                  style: const TextStyle(color: AppColors.rose, fontSize: 12)),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _busy ? null : _sendReply,
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.teal,
-                    minimumSize: const Size.fromHeight(44)),
-                child: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Envoyer la réponse'),
-              ),
-            ),
-            if (_message.status == 'RESOLVED') ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _busy ? null : _reopen,
-                  style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(44),
-),
-                  child: const Text('Rouvrir ce message'),
-                ),
-              ),
-            ],
           ],
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 26, 4, 10),
+            child: Text(
+              'Répondre',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          TextField(
+            controller: _replyController,
+            maxLines: 4,
+            textInputAction: TextInputAction.newline,
+            decoration: InputDecoration(
+              hintText: 'Envoyée en notification à '
+                  '${hasName ? _message.senderName : 'l\'expéditeur'}',
+            ),
+          ),
+          if (_actionError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+              child: Text(
+                _actionError!,
+                style: const TextStyle(color: AppColors.danger, fontSize: 14),
+              ),
+            ),
+          if (_message.status == 'RESOLVED')
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _busy ? null : _reopen,
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                ),
+                child: const Text(
+                  'Rouvrir ce message',
+                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 10, 20, 14 + MediaQuery.of(context).viewInsets.bottom),
+          child: FilledButton(
+            onPressed: _busy ? null : _sendReply,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+            child: _busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Envoyer la réponse'),
+          ),
         ),
       ),
     );
   }
-
-  static String _fmtDate(DateTime d) {
-    const months = [
-      'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 110,
-              child: Text(label,
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 13)),
-            ),
-            Expanded(
-              child: Text(value,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13)),
-            ),
-          ],
-        ),
-      );
 }
 
 class _FilterChip extends StatelessWidget {
@@ -549,35 +523,31 @@ class _FilterChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.color,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = color ?? AppColors.teal;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? activeColor.withValues(alpha: 0.12)
-              : AppColors.white,
-          border: Border.all(
-              color: selected ? activeColor : AppColors.tealMid),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
-            color: selected ? activeColor : AppColors.muted,
+    return Material(
+      color: selected ? AppColors.teal : AppColors.sand,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: selected ? AppColors.background : AppColors.text,
+              ),
+            ),
           ),
         ),
       ),

@@ -22,8 +22,8 @@ import io.github.resilience4j.retry.annotation.Retry;
 
 /**
  * Appels vers appointment-service :
- * - GET /appointments/{id}                         → valider le RDV
- * - PATCH /appointments/{id}/status?status=...    → marquer COMPLETED en fin de session
+ * - GET /appointments/{id}                         -> valider le RDV
+ * - PATCH /appointments/{id}/status?status=...    -> marquer COMPLETED en fin de session
  *
  * Le JWT de l'utilisateur courant est toujours transmis pour que
  * appointment-service puisse vérifier l'appartenance au RDV.

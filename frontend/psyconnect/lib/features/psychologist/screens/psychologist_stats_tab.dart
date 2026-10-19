@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/screens/splash_screen.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/models/psychologist_models.dart';
 import '../../patient/services/appointment_service.dart';
@@ -109,524 +110,391 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
       if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(' ');
       buffer.write(digits[i]);
     }
-    return '$buffer FCFA';
+    return buffer.toString();
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Se déconnecter ?'),
+        content: const Text(
+            'Vous devrez vous reconnecter pour accéder à votre compte.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Se déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const SplashScreen()),
+      (route) => false,
+    );
+  }
+
+  void _openTransactions() {
+    final psychologistId = context.read<AuthProvider>().session?.profileId;
+    if (psychologistId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            PsyTransactionHistoryScreen(psychologistId: psychologistId),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final me = _me;
+    final fullName = me == null ? 'Profil' : '${me.firstName} ${me.lastName}';
+    final patients = _appointments.map((a) => a.patientId).toSet().length;
+    final buckets = [
+      _Bucket('À confirmer', _countByStatus(AppointmentStatus.pending),
+          AppColors.gold),
+      _Bucket('Confirmées', _countByStatus(AppointmentStatus.confirmed),
+          AppColors.teal),
+      _Bucket('Terminées', _countByStatus(AppointmentStatus.completed),
+          AppColors.faint),
+      _Bucket(
+          'Annulées ou refusées',
+          _countByStatus(AppointmentStatus.cancelled) +
+              _countByStatus(AppointmentStatus.rejected),
+          AppColors.rose),
+    ];
+    final month = _kMonthNames[DateTime.now().month - 1];
+    final hasReviews = me != null && (me.totalReviews ?? 0) > 0;
+
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
+        color: AppColors.teal,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Statistiques',
-                    style: Theme.of(context).textTheme.displayMedium),
-                IconButton(
-                  tooltip: 'Mon profil',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const PsychologistProfileScreen(),
-                    ),
-                  ),
-                  icon: const Icon(Icons.account_circle_outlined,
-                      color: AppColors.tealDark, size: 34),
-                ),
-              ],
+            Text(
+              'Mon activité',
+              style: Theme.of(context)
+                  .textTheme
+                  .displayLarge
+                  ?.copyWith(fontSize: 30),
             ),
-            const SizedBox(height: 8),
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Text(_error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.muted)),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                          onPressed: _load, child: const Text('Réessayer')),
-                    ],
-                  ),
-                ),
-              )
-            else ...[
-              const SectionHeader(title: 'Mon activité'),
-              const SizedBox(height: 6),
-              StatBand(
-                children: [
-                  StatTile(
-                    value: '${_appointments.length}',
-                    label: 'RDV au total',
-                  ),
-                  StatTile(
-                    value:
-                        '${_appointments.map((a) => a.patientId).toSet().length}',
-                    label: 'Patients suivis',
-                  ),
-                  StatTile(
-                    value: _me?.rating != null && _me!.rating! > 0
-                        ? _me!.rating!.toStringAsFixed(1)
-                        : '—',
-                    label: 'Note moyenne',
-                  ),
-                  StatTile(
-                    value: '${_me?.totalReviews ?? 0}',
-                    label: 'Avis reçus',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              if (_revenue != null) ...[
-                _RevenueCard(
-                  revenue: _revenue!,
-                  formatXof: _formatXof,
-                  onViewTransactions: () {
-                    final psychologistId =
-                        context.read<AuthProvider>().session?.profileId;
-                    if (psychologistId == null) return;
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PsyTransactionHistoryScreen(
-                          psychologistId: psychologistId,
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Material(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PsychologistProfileScreen(),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
-              if (_wallet != null)
-                _WalletCard(
-                  wallet: _wallet!,
-                  formatXof: _formatXof,
-                  onWithdraw: () => _openWallet(),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet_outlined,
-                          color: AppColors.muted, size: 20),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                        child: Row(
                           children: [
-                            Text('Portefeuille',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.muted)),
-                            SizedBox(height: 4),
-                            Text(
-                              'Données indisponibles.\nVérifiez que la base de données est à jour.',
-                              style: TextStyle(
-                                  color: AppColors.muted, fontSize: 12),
+                            AppAvatar(name: fullName, size: 40),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Mon profil',
+                                    style: TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.text,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Voir et modifier',
+                                    style: TextStyle(
+                                        fontSize: 13, color: AppColors.muted),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const Icon(Icons.chevron_right,
+                                color: AppColors.muted, size: 22),
                           ],
                         ),
                       ),
-                      TextButton(
-                          onPressed: _load,
-                          child: const Text('Rafraîchir')),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Material(
+                  color: AppColors.dangerBg,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: _logout,
+                    child: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      child: Column(
+                        children: [
+                          Icon(Icons.logout_rounded,
+                              color: AppColors.danger, size: 22),
+                          SizedBox(height: 2),
+                          Text(
+                            'Déconnexion',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.danger,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 26),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else ...[
+              if (_revenue != null) ...[
+                Text(
+                  'Revenu net en $month',
+                  style: const TextStyle(fontSize: 16, color: AppColors.muted),
+                ),
+                const SizedBox(height: 4),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                          text: _formatXof(_revenue!.currentMonthNetRevenue)),
+                      const TextSpan(
+                        text: ' F CFA',
+                        style: TextStyle(
+                          fontSize: 22,
+                          color: AppColors.muted,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: const TextStyle(
+                    fontSize: 46,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.2,
+                    height: 1.05,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_formatXof(_revenue!.totalNetRevenue)} F depuis le début · '
+                  'après commission de '
+                  '${_revenue!.commissionRatePercent.toStringAsFixed(0)} %',
+                  style: const TextStyle(fontSize: 15, color: AppColors.muted),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _openTransactions,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                    ),
+                    child: const Text(
+                      'Voir le détail des paiements',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              Material(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(22),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(22),
+                  onTap: _wallet == null ? _load : _openWallet,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Disponible à retirer',
+                                style: TextStyle(
+                                    fontSize: 15, color: AppColors.muted),
+                              ),
+                              Text(
+                                _wallet == null
+                                    ? 'Indisponible, touchez pour réessayer'
+                                    : '${_formatXof(_wallet!.availableBalance)} F',
+                                style: TextStyle(
+                                  fontSize: _wallet == null ? 15 : 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_wallet != null)
+                          FilledButton(
+                            onPressed: _openWallet,
+                            child: Text(_wallet!.availableBalance > 0
+                                ? 'Retirer'
+                                : 'Ouvrir'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+              const Text(
+                'Mes consultations',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (_appointments.isEmpty)
+                const Text(
+                  'Aucune consultation pour l\'instant.',
+                  style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+                )
+              else ...[
+                SizedBox(
+                  height: 14,
+                  child: Row(
+                    children: [
+                      for (final b in buckets.where((b) => b.count > 0)) ...[
+                        Expanded(
+                          flex: b.count,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: b.color,
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                      ],
                     ],
                   ),
                 ),
-              const SizedBox(height: 24),
-              const SectionHeader(title: 'Répartition des rendez-vous'),
-              const SizedBox(height: 4),
-              _StatusRow(
-                  label: 'En attente',
-                  count: _countByStatus(AppointmentStatus.pending),
-                  color: AppColors.gold),
-              _StatusRow(
-                  label: 'Confirmés',
-                  count: _countByStatus(AppointmentStatus.confirmed),
-                  color: AppColors.teal),
-              _StatusRow(
-                  label: 'Terminés',
-                  count: _countByStatus(AppointmentStatus.completed),
-                  color: AppColors.muted),
-              _StatusRow(
-                  label: 'Annulés/refusés',
-                  count: _countByStatus(AppointmentStatus.cancelled) +
-                      _countByStatus(AppointmentStatus.rejected),
-                  color: AppColors.rose),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RevenueCard extends StatelessWidget {
-  const _RevenueCard({
-    required this.revenue,
-    required this.formatXof,
-    required this.onViewTransactions,
-  });
-
-  final PsychologistRevenue revenue;
-  final String Function(double) formatXof;
-  final VoidCallback onViewTransactions;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      color: AppColors.tealDark,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Revenu net',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15)),
-              Text(
-                'Commission ${revenue.commissionRatePercent.toStringAsFixed(0)}%',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _RevenueValue(
-                  label: 'Ce mois-ci',
-                  value: formatXof(revenue.currentMonthNetRevenue),
-                ),
-              ),
-              Expanded(
-                child: _RevenueValue(
-                  label: 'Total',
-                  value: formatXof(revenue.totalNetRevenue),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: onViewTransactions,
-              icon: const Icon(Icons.receipt_long_outlined,
-                  size: 16, color: Colors.white70),
-              label: const Text(
-                'Voir le détail',
-                style: TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RevenueValue extends StatelessWidget {
-  const _RevenueValue({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                color: Colors.white,
-                fontSize: 20,
-                height: 1,
-              ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.1,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _WalletCard extends StatefulWidget {
-  const _WalletCard({
-    required this.wallet,
-    required this.formatXof,
-    required this.onWithdraw,
-  });
-
-  final PsychologistWallet wallet;
-  final String Function(double) formatXof;
-  final VoidCallback onWithdraw;
-
-  @override
-  State<_WalletCard> createState() => _WalletCardState();
-}
-
-class _WalletCardState extends State<_WalletCard> {
-  bool _showHistory = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final wallet = widget.wallet;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.account_balance_wallet_outlined,
-                      color: AppColors.tealDark, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Portefeuille',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.tealDark,
-                        fontSize: 15),
+                const SizedBox(height: 12),
+                for (final b in buckets)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: b.color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            b.label,
+                            style: const TextStyle(
+                                fontSize: 16, color: AppColors.text),
+                          ),
+                        ),
+                        Text(
+                          '${b.count}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              FilledButton.icon(
-                onPressed: wallet.availableBalance <= 0 ? null : widget.onWithdraw,
-                icon: const Icon(Icons.arrow_circle_down_outlined, size: 18),
-                label: const Text('Retirer'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.tealDark,
-                  minimumSize: const Size(0, 38),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  textStyle: const TextStyle(fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Text(
-            widget.formatXof(wallet.availableBalance),
-            style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: AppColors.tealDark),
-          ),
-          const Text('Solde disponible',
-              style: TextStyle(color: AppColors.muted, fontSize: 12)),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              _WalletStat(
-                label: 'Revenu net total',
-                value: widget.formatXof(wallet.totalNetRevenue),
-              ),
-              _WalletStat(
-                label: 'Déjà retiré',
-                value: widget.formatXof(wallet.totalWithdrawn),
-              ),
-            ],
-          ),
-
-          if (wallet.withdrawals.isNotEmpty) ...[
-            const Divider(height: 24),
-            GestureDetector(
-              onTap: () => setState(() => _showHistory = !_showHistory),
-              child: Row(
-                children: [
-                  Text(
-                    'Historique (${wallet.withdrawals.length})',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.tealDark,
-                        fontSize: 13),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    _showHistory ? Icons.expand_less : Icons.expand_more,
-                    color: AppColors.tealDark,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-            if (_showHistory) ...[
-              const SizedBox(height: 8),
-              ...wallet.withdrawals.map(
-                (w) => _WithdrawalRow(
-                    withdrawal: w, formatXof: widget.formatXof),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _WalletStat extends StatelessWidget {
-  const _WalletStat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style:
-                  const TextStyle(color: AppColors.muted, fontSize: 11)),
-          const SizedBox(height: 2),
-          Text(value,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-}
-
-class _WithdrawalRow extends StatelessWidget {
-  const _WithdrawalRow({required this.withdrawal, required this.formatXof});
-
-  final PsychologistWithdrawal withdrawal;
-  final String Function(double) formatXof;
-
-  String _methodLabel(String method) {
-    switch (method) {
-      case 'ORANGE_MONEY':
-        return 'Orange Money';
-      case 'WAVE':
-        return 'Wave';
-      case 'BANK_TRANSFER':
-        return 'Virement';
-      default:
-        return method;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final d = withdrawal.createdAt;
-    final date =
-        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline,
-              color: AppColors.teal, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_methodLabel(withdrawal.method),
-                    style: const TextStyle(fontSize: 13)),
-                Text(date,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 11)),
               ],
-            ),
-          ),
-          Text(
-            '- ${formatXof(withdrawal.amount)}',
-            style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: AppColors.rose,
-                fontSize: 13),
-          ),
-        ],
+              const SizedBox(height: 28),
+              const Text(
+                'Mes patients',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.6,
+                    color: AppColors.textSecondary,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: '$patients patient${patients > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const TextSpan(text: ' au total. '),
+                    TextSpan(
+                      text: hasReviews
+                          ? 'Note moyenne de '
+                              '${(me.rating ?? 0).toStringAsFixed(1).replaceAll('.', ',')}'
+                              ' sur ${me.totalReviews ?? 0} avis.'
+                          : 'Pas encore d\'avis : ils arrivent après une '
+                              'consultation terminée.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({required this.label, required this.count, required this.color});
+const _kMonthNames = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+
+class _Bucket {
+  const _Bucket(this.label, this.count, this.color);
 
   final String label;
   final int count;
   final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Text(label, style: const TextStyle(fontSize: 13.5)),
-            ),
-            Text(
-              '$count',
-              style: Theme.of(context)
-                  .textTheme
-                  .displaySmall
-                  ?.copyWith(fontSize: 17, height: 1),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
-

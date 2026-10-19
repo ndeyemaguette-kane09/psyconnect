@@ -44,7 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authHeader != null ? "présent (Bearer...)" : "ABSENT");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            LOGGER.warn("[payment-JWT] Pas de Bearer token pour {} {} → filtre passe, Spring Security bloquera si route protégée",
+            LOGGER.warn("[payment-JWT] Pas de Bearer token pour {} {} -> filtre passe, Spring Security bloquera si route protégée",
                     request.getMethod(), request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
@@ -89,7 +89,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     LOGGER.warn("[payment-JWT] Pas de userId dans le token pour {} : {}", request.getRequestURI(), ex.getMessage());
                 }
             } else {
-                LOGGER.error("[payment-JWT] isTokenValid=false pour {} {} | username={} → authentification NON positionnée → Spring Security va bloquer",
+                LOGGER.error("[payment-JWT] isTokenValid=false pour {} {} | username={} -> authentification NON positionnée -> Spring Security va bloquer",
                         request.getMethod(), request.getRequestURI(), username);
             }
         }

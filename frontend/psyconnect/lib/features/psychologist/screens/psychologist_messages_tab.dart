@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -10,6 +11,7 @@ import '../../messaging/screens/chat_screen.dart';
 import '../../messaging/services/messaging_service.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/services/appointment_service.dart';
+import '../utils/patient_name.dart';
 
 // onglet "Messages" cote psy, meme principe que cote patient
 // une conversation existe que si y'a deja eu un RDV avec ce patient
@@ -104,11 +106,7 @@ class _PsychologistMessagesTabState extends State<PsychologistMessagesTab> {
     }
   }
 
-  String _displayName(PatientProfile? profile) {
-    if (profile == null) return 'Patient';
-    final name = '${profile.firstName} ${profile.lastName}'.trim();
-    return name.isEmpty ? 'Patient' : name;
-  }
+  String _displayName(PatientProfile? profile) => patientDisplayName(profile);
 
   void _openConversation(int conversationId, String otherDisplayName) {
     Navigator.of(context)
@@ -137,129 +135,123 @@ class _PsychologistMessagesTabState extends State<PsychologistMessagesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final hasAnonymous = [
+      ..._conversations.map((c) => _patientsById[c.patientId]),
+      ..._contactsWithoutConversation,
+    ].any((p) => p?.anonymousMode == true);
+
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              sliver: SliverToBoxAdapter(
-                child: Text('Messages',
-                    style: Theme.of(context).textTheme.displayMedium),
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Messages',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
               ),
             ),
+            const SizedBox(height: 16),
             if (_loading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_error != null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.wifi_off,
-                            color: AppColors.muted, size: 36),
-                        const SizedBox(height: 8),
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.muted)),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                            onPressed: _load, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            else if (_conversations.isEmpty && _contactsWithoutConversation.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.chat_bubble_outline,
-                            color: AppColors.muted, size: 48),
-                        SizedBox(height: 16),
-                        Text(
-                          "Vous n'avez pas encore de patients.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: AppColors.muted,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          // pas "confirme" : un RDV suffit quel que soit son
-                          // statut cote backend
-                          'La messagerie s\'ouvre automatiquement avec un '
-                          'patient dès sa première demande de rendez-vous '
-                          'avec vous — pas besoin de le contacter ailleurs.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.muted, fontSize: 12),
-                        ),
-                      ],
-                    ),
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (_conversations.isEmpty &&
+                _contactsWithoutConversation.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Text(
+                  // pas "confirme" : un RDV suffit quel que soit son
+                  // statut cote backend
+                  'Pas encore de patients. La messagerie s\'ouvre avec un '
+                  'patient dès sa première demande de rendez-vous.',
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    height: 1.5,
+                    color: AppColors.muted,
                   ),
                 ),
               )
             else ...[
               if (_conversations.isNotEmpty)
-                SliverList.builder(
-                  itemCount: _conversations.length,
-                  itemBuilder: (context, i) {
-                    final conversation = _conversations[i];
-                    final patient = _patientsById[conversation.patientId];
-                    final name = _displayName(patient);
-                    return _ConversationRow(
-                      title: name,
-                      preview: conversation.lastMessagePreview,
-                      time: conversation.lastMessageAt,
-                      unreadCount: conversation.unreadCount,
-                      showDivider: i != _conversations.length - 1,
-                      onTap: () => _openConversation(conversation.id, name),
-                    );
-                  },
+                AppCard(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    children: [
+                      for (final conversation in _conversations)
+                        _ConversationRow(
+                          title: _displayName(
+                              _patientsById[conversation.patientId]),
+                          preview: conversation.lastMessagePreview,
+                          time: conversation.lastMessageAt,
+                          unreadCount: conversation.unreadCount,
+                          onTap: () => _openConversation(
+                            conversation.id,
+                            _displayName(
+                                _patientsById[conversation.patientId]),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               if (_contactsWithoutConversation.isNotEmpty) ...[
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                  sliver: SliverToBoxAdapter(
+                if (_conversations.isNotEmpty) ...[
+                  const SizedBox(height: 26),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
                     child: Text(
-                      'DÉMARRER UNE CONVERSATION',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.muted,
-                            letterSpacing: 0.9,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      'Pas encore de discussion',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ),
+                ],
+                AppCard(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    children: [
+                      for (final patient in _contactsWithoutConversation)
+                        _ConversationRow(
+                          title: _displayName(patient),
+                          preview: patient.anonymousMode
+                              ? 'Patient anonyme · aucun message'
+                              : null,
+                          time: null,
+                          unreadCount: 0,
+                          onTap: () => _startConversation(patient),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              if (hasAnonymous)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(4, 14, 4, 0),
+                  child: Text(
+                    'Les patients en mode anonyme apparaissent sous leur '
+                    'pseudonyme.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: AppColors.muted,
                     ),
                   ),
                 ),
-                SliverList.builder(
-                  itemCount: _contactsWithoutConversation.length,
-                  itemBuilder: (context, i) {
-                    final patient = _contactsWithoutConversation[i];
-                    return _ConversationRow(
-                      title: _displayName(patient),
-                      preview: null,
-                      time: null,
-                      unreadCount: 0,
-                      showDivider:
-                          i != _contactsWithoutConversation.length - 1,
-                      onTap: () => _startConversation(patient),
-                    );
-                  },
-                ),
-              ],
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
             ],
           ],
         ),
@@ -268,13 +260,17 @@ class _PsychologistMessagesTabState extends State<PsychologistMessagesTab> {
   }
 }
 
+const _kMonthShort = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
 class _ConversationRow extends StatelessWidget {
   const _ConversationRow({
     required this.title,
     required this.preview,
     required this.time,
     required this.unreadCount,
-    required this.showDivider,
     required this.onTap,
   });
 
@@ -282,17 +278,10 @@ class _ConversationRow extends StatelessWidget {
   final String? preview;
   final DateTime? time;
   final int unreadCount;
-  final bool showDivider;
   final VoidCallback onTap;
 
   static const _weekdays = [
-    'lun.',
-    'mar.',
-    'mer.',
-    'jeu.',
-    'ven.',
-    'sam.',
-    'dim.',
+    'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.',
   ];
 
   String get _timeLabel {
@@ -304,13 +293,11 @@ class _ConversationRow extends StatelessWidget {
     final diff = today.difference(day).inDays;
 
     if (diff <= 0) {
-      return '${t.hour.toString().padLeft(2, '0')}:'
-          '${t.minute.toString().padLeft(2, '0')}';
+      return '${t.hour} h ${t.minute.toString().padLeft(2, '0')}';
     }
     if (diff == 1) return 'Hier';
     if (diff < 7) return _weekdays[t.weekday - 1];
-    return '${t.day.toString().padLeft(2, '0')}/'
-        '${t.month.toString().padLeft(2, '0')}/${t.year}';
+    return '${t.day} ${_kMonthShort[t.month - 1]}';
   }
 
   @override
@@ -318,92 +305,80 @@ class _ConversationRow extends StatelessWidget {
     final unread = unreadCount > 0;
     final timeLabel = _timeLabel;
 
-    return Material(
-      color: AppColors.white,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: Row(
+            AppAvatar(name: title, size: 48),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.teal.withValues(alpha: 0.10),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.person_outline,
-                        color: AppColors.teal, size: 26),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Expanded(
+                        child: Text(
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 17,
                             fontWeight:
-                                unread ? FontWeight.w700 : FontWeight.w600,
+                                unread ? FontWeight.w800 : FontWeight.w700,
                             color: AppColors.text,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          preview ?? 'Démarrer la discussion',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.3,
-                            color: unread
-                                ? AppColors.textSecondary
-                                : AppColors.muted,
-                            fontWeight:
-                                unread ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
+                      ),
                       if (timeLabel.isNotEmpty)
                         Text(
                           timeLabel,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 13,
                             fontWeight:
-                                unread ? FontWeight.w700 : FontWeight.w500,
-                            color: unread ? AppColors.teal : AppColors.faint,
+                                unread ? FontWeight.w800 : FontWeight.w400,
+                            color: unread ? AppColors.teal : AppColors.muted,
                           ),
                         ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          preview ?? 'Démarrer la discussion',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: unread ? AppColors.text : AppColors.muted,
+                            fontWeight:
+                                unread ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ),
                       if (unread) ...[
-                        const SizedBox(height: 7),
+                        const SizedBox(width: 8),
                         Container(
-                          constraints: const BoxConstraints(minWidth: 20),
-                          height: 20,
+                          constraints: const BoxConstraints(minWidth: 22),
+                          height: 22,
                           alignment: Alignment.center,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppColors.teal,
+                            borderRadius: BorderRadius.circular(11),
                           ),
                           child: Text(
                             unreadCount > 99 ? '99+' : '$unreadCount',
                             style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              color: AppColors.background,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
@@ -413,15 +388,6 @@ class _ConversationRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (showDivider)
-              const Padding(
-                padding: EdgeInsets.only(left: 82),
-                child: Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.border,
-                ),
-              ),
           ],
         ),
       ),

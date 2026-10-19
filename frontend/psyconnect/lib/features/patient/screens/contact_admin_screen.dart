@@ -87,101 +87,91 @@ class _ContactAdminScreenState extends State<ContactAdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Contacter l\'administrateur')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.tealLight,
-                ),
-                child: const Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.support_agent_outlined,
-                        color: AppColors.tealDark, size: 20),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Une question, un problème technique, un signalement '
-                        'qui ne concerne pas un psychologue précis ? '
-                        'Écrivez directement à l\'administrateur.',
-                        style: TextStyle(
-                            color: AppColors.tealDark, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.text,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Écrire à l\'équipe',
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Une question, un souci technique, ou un problème qui ne '
+              'concerne pas un psychologue précis ? L\'équipe PsyConnect vous '
+              'répond ici.',
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.5,
+                color: AppColors.muted,
               ),
-              const SizedBox(height: 24),
-              Text('Sujet *', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _subjectController,
-                maxLength: 120,
-                decoration: InputDecoration(
-                  hintText: 'Résumez votre demande en quelques mots',
-                  filled: true,
-                  fillColor: AppColors.white,
-                  border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: AppColors.tealMid),
-                  ),
-                  contentPadding: const EdgeInsets.all(14),
-                ),
+            ),
+            const SizedBox(height: 26),
+            const Text(
+              'Sujet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _subjectController,
+              maxLength: 120,
+              style: const TextStyle(fontSize: 16),
+              decoration: const InputDecoration(
+                hintText: 'En quelques mots',
+                contentPadding: EdgeInsets.all(16),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Message',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _messageController,
+              maxLines: 7,
+              maxLength: 1000,
+              style: const TextStyle(fontSize: 16, height: 1.45),
+              decoration: const InputDecoration(
+                hintText: 'Expliquez votre demande le plus précisément possible',
+                contentPadding: EdgeInsets.all(16),
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_error != null) ...[
+              Text(
+                _error!,
+                style: const TextStyle(color: AppColors.danger, fontSize: 14.5),
               ),
               const SizedBox(height: 12),
-              Text('Message *',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _messageController,
-                maxLines: 6,
-                maxLength: 1000,
-                decoration: InputDecoration(
-                  hintText: 'Décrivez votre demande le plus précisément possible…',
-                  filled: true,
-                  fillColor: AppColors.white,
-                  border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: AppColors.tealMid),
-                  ),
-                  contentPadding: const EdgeInsets.all(14),
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (_error != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.errorBg,
-                  ),
-                  child: Text(_error!,
-                      style: const TextStyle(
-                          color: AppColors.rose, fontSize: 13)),
-                ),
-                const SizedBox(height: 12),
-              ],
-              ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Envoyer le message'),
-              ),
             ],
-          ),
+            ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Envoyer'),
+            ),
+          ],
         ),
       ),
     );

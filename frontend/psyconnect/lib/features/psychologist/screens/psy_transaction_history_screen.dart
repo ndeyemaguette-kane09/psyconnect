@@ -26,7 +26,7 @@ class _PsyTransactionHistoryScreenState
   bool _loading = true;
   String? _error;
   List<PaymentTransaction> _transactions = [];
-  // patientId → label affiché (pseudo ou "Patient #X" si anonyme ou si erreur)
+  // patientId -> label affiché (pseudo ou "Patient #X" si anonyme ou si erreur)
   Map<int, String> _patientLabels = {};
 
   @override
