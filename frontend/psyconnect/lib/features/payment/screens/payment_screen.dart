@@ -127,8 +127,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                 children: [
-                  // ── Montant à régler ───────────────────────────────────
-                  AppHero(
+                  // Montant à régler
+                  AppPanel(
                     padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +210,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                   const SizedBox(height: 26),
 
-                  // ── Moyen de paiement ──────────────────────────────────
+                  // Moyen de paiement
                   const SectionHeader(
                     title: 'Moyen de paiement',
                     subtitle: 'Les rendez-vous sont réglés depuis votre solde',
@@ -237,7 +237,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                   const SizedBox(height: 22),
 
-                  // ── Récapitulatif ──────────────────────────────────────
+                  // Récapitulatif
                   AppCard(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                     child: Column(
@@ -282,7 +282,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ),
 
-            // ── Barre d'action fixe ───────────────────────────────────────
+            // Barre d'action fixe
             Container(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
               decoration: const BoxDecoration(
@@ -321,9 +321,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Sous-widgets
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _WalletMethodTile extends StatelessWidget {
   const _WalletMethodTile({
@@ -398,7 +396,6 @@ class _TopUpNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       color: AppColors.warningBg,
-      shadow: const [],
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,7 +446,6 @@ class _ErrorNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       color: AppColors.dangerBg,
-      shadow: const [],
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

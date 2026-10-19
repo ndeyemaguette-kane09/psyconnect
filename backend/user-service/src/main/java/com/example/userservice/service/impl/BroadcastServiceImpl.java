@@ -42,7 +42,7 @@ public class BroadcastServiceImpl implements BroadcastService {
         this.broadcastRepository = broadcastRepository;
     }
 
-    // ── validation commune ────────────────────────────────────────────────────
+    // validation commune
 
     private String resolveAudience(BroadcastRequest request) {
         if (request.getTitle() == null || request.getTitle().isBlank()) {
@@ -92,7 +92,7 @@ public class BroadcastServiceImpl implements BroadcastService {
         return List.of();
     }
 
-    // ── API publique ─────────────────────────────────────────────────────────
+    // API publique
 
     @Override
     public int countTargets(BroadcastRequest request) {
@@ -154,14 +154,14 @@ public class BroadcastServiceImpl implements BroadcastService {
             }
         }
         int total = patientIds.size() + psychologistIds.size();
-        LOGGER.info("[broadcast] «{}» → {}/{} notifs envoyées, persisté en base (audience={})",
+        LOGGER.info("[broadcast] «{}» -> {}/{} notifs envoyées, persisté en base (audience={})",
                 request.getTitle(), sent, total, audience);
     }
 
     // retourne les annonces filtrées selon le rôle Spring Security de l'appelant :
-    // PATIENT  → ALL + PATIENTS
-    // PSYCHOLOGIST → ALL + PSYCHOLOGISTS
-    // ADMIN    → toutes (findAllByOrderBySentAtDesc)
+    // PATIENT  -> ALL + PATIENTS
+    // PSYCHOLOGIST -> ALL + PSYCHOLOGISTS
+    // ADMIN    -> toutes (findAllByOrderBySentAtDesc)
     @Override
     public List<BroadcastDto> getBroadcastsForCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

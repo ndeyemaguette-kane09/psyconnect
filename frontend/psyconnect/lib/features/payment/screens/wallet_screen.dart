@@ -30,6 +30,7 @@ class _WalletScreenState extends State<WalletScreen> {
   bool _loading = true;
   String? _error;
   Wallet? _wallet;
+  List<WalletTransaction> _transactions = [];
 
   @override
   void initState() {
@@ -44,8 +45,16 @@ class _WalletScreenState extends State<WalletScreen> {
     });
     try {
       final wallet = await _walletService.getWallet(widget.patientId);
+      List<WalletTransaction> transactions = [];
+      try {
+        transactions = await _walletService.getTransactions(widget.patientId);
+        transactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      } catch (_) {}
       if (!mounted) return;
-      setState(() => _wallet = wallet);
+      setState(() {
+        _wallet = wallet;
+        _transactions = transactions;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -102,224 +111,280 @@ class _WalletScreenState extends State<WalletScreen> {
     if (result == true) await _load();
   }
 
+  void _openHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WalletTransactionsScreen(patientId: widget.patientId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final recent = _transactions.take(4).toList();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mon solde PsyConnect'),
-        backgroundColor: AppColors.white,
+        backgroundColor: AppColors.background,
         foregroundColor: AppColors.text,
         elevation: 0,
       ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          color: AppColors.teal,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-            children: [
-              // ── Solde ────────────────────────────────────────────────────
-              AppHero(
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'SOLDE DISPONIBLE',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.72),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.4,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            borderRadius: AppRadius.mdAll,
-                          ),
-                          child: const Text(
-                            'Démonstration',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
+          children: [
+            const Text(
+              'Mon solde',
+              style: TextStyle(fontSize: 16, color: AppColors.muted),
+            ),
+            const SizedBox(height: 4),
+            _loading && _wallet == null
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
                     ),
-                    const SizedBox(height: 12),
-                    _loading
-                        ? const SizedBox(
-                            height: 34,
-                            width: 34,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.4, color: Colors.white),
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                formatAmount(_wallet?.balance ?? 0),
-                                style: const TextStyle(
-                                  color: AppColors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 34,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Text(
-                                'F CFA',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ],
-                ),
-              ),
-
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                AppCard(
-                  color: AppColors.dangerBg,
-                  shadow: const [],
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
                     children: [
-                      const Icon(Icons.error_outline,
-                          color: AppColors.danger, size: 19),
-                      const SizedBox(width: 11),
-                      Expanded(
+                      Flexible(
                         child: Text(
-                          _error!,
+                          formatAmount(_wallet?.balance ?? 0),
                           style: const TextStyle(
-                              color: AppColors.danger, fontSize: 13),
+                            color: AppColors.text,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 50,
+                            letterSpacing: -1.5,
+                            height: 1.05,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'F CFA',
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 22,
                         ),
                       ),
                     ],
                   ),
+            const SizedBox(height: 8),
+            const Text(
+              'Mode démonstration : aucune somme réelle n\'est débitée.',
+              style: TextStyle(fontSize: 14, color: AppColors.goldDark),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              AppNoticeCard(
+                icon: Icons.error_outline,
+                title: 'Solde indisponible',
+                message: _error,
+                accent: AppColors.danger,
+                background: AppColors.dangerBg,
+              ),
+            ],
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                Expanded(
+                  child: _WalletAction(
+                    icon: Icons.add,
+                    label: 'Recharger',
+                    primary: true,
+                    onTap: _loading ? null : _openDeposit,
+                  ),
+                ),
+                Expanded(
+                  child: _WalletAction(
+                    icon: Icons.arrow_upward,
+                    label: 'Retirer',
+                    onTap: _loading ? null : _openWithdraw,
+                  ),
+                ),
+                Expanded(
+                  child: _WalletAction(
+                    icon: Icons.history,
+                    label: 'Historique',
+                    onTap: _openHistory,
+                  ),
                 ),
               ],
-
-              const SizedBox(height: 22),
-
-              // ── Actions ──────────────────────────────────────────────────
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _loading ? null : _openDeposit,
-                      icon: const Icon(Icons.add, size: 19),
-                      label: const Text('Recharger'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _loading ? null : _openWithdraw,
-                      icon: const Icon(Icons.arrow_outward, size: 18),
-                      label: const Text('Retirer'),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Opérateurs acceptés ──────────────────────────────────────
-              const SectionHeader(
-                title: 'Recharger avec',
-                subtitle: 'Paiement mobile ou carte bancaire',
-              ),
-              const SizedBox(height: 12),
-              const Row(
-                children: [
-                  Expanded(child: _OperatorTile(method: PaymentMethod.wave)),
-                  SizedBox(width: 10),
-                  Expanded(
-                      child: _OperatorTile(method: PaymentMethod.orangeMoney)),
-                  SizedBox(width: 10),
-                  Expanded(child: _OperatorTile(method: PaymentMethod.card)),
-                ],
-              ),
-
-              const SizedBox(height: 22),
-
-              // ── Historique ───────────────────────────────────────────────
-              AppCard(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        WalletTransactionsScreen(patientId: widget.patientId),
-                  ),
+            ),
+            const SizedBox(height: 32),
+            SectionHeader(
+              title: 'Derniers mouvements',
+              actionLabel: _transactions.isEmpty ? null : 'Tout voir',
+              onAction: _transactions.isEmpty ? null : _openHistory,
+            ),
+            const SizedBox(height: 10),
+            if (recent.isEmpty && !_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Aucun mouvement pour l\'instant. Rechargez votre solde '
+                  'pour payer vos séances.',
+                  style: TextStyle(fontSize: 15, color: AppColors.muted),
                 ),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
+              )
+            else if (recent.isNotEmpty)
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
                   children: [
-                    const Icon(Icons.receipt_long_outlined,
-                          color: AppColors.tealDark, size: 20),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Historique des mouvements',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14.5,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Recharges, paiements et remboursements',
-                            style:
-                                TextStyle(color: AppColors.muted, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: AppColors.faint),
+                    for (final t in recent) _TransactionRow(transaction: t),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              const AppNoticeCard(
-                icon: Icons.info_outline,
-                title: 'Solde de démonstration',
-                message:
-                    'Les recharges et retraits via Wave, Orange Money ou carte '
-                    'ne sont pas réellement débités. Vos rendez-vous sont bien '
-                    'payés depuis ce solde, et tout remboursement y est crédité.',
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+class _WalletAction extends StatelessWidget {
+  const _WalletAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: primary ? AppColors.teal : AppColors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                icon,
+                color: primary ? Colors.white : AppColors.text,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: primary ? FontWeight.w800 : FontWeight.w700,
+                color: AppColors.text,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+const _shortMonths = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+class _TransactionRow extends StatelessWidget {
+  const _TransactionRow({required this.transaction});
+
+  final WalletTransaction transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final credit = transaction.type.isCredit;
+    final d = transaction.createdAt;
+    final date = '${d.day} ${_shortMonths[d.month - 1]}, '
+        '${d.hour.toString().padLeft(2, '0')}:'
+        '${d.minute.toString().padLeft(2, '0')}';
+    final sub = transaction.method == null || transaction.method!.isEmpty
+        ? date
+        : '$date · ${transaction.method}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: credit ? AppColors.tealLight : AppColors.sand,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              credit ? '+' : '−',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: credit ? AppColors.teal : AppColors.text,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  transaction.type.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                Text(
+                  sub,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13.5, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '${credit ? '+' : '−'} ${formatAmount(transaction.amount)} F',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: credit ? AppColors.teal : AppColors.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // Marques des opérateurs
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _BrandMark extends StatelessWidget {
   const _BrandMark({required this.method, this.size = 44});
@@ -409,40 +474,7 @@ class _BrandMark extends StatelessWidget {
   }
 }
 
-class _OperatorTile extends StatelessWidget {
-  const _OperatorTile({required this.method});
-
-  final PaymentMethod method;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.md),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _BrandMark(method: method, size: 38),
-          const SizedBox(height: 9),
-          Text(
-            method.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: AppColors.text,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Feuille de recharge / retrait
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _WalletAmountSheet extends StatefulWidget {
   const _WalletAmountSheet({
@@ -543,7 +575,7 @@ class _WalletAmountSheetState extends State<_WalletAmountSheet> {
 
               const SizedBox(height: 20),
 
-              // ── Montant ────────────────────────────────────────────────
+              // Montant
               TextField(
                 controller: _amountController,
                 keyboardType:
@@ -589,7 +621,7 @@ class _WalletAmountSheetState extends State<_WalletAmountSheet> {
 
               const SizedBox(height: 22),
 
-              // ── Opérateur ──────────────────────────────────────────────
+              // Opérateur
               Text(
                 _isDeposit ? 'Payer avec' : 'Recevoir sur',
                 style: theme.textTheme.titleSmall,
@@ -627,7 +659,6 @@ class _WalletAmountSheetState extends State<_WalletAmountSheet> {
                 const SizedBox(height: 16),
                 AppCard(
                   color: AppColors.dangerBg,
-                  shadow: const [],
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,7 +774,6 @@ class _MethodOption extends StatelessWidget {
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
       borderColor: selected ? AppColors.teal : AppColors.border,
-      shadow: selected ? null : const [],
       child: Row(
         children: [
           _BrandMark(method: method, size: 42),

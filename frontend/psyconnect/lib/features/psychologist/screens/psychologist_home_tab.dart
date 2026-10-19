@@ -8,11 +8,9 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/screens/splash_screen.dart';
 import '../../auth/services/profile_service.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/models/psychologist_models.dart';
@@ -21,6 +19,7 @@ import '../../patient/screens/notifications_screen.dart';
 import '../../patient/services/appointment_service.dart';
 import '../../patient/services/notification_service.dart';
 import '../../patient/services/psychologist_service.dart';
+import '../utils/patient_name.dart';
 
 class PsychologistHomeTab extends StatefulWidget {
   const PsychologistHomeTab({super.key});
@@ -273,20 +272,30 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     }
   }
 
-  Future<void> _logout() async {
-    final authProvider = context.read<AuthProvider>();
-    await authProvider.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const SplashScreen()),
-      (route) => false,
-    );
+  List<Appointment> get _pendingRequests {
+    final now = DateTime.now();
+    return _appointments
+        .where((a) =>
+            a.status == AppointmentStatus.pending && a.startTime.isAfter(now))
+        .toList();
+  }
+
+  String _patientName(int patientId) {
+    return patientDisplayName(_patientsById[patientId]);
   }
 
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AuthProvider>().session;
-    final name = _me != null ? _me!.fullName : (session?.pseudo ?? '');
+    final firstName = _me != null && _me!.firstName.trim().isNotEmpty
+        ? _me!.firstName.trim()
+        : (session?.pseudo ?? '');
+    final profileId = session?.profileId;
+    final next = _nextAppointment;
+    final pending = _pendingRequests;
+    final today = _todayAppointments
+        .where((a) => a.status != AppointmentStatus.pending)
+        .toList();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -295,29 +304,25 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
         padding: EdgeInsets.zero,
         children: [
           _PsyHero(
-            name: name,
+            firstName: firstName,
             specialty: _me?.specialty,
             verified: _me?.profileVerified ?? false,
             broadcastCount: _newBroadcastCount,
             notifCount: _unreadNotifCount,
             onOpenAnnouncements: _openAnnouncements,
-            onOpenNotifications: session?.profileId == null
-                ? null
-                : () => _openNotifications(session!.profileId!),
-            onLogout: _logout,
+            onOpenNotifications:
+                profileId == null ? null : () => _openNotifications(profileId),
           ),
-
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_me != null && !_me!.profileVerified) ...[
                   _ApprovalStatusBanner(rejected: _me!.rejected),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                 ],
-
-                _EmergencyToggleCard(
+                _EmergencyRow(
                   isAvailable: _me?.availableForEmergency ?? false,
                   offersFreeSessions: _me?.offersFreeSessions ?? false,
                   isSaving: _savingEmergency,
@@ -325,8 +330,7 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
                       ? _toggleEmergency
                       : null,
                 ),
-                const SizedBox(height: 26),
-
+                const SizedBox(height: 14),
                 if (_loading)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
@@ -334,73 +338,115 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
                   )
                 else if (_error != null)
                   AppErrorState(
-                    title: 'Tableau de bord indisponible',
+                    title: 'Accueil indisponible',
                     message: _error!,
                     onRetry: _load,
                   )
                 else ...[
-                  const SectionHeader(title: 'Mon activité'),
-                  const SizedBox(height: 6),
-                  StatBand(
-                    children: [
-                      StatTile(
-                        value: '${_todayAppointments.length}',
-                        label: "Aujourd'hui",
-                      ),
-                      StatTile(
-                        value: '$_thisWeekCount',
-                        label: 'Cette semaine',
-                      ),
-                      StatTile(
-                        value: '$_activePatientsCount',
-                        label: 'Patients actifs',
-                      ),
-                      StatTile(
-                        value: _me?.rating != null && _me!.rating! > 0
-                            ? _me!.rating!.toStringAsFixed(1)
-                            : '—',
-                        label: 'Ma note',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 26),
-
-                  if (_nextAppointment != null) ...[
-                    const SectionHeader(title: 'Prochain rendez-vous'),
-                    const SizedBox(height: 12),
-                    _NextPatientAppointmentCard(
-                      appointment: _nextAppointment!,
-                      patient: _patientsById[_nextAppointment!.patientId],
+                  if (next != null) ...[
+                    _NextConsultationPanel(
+                      appointment: next,
+                      patientName: _patientName(next.patientId),
                     ),
-                    const SizedBox(height: 26),
+                    const SizedBox(height: 24),
                   ],
-
-                  SectionHeader(
-                    title: 'Planning du jour',
-                    subtitle: _todayAppointments.isEmpty
-                        ? null
-                        : '${_todayAppointments.length} séance(s) prévue(s)',
+                  if (pending.isNotEmpty) ...[
+                    const SectionHeader(
+                      title: 'À traiter',
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                    const SizedBox(height: 10),
+                    for (final a in pending)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _RequestCard(
+                          appointment: a,
+                          patientName: _patientName(a.patientId),
+                          onConfirm: () =>
+                              _updateStatus(a, AppointmentStatus.confirmed),
+                          onReject: () =>
+                              _updateStatus(a, AppointmentStatus.rejected),
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                  ],
+                  const SectionHeader(
+                    title: 'Aujourd\'hui',
+                    padding: EdgeInsets.symmetric(horizontal: 4),
                   ),
-                  const SizedBox(height: 12),
-                  if (_todayAppointments.isEmpty)
-                    const AppEmptyState(
-                      icon: Icons.event_available_outlined,
-                      title: 'Journée libre',
-                      message: "Aucun rendez-vous aujourd'hui. "
-                          'Profitez-en pour mettre à jour vos disponibilités.',
+                  const SizedBox(height: 10),
+                  if (today.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        'Journée libre. Profitez-en pour mettre à jour vos '
+                        'disponibilités.',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          height: 1.5,
+                          color: AppColors.muted,
+                        ),
+                      ),
                     )
                   else
-                    ..._todayAppointments.map((a) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _PlanningCard(
-                            appointment: a,
-                            patient: _patientsById[a.patientId],
-                            onConfirm: () =>
-                                _updateStatus(a, AppointmentStatus.confirmed),
-                            onReject: () =>
-                                _updateStatus(a, AppointmentStatus.rejected),
+                    AppCard(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 4),
+                      child: Column(
+                        children: [
+                          for (final a in today)
+                            _TodayRow(
+                              appointment: a,
+                              patientName: _patientName(a.patientId),
+                            ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 26),
+                  const SectionHeader(
+                    title: 'Cette semaine',
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text.rich(
+                      TextSpan(
+                        style: const TextStyle(
+                          fontSize: 16,
+                          height: 1.6,
+                          color: AppColors.textSecondary,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: _thisWeekCount <= 1
+                                ? '$_thisWeekCount consultation'
+                                : '$_thisWeekCount consultations',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
                           ),
-                        )),
+                          const TextSpan(text: ' prévue(s), '),
+                          TextSpan(
+                            text: _activePatientsCount <= 1
+                                ? '$_activePatientsCount patient'
+                                : '$_activePatientsCount patients',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          TextSpan(
+                            text: _me?.rating != null && _me!.rating! > 0
+                                ? ' suivi(s), note moyenne de '
+                                    '${_me!.rating!.toStringAsFixed(1).replaceAll('.', ',')}.'
+                                : ' suivi(s), pas encore d\'avis reçu.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -411,99 +457,115 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
   }
 }
 
+const _weekdays = [
+  'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche',
+];
+
+const _monthNames = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+
+String _hour(DateTime d) => d.minute == 0
+    ? '${d.hour} h'
+    : '${d.hour} h ${d.minute.toString().padLeft(2, '0')}';
+
 class _PsyHero extends StatelessWidget {
   const _PsyHero({
-    required this.name,
+    required this.firstName,
     required this.specialty,
     required this.verified,
     required this.broadcastCount,
     required this.notifCount,
     required this.onOpenAnnouncements,
     required this.onOpenNotifications,
-    required this.onLogout,
   });
 
-  final String name;
+  final String firstName;
   final String? specialty;
   final bool verified;
   final int broadcastCount;
   final int notifCount;
   final VoidCallback onOpenAnnouncements;
   final VoidCallback? onOpenNotifications;
-  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final hour = now.hour;
+    final greeting = hour < 12
+        ? 'Bonjour'
+        : hour < 18
+            ? 'Bon après-midi'
+            : 'Bonsoir';
+
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 10, 0),
-        child: Column(
+        padding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          [
-                            name.isEmpty ? 'Praticien' : name,
-                            if (verified) 'Vérifiée',
-                          ].join(' · ').toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.tealDark,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          'Tableau de bord',
-                          style: Theme.of(context).textTheme.displayMedium,
-                        ),
-                        if (specialty?.isNotEmpty ?? false) ...[
-                          const SizedBox(height: 5),
-                          Text(
-                            specialty!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_weekdays[now.weekday - 1]} ${now.day} '
+                      '${_monthNames[now.month - 1]}',
+                      style:
+                          const TextStyle(fontSize: 15, color: AppColors.muted),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      firstName.isEmpty ? greeting : '$greeting $firstName',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .displayLarge
+                          ?.copyWith(fontSize: 30),
+                    ),
+                    const SizedBox(height: 6),
+                    Text.rich(
+                      TextSpan(
+                        style: const TextStyle(
+                            fontSize: 15, color: AppColors.muted),
+                        children: [
+                          if (specialty?.isNotEmpty ?? false)
+                            TextSpan(text: specialty),
+                          if (verified) ...[
+                            if (specialty?.isNotEmpty ?? false)
+                              const TextSpan(text: ' · '),
+                            const TextSpan(
+                              text: 'profil vérifié',
+                              style: TextStyle(
+                                color: AppColors.teal,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                _PsyHeroButton(
-                  icon: Icons.campaign_outlined,
-                  tooltip: 'Annonces système',
-                  badge: broadcastCount,
-                  onTap: onOpenAnnouncements,
-                ),
-                _PsyHeroButton(
-                  icon: Icons.notifications_none_rounded,
-                  tooltip: 'Notifications',
-                  badge: notifCount,
-                  onTap: onOpenNotifications,
-                ),
-                _PsyHeroButton(
-                  icon: Icons.logout_rounded,
-                  tooltip: 'Se déconnecter',
-                  badge: 0,
-                  onTap: onLogout,
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, thickness: 1),
+            _PsyHeroButton(
+              icon: Icons.campaign_outlined,
+              tooltip: 'Annonces',
+              badge: broadcastCount,
+              onTap: onOpenAnnouncements,
+            ),
+            _PsyHeroButton(
+              icon: Icons.notifications_none_rounded,
+              tooltip: 'Notifications',
+              badge: notifCount,
+              onTap: onOpenNotifications,
+            ),
           ],
         ),
       ),
@@ -532,15 +594,15 @@ class _PsyHeroButton extends StatelessWidget {
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: SizedBox(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           child: Center(
             child: Badge(
               isLabelVisible: badge > 0,
               label: Text('$badge'),
               child: Icon(
                 icon,
-                size: 20,
+                size: 23,
                 color: onTap == null ? AppColors.faint : AppColors.text,
               ),
             ),
@@ -551,8 +613,8 @@ class _PsyHeroButton extends StatelessWidget {
   }
 }
 
-class _EmergencyToggleCard extends StatefulWidget {
-  const _EmergencyToggleCard({
+class _EmergencyRow extends StatelessWidget {
+  const _EmergencyRow({
     required this.isAvailable,
     required this.offersFreeSessions,
     required this.isSaving,
@@ -564,187 +626,68 @@ class _EmergencyToggleCard extends StatefulWidget {
   final bool isSaving;
   final VoidCallback? onToggle;
 
-  @override
-  State<_EmergencyToggleCard> createState() => _EmergencyToggleCardState();
-}
-
-class _EmergencyToggleCardState extends State<_EmergencyToggleCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseCtrl;
-  late final Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1100),
-    );
-    _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
-    if (widget.isAvailable) _pulseCtrl.repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(_EmergencyToggleCard old) {
-    super.didUpdateWidget(old);
-    if (widget.isAvailable && !_pulseCtrl.isAnimating) {
-      _pulseCtrl.repeat(reverse: true);
-    } else if (!widget.isAvailable && _pulseCtrl.isAnimating) {
-      _pulseCtrl.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulseCtrl.dispose();
-    super.dispose();
-  }
+  static const _ink = Color(0xFF7E3519);
 
   @override
   Widget build(BuildContext context) {
-    final active = widget.isAvailable;
-    final saving = widget.isSaving;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
-      decoration: BoxDecoration(
-        color: active ? AppColors.emergency : AppColors.white,
-        border: Border.all(
-          color: active ? AppColors.emergency : AppColors.border,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: saving ? null : widget.onToggle,
-          splashColor: active
-              ? Colors.white.withValues(alpha: 0.15)
-              : AppColors.emergency.withValues(alpha: 0.08),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    final active = isAvailable;
+    return Material(
+      color: active ? AppColors.dangerBg : AppColors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: isSaving ? null : onToggle,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: active ? AppColors.emergency : AppColors.borderStrong,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (active)
-                      AnimatedBuilder(
-                        animation: _pulse,
-                        builder: (_, __) => Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white
-                                .withValues(alpha: _pulse.value),
-                          ),
-                        ),
-                      ),
-                    if (active) const SizedBox(width: 6),
                     Text(
-                      active ? 'EN LIGNE · URGENCES' : 'MODE URGENCE',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                        color: active
-                            ? Colors.white.withValues(alpha: 0.85)
-                            : AppColors.muted,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (saving)
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: active ? Colors.white : AppColors.teal,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
                       active
-                          ? Icons.emergency_outlined
-                          : Icons.do_not_disturb_alt_outlined,
-                      color: active ? Colors.white : AppColors.emergency,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            active
-                                ? 'Disponible maintenant'
-                                : 'Non disponible',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: active ? Colors.white : AppColors.text,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            active
-                                ? (widget.offersFreeSessions
-                                    ? 'Visible dans l\'aide immédiate — consultation gratuite'
-                                    : 'Visible dans la liste d\'aide immédiate')
-                                : 'Appuyez pour apparaître dans l\'aide immédiate',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: active
-                                  ? Colors.white.withValues(alpha: 0.78)
-                                  : AppColors.muted,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
+                          ? 'Disponible pour les urgences'
+                          : 'Urgences : non disponible',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: active ? _ink : AppColors.text,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  decoration: BoxDecoration(
-                    color: active
-                        ? Colors.white.withValues(alpha: 0.2)
-                        : AppColors.emergency,
-                    border: active
-                        ? Border.all(
-                            color: Colors.white.withValues(alpha: 0.4))
-                        : null,
-                  ),
-                  child: Center(
-                    child: Text(
-                      saving
+                    Text(
+                      isSaving
                           ? 'Mise à jour…'
                           : active
-                              ? 'Appuyer pour désactiver'
-                              : 'Activer le mode urgence',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                              ? (offersFreeSessions
+                                  ? 'Visible dans l\'aide immédiate, séance gratuite'
+                                  : 'Vous apparaissez dans l\'aide immédiate')
+                              : 'Activez pour apparaître dans l\'aide immédiate',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: active ? _ink : AppColors.muted,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Switch(
+                value: active,
+                activeTrackColor: AppColors.emergency,
+                onChanged: (onToggle == null || isSaving)
+                    ? null
+                    : (_) => onToggle!(),
+              ),
+            ],
           ),
         ),
       ),
@@ -762,184 +705,132 @@ class _ApprovalStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (rejected) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.dangerBg,
-          borderRadius: AppRadius.mdAll,
-          border: Border.all(color: AppColors.rose.withValues(alpha: 0.5)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.block_outlined, color: AppColors.rose, size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Profil refusé par l\'administrateur',
-                    style: TextStyle(
-                      color: AppColors.rose,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Votre profil n'est pas visible des patients et vous ne "
-              'pouvez recevoir aucun rendez-vous. Contactez '
-              "l'administration si vous pensez qu'il s'agit d'une erreur :",
-              style: TextStyle(color: AppColors.text, fontSize: 13, height: 1.4),
-            ),
-            const SizedBox(height: 8),
-            Text('$_adminEmail · $_adminPhone',
-                style: const TextStyle(
-                    color: AppColors.rose,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-          ],
-        ),
-      );
-    }
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.goldLight,
-        borderRadius: AppRadius.mdAll,
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
+        color: rejected ? AppColors.dangerBg : AppColors.goldLight,
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: const Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.hourglass_top_outlined, color: AppColors.gold, size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Profil en cours de validation',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  "Vous n'êtes pas encore visible des patients et ne pouvez "
-                  'recevoir de rendez-vous. Vous serez notifié dès que '
-                  "l'administrateur aura validé votre profil.",
-                  style: TextStyle(color: AppColors.muted, fontSize: 12.5, height: 1.4),
-                ),
-              ],
+          Text(
+            rejected
+                ? 'Profil refusé par l\'équipe PsyConnect'
+                : 'Profil en cours de validation',
+            style: TextStyle(
+              color: rejected ? AppColors.danger : AppColors.text,
+              fontWeight: FontWeight.w800,
+              fontSize: 15.5,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            rejected
+                ? 'Votre profil n\'est pas visible des patients et vous ne '
+                    'pouvez recevoir aucun rendez-vous. Écrivez-nous si vous '
+                    'pensez qu\'il s\'agit d\'une erreur :'
+                : 'Vous n\'êtes pas encore visible des patients. Vous serez '
+                    'notifié dès que l\'équipe aura validé votre profil.',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+          if (rejected) ...[
+            const SizedBox(height: 6),
+            const Text(
+              '$_adminEmail · $_adminPhone',
+              style: TextStyle(
+                color: AppColors.danger,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _NextPatientAppointmentCard extends StatelessWidget {
-  const _NextPatientAppointmentCard({required this.appointment, this.patient});
+class _NextConsultationPanel extends StatelessWidget {
+  const _NextConsultationPanel({
+    required this.appointment,
+    required this.patientName,
+  });
 
   final Appointment appointment;
-  final PatientProfile? patient;
-
-  static const _months = [
-    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-  ];
+  final String patientName;
 
   @override
   Widget build(BuildContext context) {
     final start = appointment.startTime;
-    final time = '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')}';
-    final name = patient != null
-        ? '${patient!.firstName} ${patient!.lastName}'.trim()
-        : 'Patient';
-    final daysAway = start.difference(DateTime.now()).inDays;
-    final relative = daysAway <= 0
-        ? "Aujourd'hui"
-        : daysAway == 1
-            ? 'Demain'
-            : 'Dans $daysAway jours';
+    final now = DateTime.now();
+    final days = DateTime(start.year, start.month, start.day)
+        .difference(DateTime(now.year, now.month, now.day))
+        .inDays;
+    final relative = days <= 0
+        ? "aujourd'hui"
+        : days == 1
+            ? 'demain'
+            : 'dans $days jours';
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(
-          top: BorderSide(color: AppColors.border),
-          right: BorderSide(color: AppColors.border),
-          bottom: BorderSide(color: AppColors.border),
-          left: BorderSide(color: AppColors.teal, width: 3),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
-      child: Row(
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 54,
-            child: Column(
-              children: [
-                Text(
-                  start.day.toString().padLeft(2, '0'),
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontSize: 24,
-                        color: AppColors.tealDeep,
-                        height: 1,
-                      ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _months[start.month - 1].toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
-                    color: AppColors.muted,
-                  ),
-                ),
-              ],
+          Text(
+            'Votre prochaine consultation, $relative',
+            style: const TextStyle(
+              color: Color(0xFFC9DCD2),
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          Container(width: 1, height: 48, color: AppColors.border),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name.isEmpty ? 'Patient' : name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: AppColors.text,
-                  ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              AppAvatar(name: patientName, size: 58),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_weekdays[start.weekday - 1]} ${start.day} '
+                      '${_monthNames[start.month - 1]}, ${_hour(start)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$patientName · ${appointment.consultationType.label}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFE3EDE7),
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      appointment.status.label,
+                      style: const TextStyle(
+                        color: Color(0xFFC9DCD2),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  '$time · ${relative.toLowerCase()}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 8),
-                AppPill(
-                  label: '${appointment.consultationType.label} · '
-                      '${appointment.status.label}',
-                  dense: true,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -947,117 +838,152 @@ class _NextPatientAppointmentCard extends StatelessWidget {
   }
 }
 
-class _PlanningCard extends StatelessWidget {
-  const _PlanningCard({
+class _RequestCard extends StatelessWidget {
+  const _RequestCard({
     required this.appointment,
-    this.patient,
+    required this.patientName,
     required this.onConfirm,
     required this.onReject,
   });
 
   final Appointment appointment;
-  final PatientProfile? patient;
+  final String patientName;
   final VoidCallback onConfirm;
   final VoidCallback onReject;
 
   @override
   Widget build(BuildContext context) {
     final start = appointment.startTime;
-    final time = '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')}';
-    final name = patient != null
-        ? '${patient!.firstName} ${patient!.lastName}'.trim()
-        : 'Patient';
-
-    final pending = appointment.status == AppointmentStatus.pending;
-
     return AppCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(
-                width: 56,
-                child: Text(
-                  time,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontSize: 17,
-                        color: AppColors.tealDeep,
-                        height: 1,
-                      ),
-                ),
-              ),
+              AppAvatar(name: patientName, size: 50),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      name.isEmpty ? 'Patient' : name,
+                      patientName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    AppPill(
-                      label: appointment.consultationType.label,
-                      icon: Icons.videocam_outlined,
-                      dense: true,
-                      color: AppColors.textSecondary,
-                      background: AppColors.surfaceAlt,
+                    Text(
+                      'Demande pour ${_weekdays[start.weekday - 1].toLowerCase()} '
+                      '${start.day}, ${_hour(start)} · '
+                      '${appointment.consultationType.label}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.muted,
+                      ),
                     ),
                   ],
                 ),
               ),
-              if (!pending)
-                AppPill(
-                  label: appointment.status.label,
-                  color: AppColors.teal,
-                  background: AppColors.tealLight,
-                  dense: true,
-                ),
             ],
           ),
-          if (pending) ...[
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 10),
-            Row(
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: onConfirm,
+                  child: const Text('Accepter'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  onPressed: onReject,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.sand,
+                    foregroundColor: AppColors.text,
+                  ),
+                  child: const Text('Refuser'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayRow extends StatelessWidget {
+  const _TodayRow({required this.appointment, required this.patientName});
+
+  final Appointment appointment;
+  final String patientName;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = appointment.status;
+    final solid = status == AppointmentStatus.confirmed
+        ? AppColors.teal
+        : status == AppointmentStatus.completed
+            ? AppColors.muted
+            : AppColors.goldDark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 64,
+            child: Text(
+              _hour(appointment.startTime),
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: onReject,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      backgroundColor: AppColors.dangerBg,
-                      minimumSize: const Size(0, 40),
-                    ),
-                    child: const Text('Refuser'),
+                Text(
+                  patientName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: appointment.startTime.isAfter(DateTime.now())
-                        ? onConfirm
-                        : null,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.teal,
-                      minimumSize: const Size(0, 40),
-                    ),
-                    child: Text(
-                    appointment.startTime.isAfter(DateTime.now())
-                        ? 'Confirmer'
-                        : 'Date passée',
-                  ),
-                  ),
+                Text(
+                  appointment.consultationType.label,
+                  style: const TextStyle(fontSize: 14, color: AppColors.muted),
                 ),
               ],
             ),
-          ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: solid,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              status.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );

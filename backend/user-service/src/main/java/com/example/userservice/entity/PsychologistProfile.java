@@ -22,7 +22,7 @@ public class PsychologistProfile {
 
     // Langues parlées : non demandées à l'inscription (uniquement modifiables
     // depuis "Profil > Modifier"), donc doit rester optionnel en base.
-    // c'était nullable=false par erreur → création de profil impossible
+    // c'était nullable=false par erreur -> création de profil impossible
     // pour tout nouveau psychologue (corrigé le 2026-06-30)
     private String languages;
 

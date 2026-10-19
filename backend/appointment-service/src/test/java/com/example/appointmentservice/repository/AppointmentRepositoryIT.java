@@ -33,7 +33,7 @@ class AppointmentRepositoryIT {
     private static final Long PSY_ID     = 10L;
     private static final Long PATIENT_ID = 20L;
 
-    // Créneau de référence : demain 10h → 11h
+    // Créneau de référence : demain 10h -> 11h
     private LocalDateTime slotStart;
     private LocalDateTime slotEnd;
 
@@ -73,24 +73,24 @@ class AppointmentRepositoryIT {
                 );
     }
 
-    // ── Conflits psy ───────────────────────────────────────────────────────────
+    // Conflits psy
 
     @Test
-    @DisplayName("RDV PENDING du psy → conflit détecté")
+    @DisplayName("RDV PENDING du psy -> conflit détecté")
     void psyConflict_whenPendingAppointmentExists() {
         save(AppointmentStatus.PENDING);
         assertTrue(psyConflict());
     }
 
     @Test
-    @DisplayName("RDV CONFIRMED du psy → conflit détecté")
+    @DisplayName("RDV CONFIRMED du psy -> conflit détecté")
     void psyConflict_whenConfirmedAppointmentExists() {
         save(AppointmentStatus.CONFIRMED);
         assertTrue(psyConflict());
     }
 
     @Test
-    @DisplayName("RDV CANCELLED du psy → pas de conflit (créneau libéré)")
+    @DisplayName("RDV CANCELLED du psy -> pas de conflit (créneau libéré)")
     void psyConflict_whenCancelledAppointmentExists_noConflict() {
         save(AppointmentStatus.CANCELLED);
         assertFalse(psyConflict(),
@@ -98,39 +98,39 @@ class AppointmentRepositoryIT {
     }
 
     @Test
-    @DisplayName("RDV REJECTED du psy → pas de conflit")
+    @DisplayName("RDV REJECTED du psy -> pas de conflit")
     void psyConflict_whenRejectedAppointmentExists_noConflict() {
         save(AppointmentStatus.REJECTED);
         assertFalse(psyConflict());
     }
 
     @Test
-    @DisplayName("Aucun RDV existant → pas de conflit")
+    @DisplayName("Aucun RDV existant -> pas de conflit")
     void psyConflict_whenNoAppointment_noConflict() {
         assertFalse(psyConflict());
     }
 
-    // ── Conflits patient ───────────────────────────────────────────────────────
+    // Conflits patient
 
     @Test
-    @DisplayName("RDV PENDING du patient → conflit détecté")
+    @DisplayName("RDV PENDING du patient -> conflit détecté")
     void patientConflict_whenPendingAppointmentExists() {
         save(AppointmentStatus.PENDING);
         assertTrue(patientConflict());
     }
 
     @Test
-    @DisplayName("RDV CANCELLED du patient → pas de conflit")
+    @DisplayName("RDV CANCELLED du patient -> pas de conflit")
     void patientConflict_whenCancelledAppointmentExists_noConflict() {
         save(AppointmentStatus.CANCELLED);
         assertFalse(patientConflict(),
                 "Un RDV annulé ne doit pas bloquer le créneau côté patient");
     }
 
-    // ── Chevauchement partiel ──────────────────────────────────────────────────
+    // Chevauchement partiel
 
     @Test
-    @DisplayName("Nouveau créneau qui chevauche partiellement → conflit détecté")
+    @DisplayName("Nouveau créneau qui chevauche partiellement -> conflit détecté")
     void psyConflict_whenPartialOverlap_detected() {
         save(AppointmentStatus.CONFIRMED); // 10h-11h
 
@@ -147,7 +147,7 @@ class AppointmentRepositoryIT {
     }
 
     @Test
-    @DisplayName("Créneau juste après (contigu) → pas de conflit")
+    @DisplayName("Créneau juste après (contigu) -> pas de conflit")
     void psyConflict_whenAdjacentSlot_noConflict() {
         save(AppointmentStatus.CONFIRMED); // 10h-11h
 
@@ -163,10 +163,10 @@ class AppointmentRepositoryIT {
         assertFalse(adjacent, "Un créneau contigu (non chevauchant) ne doit pas être un conflit");
     }
 
-    // ── Test reschedule (IdNot) ────────────────────────────────────────────────
+    // Test reschedule (IdNot)
 
     @Test
-    @DisplayName("Reschedule d'un RDV sur le même créneau → pas de conflit avec soi-même")
+    @DisplayName("Reschedule d'un RDV sur le même créneau -> pas de conflit avec soi-même")
     void reschedule_sameSlot_doesNotConflictWithItself() {
         Appointment existing = save(AppointmentStatus.CONFIRMED);
 

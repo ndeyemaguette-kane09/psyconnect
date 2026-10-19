@@ -207,7 +207,7 @@ class AdminService {
     return SupportMessageModel.fromJson(json as Map<String, dynamic>);
   }
 
-  // --- Communication admin → utilisateurs (broadcast) ---
+  // --- Communication admin -> utilisateurs (broadcast) ---
 
   // envoie une annonce à l'audience cible (ALL | PATIENTS | PSYCHOLOGISTS)
   // retourne le nombre de destinataires atteints

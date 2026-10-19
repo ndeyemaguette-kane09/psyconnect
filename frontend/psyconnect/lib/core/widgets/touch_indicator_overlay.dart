@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// ── Overlay de touche — à retirer avant la mise en production ────────────────
+// Overlay de touche — à retirer avant la mise en production
 // Affiche un cercle animé à chaque endroit où l'utilisateur pose le doigt.
 // Utile pour les démos et les captures vidéo.
 //
@@ -19,7 +19,7 @@ class TouchIndicatorOverlay extends StatefulWidget {
 }
 
 class _TouchIndicatorOverlayState extends State<TouchIndicatorOverlay> {
-  // Map pointer id → position actuelle
+  // Map pointer id -> position actuelle
   final Map<int, Offset> _pointers = {};
 
   @override

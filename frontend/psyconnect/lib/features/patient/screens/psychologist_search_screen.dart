@@ -114,33 +114,49 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── En-tête ────────────────────────────────────────────────────
+          // En-tête
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Trouver un psy', style: theme.textTheme.displayMedium),
-                const SizedBox(height: 3),
+                Text(
+                  'Trouver la bonne personne',
+                  style: theme.textTheme.displayMedium,
+                ),
+                const SizedBox(height: 4),
                 Text(
                   _loading
-                      ? 'Chargement des praticiens…'
-                      : '${results.length} praticien${results.length > 1 ? 's' : ''} '
-                          'disponible${results.length > 1 ? 's' : ''}',
-                  style: theme.textTheme.bodySmall,
+                      ? 'Chargement des psychologues…'
+                      : '${results.length} psychologue${results.length > 1 ? 's' : ''} '
+                          'vérifié${results.length > 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 15, color: AppColors.muted),
                 ),
               ],
             ),
           ),
 
-          // ── Recherche ──────────────────────────────────────────────────
+          // Recherche
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
             child: TextField(
               controller: _searchController,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'Spécialité, nom, ville…',
+                hintText: 'Un besoin, un nom, une ville',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(999),
+                  borderSide:
+                      const BorderSide(color: AppColors.teal, width: 1.6),
+                ),
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: hasQuery
                     ? IconButton(
@@ -153,7 +169,7 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
             ),
           ),
 
-          // ── Filtres ────────────────────────────────────────────────────
+          // Filtres
           const SizedBox(height: 14),
           SizedBox(
             height: 38,
@@ -213,20 +229,28 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
         onAction: _resetFilters,
       );
     }
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: AppColors.teal,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-        itemCount: results.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final p = results[i];
-          return PsychologistCard(
-            psychologist: p,
-            onTap: () => _openProfile(p),
-          );
-        },
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: ClipRRect(
+        borderRadius: AppRadius.mdAll,
+        child: ColoredBox(
+          color: AppColors.white,
+          child: RefreshIndicator(
+            onRefresh: _load,
+            color: AppColors.teal,
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+              itemCount: results.length,
+              itemBuilder: (context, i) {
+                final p = results[i];
+                return PsychologistCard(
+                  psychologist: p,
+                  onTap: () => _openProfile(p),
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -246,26 +270,20 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.teal : AppColors.white,
-      borderRadius: AppRadius.mdAll,
+      color: selected ? AppColors.teal : AppColors.sand,
+      shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: AnimatedContainer(
           duration: AppMotion.fast,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.mdAll,
-            border: Border.all(
-              color: selected ? AppColors.teal : AppColors.border,
-            ),
-          ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : AppColors.textSecondary,
-              fontSize: 12.5,
+              color: selected ? Colors.white : AppColors.text,
+              fontSize: 14,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             ),
           ),

@@ -32,11 +32,14 @@ class PatientHomeScreen extends StatefulWidget {
     super.key,
     required this.onOpenSearch,
     required this.onOpenProfile,
+    this.onOpenAppointments,
   });
 
   final VoidCallback onOpenSearch;
 
   final VoidCallback onOpenProfile;
+
+  final VoidCallback? onOpenAppointments;
 
   @override
   State<PatientHomeScreen> createState() => _PatientHomeScreenState();
@@ -267,154 +270,182 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AuthProvider>().session;
+    final profileId = session?.profileId;
 
     final displayName =
         (_patientProfile?.firstName.trim().isNotEmpty ?? false)
             ? _patientProfile!.firstName.trim()
             : (session?.pseudo ?? '');
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: AppColors.teal,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _HomeHero(
-            greeting: _greeting,
-            name: displayName,
-            broadcastCount: _newBroadcastCount,
-            notifCount: _unreadNotifCount,
-            onOpenAnnouncements: _openAnnouncements,
-            onOpenNotifications: session?.profileId == null
-                ? null
-                : () => _openNotifications(session!.profileId!),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            color: AppColors.teal,
+            child: ListView(
+              padding: EdgeInsets.zero,
               children: [
-                _SosButton(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const EmergencyScreen()),
-                  ),
+                _HomeHero(
+                  greeting: _greeting,
+                  name: displayName,
+                  broadcastCount: _newBroadcastCount,
+                  notifCount: _unreadNotifCount,
+                  onOpenAnnouncements: _openAnnouncements,
+                  onOpenNotifications: profileId == null
+                      ? null
+                      : () => _openNotifications(profileId),
                 ),
-                const SizedBox(height: 22),
-                if (!_loading && _missingProfileFields.isNotEmpty)
-                  _ProfileReminder(
-                    missing: _missingProfileFields,
-                    onTap: _onIncompleteProfileTap,
-                  ),
-                AppListRow(
-                  icon: Icons.book_outlined,
-                  title: 'Mon journal',
-                  subtitle: 'Noter mon humeur du jour',
-                  showTopBorder: true,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const JournalScreen()),
-                  ),
-                ),
-                AppListRow(
-                  icon: Icons.spa_outlined,
-                  title: 'Parler à Xalaat',
-                  subtitle: 'Confidentiel et éphémère',
-                  iconColor: AppColors.goldDark,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const XalaatScreen()),
-                  ),
-                ),
-                if (!_loading && session?.profileId != null)
-                  AppListRow(
-                    icon: Icons.account_balance_wallet_outlined,
-                    title: 'Mon solde',
-                    iconColor: AppColors.muted,
-                    trailing: Text(
-                      _wallet != null
-                          ? '${_wallet!.balance.toStringAsFixed(0)} F CFA'
-                          : '—',
-                      style: Theme.of(context)
-                          .textTheme
-                          .displaySmall
-                          ?.copyWith(fontSize: 16, height: 1),
-                    ),
-                    onTap: () => _openWallet(session!.profileId!),
-                  ),
-
-                const SizedBox(height: 26),
-
-                if (_loading)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else ...[
-                  if (_nextAppointment != null) ...[
-                    const SectionHeader(title: 'Prochain rendez-vous'),
-                    const SizedBox(height: 12),
-                    _NextAppointmentCard(
-                      appointment: _nextAppointment!,
-                      psychologist: _nextAppointmentPsychologist,
-                    ),
-                    const SizedBox(height: 26),
-                  ],
-
-                  if (_pendingRecommendations.isNotEmpty) ...[
-                    SectionHeader(
-                      title: 'Avant ma prochaine séance',
-                      subtitle:
-                          '${_pendingRecommendations.length} conseil(s) à cocher',
-                    ),
-                    const SizedBox(height: 12),
-                    ..._pendingRecommendations.map(
-                      (r) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _RecommendationTile(
-                          recommendation: r,
-                          onDone: () => _markRecommendationDone(r),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_loading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else ...[
+                        if (_nextAppointment != null) ...[
+                          _NextAppointmentPanel(
+                            appointment: _nextAppointment!,
+                            psychologist: _nextAppointmentPsychologist,
+                            onOpen: widget.onOpenAppointments,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        _HomeEntry(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          iconColor: AppColors.goldDark,
+                          iconBackground: AppColors.goldLight,
+                          title: 'Parler à Xalaat',
+                          subtitle: 'Confidentiel et éphémère, à toute heure',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const XalaatScreen()),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  SectionHeader(
-                    title: 'Recommandé pour vous',
-                    subtitle: 'Sélection personnalisée',
-                    actionLabel: 'Voir tout',
-                    onAction: widget.onOpenSearch,
-                  ),
-                  const SizedBox(height: 12),
-                  if (_recommended.isEmpty)
-                    AppEmptyState(
-                      icon: Icons.person_search_outlined,
-                      title: 'Aucun psychologue disponible',
-                      message:
-                          'Revenez dans un moment, ou lancez une recherche '
-                          'manuelle.',
-                      actionLabel: 'Chercher',
-                      onAction: widget.onOpenSearch,
-                    )
-                  else
-                    ...List.generate(_recommended.length, (i) {
-                      final p = _recommended[i];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: PsychologistMiniCard(
-                          psychologist: p,
-                          onTap: () => _openProfile(p.id),
+                        const SizedBox(height: 14),
+                        if (_missingProfileFields.isNotEmpty) ...[
+                          _ProfileReminder(
+                            missing: _missingProfileFields,
+                            onTap: _onIncompleteProfileTap,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        if (_pendingRecommendations.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          SectionHeader(
+                            title: 'Avant ma prochaine séance',
+                            subtitle:
+                                '${_pendingRecommendations.length} conseil(s) à cocher',
+                          ),
+                          const SizedBox(height: 10),
+                          ..._pendingRecommendations.map(
+                            (r) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _RecommendationTile(
+                                recommendation: r,
+                                onDone: () => _markRecommendationDone(r),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        AppCard(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
+                          child: Column(
+                            children: [
+                              _HomeRow(
+                                icon: Icons.book_outlined,
+                                title: 'Mon journal',
+                                subtitle: 'Noter mon humeur du jour',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                      builder: (_) => const JournalScreen()),
+                                ),
+                              ),
+                              if (profileId != null)
+                                _HomeRow(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  title: 'Mon solde',
+                                  trailing: Text(
+                                    _wallet != null
+                                        ? '${_wallet!.balance.toStringAsFixed(0)} F'
+                                        : '—',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.text,
+                                    ),
+                                  ),
+                                  onTap: () => _openWallet(profileId),
+                                ),
+                            ],
+                          ),
                         ),
-                      );
-                    }),
-                ],
+                        const SizedBox(height: 28),
+                        SectionHeader(
+                          title: 'Recommandé pour vous',
+                          actionLabel: 'Voir tout',
+                          onAction: widget.onOpenSearch,
+                        ),
+                        const SizedBox(height: 10),
+                        if (_recommended.isEmpty)
+                          AppEmptyState(
+                            icon: Icons.person_search_outlined,
+                            title: 'Aucun psychologue disponible',
+                            message:
+                                'Revenez dans un moment, ou lancez une recherche '
+                                'manuelle.',
+                            actionLabel: 'Chercher',
+                            onAction: widget.onOpenSearch,
+                          )
+                        else
+                          AppCard(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            child: Column(
+                              children: [
+                                for (final p in _recommended)
+                                  PsychologistMiniCard(
+                                    psychologist: p,
+                                    onTap: () => _openProfile(p.id),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+          child: _SosButton(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const EmergencyScreen()),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
+
+const _weekdays = [
+  'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche',
+];
+
+const _monthNames = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
 
 class _HomeHero extends StatelessWidget {
   const _HomeHero({
@@ -435,58 +466,66 @@ class _HomeHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final date =
+        '${_weekdays[now.weekday - 1]} ${now.day} ${_monthNames[now.month - 1]}';
+
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
-        child: Column(
+        padding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          greeting.toUpperCase(),
-                          style: const TextStyle(
-                            color: AppColors.tealDark,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          name.isEmpty ? 'Bienvenue' : name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.displayMedium,
-                        ),
-                      ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      date,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: AppColors.muted,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      name.isEmpty ? greeting : '$greeting $name',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .displayLarge
+                          ?.copyWith(fontSize: 32),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Prenez le temps qu'il vous faut. On est là quand vous "
+                      'en avez besoin.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.45,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
                 ),
-                _HeroIconButton(
-                  icon: Icons.campaign_outlined,
-                  tooltip: 'Annonces système',
-                  badge: broadcastCount,
-                  onTap: onOpenAnnouncements,
-                ),
-                _HeroIconButton(
-                  icon: Icons.notifications_none_rounded,
-                  tooltip: 'Notifications',
-                  badge: notifCount,
-                  onTap: onOpenNotifications,
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, thickness: 1),
+            _HeroIconButton(
+              icon: Icons.campaign_outlined,
+              tooltip: 'Annonces',
+              badge: broadcastCount,
+              onTap: onOpenAnnouncements,
+            ),
+            _HeroIconButton(
+              icon: Icons.notifications_none_rounded,
+              tooltip: 'Notifications',
+              badge: notifCount,
+              onTap: onOpenNotifications,
+            ),
           ],
         ),
       ),
@@ -515,19 +554,152 @@ class _HeroIconButton extends StatelessWidget {
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: SizedBox(
-          width: 42,
-          height: 42,
+          width: 44,
+          height: 44,
           child: Center(
             child: Badge(
               isLabelVisible: badge > 0,
               label: Text('$badge'),
               child: Icon(
                 icon,
-                size: 21,
+                size: 23,
                 color: onTap == null ? AppColors.faint : AppColors.text,
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeEntry extends StatelessWidget {
+  const _HomeEntry({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 23),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    height: 1.35,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded,
+              color: AppColors.muted, size: 22),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeRow extends StatelessWidget {
+  const _HomeRow({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: AppColors.tealLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.teal, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            trailing ??
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.muted, size: 22),
+          ],
         ),
       ),
     );
@@ -542,37 +714,52 @@ class _SosButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.emergency,
+      color: AppColors.dangerBg,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           child: Row(
             children: [
-              Icon(Icons.emergency_outlined, color: Colors.white, size: 21),
-              SizedBox(width: 13),
-              Expanded(
+              Container(
+                width: 38,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.emergency,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(19),
+                    bottom: Radius.circular(6),
+                  ),
+                ),
+                child: const Icon(Icons.phone_outlined,
+                    color: Colors.white, size: 19),
+              ),
+              const SizedBox(width: 13),
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "J'ai besoin d'aide maintenant",
                       style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        color: Color(0xFF7E3519),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15.5,
                         height: 1.25,
                       ),
                     ),
                     SizedBox(height: 2),
                     Text(
                       'Un psychologue disponible immédiatement',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                      style: TextStyle(color: Color(0xFF7E3519), fontSize: 13.5),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.white70, size: 20),
+              const Icon(Icons.chevron_right_rounded,
+                  color: Color(0xFF7E3519), size: 22),
             ],
           ),
         ),
@@ -594,8 +781,7 @@ class _RecommendationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onDone,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      borderColor: AppColors.tealMid,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -611,7 +797,7 @@ class _RecommendationTile extends StatelessWidget {
               children: [
                 Text(
                   recommendation.content,
-                  style: const TextStyle(fontSize: 14, height: 1.45),
+                  style: const TextStyle(fontSize: 15, height: 1.45),
                 ),
                 const SizedBox(height: 6),
                 const AppPill(
@@ -628,97 +814,113 @@ class _RecommendationTile extends StatelessWidget {
   }
 }
 
-class _NextAppointmentCard extends StatelessWidget {
-  const _NextAppointmentCard({required this.appointment, this.psychologist});
+class _NextAppointmentPanel extends StatelessWidget {
+  const _NextAppointmentPanel({
+    required this.appointment,
+    this.psychologist,
+    this.onOpen,
+  });
 
   final Appointment appointment;
   final PsychologistProfile? psychologist;
+  final VoidCallback? onOpen;
 
-  static const _months = [
-    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-  ];
+  static const _soft = Color(0xFFC9DCD2);
 
   @override
   Widget build(BuildContext context) {
     final start = appointment.startTime;
-    final time = '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')}';
-    final daysAway = start.difference(DateTime.now()).inDays;
+    final time = start.minute == 0
+        ? '${start.hour} h'
+        : '${start.hour} h ${start.minute.toString().padLeft(2, '0')}';
+    final daysAway = DateTime(start.year, start.month, start.day)
+        .difference(DateTime(
+            DateTime.now().year, DateTime.now().month, DateTime.now().day))
+        .inDays;
     final relative = daysAway <= 0
         ? "aujourd'hui"
         : daysAway == 1
             ? 'demain'
             : 'dans $daysAway jours';
+    final name = psychologist?.fullName ?? 'votre psychologue';
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(
-          top: BorderSide(color: AppColors.border),
-          right: BorderSide(color: AppColors.border),
-          bottom: BorderSide(color: AppColors.border),
-          left: BorderSide(color: AppColors.teal, width: 3),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
-      child: Row(
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 54,
-            child: Column(
-              children: [
-                Text(
-                  start.day.toString().padLeft(2, '0'),
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontSize: 24,
-                        color: AppColors.tealDeep,
-                        height: 1,
+          Text(
+            'Votre prochaine séance, $relative',
+            style: const TextStyle(
+              color: _soft,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              AppAvatar(name: name, size: 58),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_weekdays[start.weekday - 1]} ${start.day} '
+                      '${_monthNames[start.month - 1]}, $time',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
                       ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'avec $name · ${appointment.consultationType.label}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFE3EDE7),
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      appointment.status.label,
+                      style: const TextStyle(
+                        color: _soft,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  _months[start.month - 1].toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
-                    color: AppColors.muted,
+              ),
+            ],
+          ),
+          if (onOpen != null) ...[
+            const SizedBox(height: 16),
+            Material(
+              color: AppColors.background,
+              shape: const StadiumBorder(),
+              child: InkWell(
+                onTap: onOpen,
+                customBorder: const StadiumBorder(),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                  child: Text(
+                    'Voir mes séances',
+                    style: TextStyle(
+                      color: AppColors.teal,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-          Container(width: 1, height: 48, color: AppColors.border),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  psychologist != null ? psychologist!.fullName : 'Psychologue',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  '$time · $relative',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 8),
-                AppPill(
-                  label: '${appointment.consultationType.label} · '
-                      '${appointment.status.label}',
-                  dense: true,
-                ),
-              ],
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -733,64 +935,55 @@ class _ProfileReminder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 6, left: 7, right: 21),
-                  child: Container(
-                    width: 7,
-                    height: 7,
-                    color: AppColors.goldDark,
+    return Material(
+      color: AppColors.goldLight,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 6, right: 12),
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: AppColors.gold,
+                    shape: BoxShape.circle,
                   ),
                 ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Complétez votre profil',
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                          height: 1.25,
-                        ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Complétez votre profil',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                        height: 1.25,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Encore à renseigner : ${missing.join(', ')}.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Padding(
-                  padding: EdgeInsets.only(top: 1),
-                  child: Text(
-                    'Compléter',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.teal,
-                      decoration: TextDecoration.underline,
-                      decorationColor: AppColors.teal,
                     ),
-                  ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Encore à renseigner : ${missing.join(', ')}.',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.goldDark, size: 22),
+            ],
           ),
         ),
       ),

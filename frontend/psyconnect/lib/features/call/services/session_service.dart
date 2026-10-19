@@ -30,7 +30,7 @@ class SessionService {
         .toList();
   }
 
-  // démarre une session d'urgence sans RDV : appel direct patient → psy dispo
+  // démarre une session d'urgence sans RDV : appel direct patient -> psy dispo
   Future<CallSession> startEmergencySession({
     required int patientId,
     required int psychologistId,

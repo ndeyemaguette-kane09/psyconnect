@@ -53,7 +53,7 @@ class PsychologistProfile {
     this.offersFreeSessions = false,
   });
 
-  String get fullName => 'Dr. $firstName $lastName';
+  String get fullName => '$firstName $lastName';
 
   factory PsychologistProfile.fromJson(Map<String, dynamic> json) =>
       PsychologistProfile(

@@ -12,7 +12,6 @@ class AppCard extends StatelessWidget {
     this.radius = AppRadius.md,
     this.color = AppColors.white,
     this.borderColor,
-    this.shadow,
     this.margin,
   });
 
@@ -22,19 +21,19 @@ class AppCard extends StatelessWidget {
   final double radius;
   final Color color;
   final Color? borderColor;
-  final List<BoxShadow>? shadow;
   final EdgeInsetsGeometry? margin;
 
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
+    final side = borderColor;
 
     return Container(
       margin: margin,
       decoration: BoxDecoration(
         color: color,
         borderRadius: borderRadius,
-        border: Border.all(color: borderColor ?? AppColors.border),
+        border: side == null ? null : Border.all(color: side, width: 1.5),
       ),
       child: Material(
         color: Colors.transparent,
@@ -74,14 +73,16 @@ class AppNoticeCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: background,
-        border: Border(left: BorderSide(color: accent, width: 3)),
+        borderRadius: AppRadius.mdAll,
       ),
       child: Material(
         color: Colors.transparent,
+        borderRadius: AppRadius.mdAll,
         child: InkWell(
           onTap: onTap,
+          borderRadius: AppRadius.mdAll,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(13, 13, 13, 13),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -123,8 +124,8 @@ class AppNoticeCard extends StatelessWidget {
   }
 }
 
-class AppHero extends StatelessWidget {
-  const AppHero({
+class AppPanel extends StatelessWidget {
+  const AppPanel({
     super.key,
     required this.child,
     this.color,
@@ -167,14 +168,6 @@ class SectionHeader extends StatelessWidget {
   final VoidCallback? onAction;
   final EdgeInsetsGeometry padding;
 
-  static const TextStyle _label = TextStyle(
-    fontSize: 10,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 2,
-    height: 1.2,
-    color: AppColors.textSecondary,
-  );
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -183,18 +176,21 @@ class SectionHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
-              Flexible(
+              Expanded(
                 child: Text(
-                  title.toUpperCase(),
+                  title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _label,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                    color: AppColors.text,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Divider(height: 1, thickness: 1),
               ),
               if (actionLabel != null && onAction != null) ...[
                 const SizedBox(width: 12),
@@ -203,8 +199,12 @@ class SectionHeader extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Text(
-                      actionLabel!.toUpperCase(),
-                      style: _label.copyWith(color: AppColors.teal),
+                      actionLabel!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.teal,
+                      ),
                     ),
                   ),
                 ),
@@ -212,7 +212,7 @@ class SectionHeader extends StatelessWidget {
             ],
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
           ],
         ],
@@ -389,35 +389,71 @@ class AppAvatar extends StatelessWidget {
   final Color color;
   final bool showRing;
 
-  String get _initials {
-    final parts = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
+  static const List<List<Color>> _tones = [
+    [Color(0xFFDCE7E0), Color(0xFF1E4D43)],
+    [Color(0xFFF6E4DB), Color(0xFFB5532F)],
+    [Color(0xFFF5EBD3), Color(0xFF8C6420)],
+    [Color(0xFF1E4D43), Color(0xFFDCE7E0)],
+  ];
+
+  List<Color> get _tone {
+    var sum = 0;
+    for (final unit in name.trim().toLowerCase().codeUnits) {
+      sum += unit;
     }
-    final first = parts.first.substring(0, 1);
-    final last = parts.last.substring(0, 1);
-    return (first + last).toUpperCase();
+    return _tones[sum % _tones.length];
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final tone = _tone;
+    final width = size * 0.84;
+    final height = size * 0.9;
+    return SizedBox(
       width: size,
-      height: size,
-      alignment: Alignment.center,
-      color: color.withValues(alpha: 0.10),
-      child: Text(
-        _initials,
-        style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              fontSize: size * 0.36,
-              color: color,
-              height: 1,
+      height: height,
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(width / 2),
+            bottom: Radius.circular(width * 0.16),
+          ),
+          child: Container(
+            width: width,
+            height: height,
+            color: tone[0],
+            child: Stack(
+              children: [
+                Positioned(
+                  left: width * 0.33,
+                  top: height * 0.2,
+                  child: Container(
+                    width: width * 0.34,
+                    height: width * 0.34,
+                    decoration: BoxDecoration(
+                      color: tone[1],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: width * 0.13,
+                  top: height * 0.56,
+                  child: Container(
+                    width: width * 0.74,
+                    height: height * 0.6,
+                    decoration: BoxDecoration(
+                      color: tone[1],
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(width * 0.37),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
+        ),
       ),
     );
   }
@@ -459,14 +495,13 @@ class StatTile extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              label.toUpperCase(),
+              label,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.1,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
                 height: 1.3,
                 color: AppColors.muted,
               ),
@@ -614,19 +649,11 @@ class StatBand extends StatelessWidget {
     for (var i = 0; i < children.length; i++) {
       row.add(Expanded(child: children[i]));
       if (i != children.length - 1) {
-        row.add(Container(width: 1, color: AppColors.border));
+        row.add(const SizedBox(width: 8));
       }
     }
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColors.borderStrong),
-          bottom: BorderSide(color: AppColors.borderStrong),
-        ),
-      ),
-      child: IntrinsicHeight(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: row),
-      ),
+    return IntrinsicHeight(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: row),
     );
   }
 }
@@ -653,58 +680,48 @@ class AppListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          top: showTopBorder
-              ? const BorderSide(color: AppColors.border)
-              : BorderSide.none,
-          bottom: const BorderSide(color: AppColors.border),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Row(
-              children: [
-                Icon(icon, color: iconColor, size: 21),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, color: iconColor, size: 21),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                        height: 1.25,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 3),
                       Text(
-                        title,
+                        subtitle!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                          height: 1.25,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          subtitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                trailing ??
-                    const Icon(Icons.chevron_right,
-                        color: AppColors.faint, size: 20),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              trailing ??
+                  const Icon(Icons.chevron_right,
+                      color: AppColors.muted, size: 20),
+            ],
           ),
         ),
       ),

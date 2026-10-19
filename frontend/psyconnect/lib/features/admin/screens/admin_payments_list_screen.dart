@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../models/admin_models.dart';
 import '../services/admin_service.dart';
@@ -98,10 +97,7 @@ class _AdminPaymentsListScreenState extends State<AdminPaymentsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
         title: const Text('Paiements',
             style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700)),
         iconTheme: const IconThemeData(color: AppColors.text),
@@ -235,9 +231,7 @@ class _PaymentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: AppColors.tealMid,
-      shadow: const [],
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Expanded(
@@ -255,12 +249,14 @@ class _PaymentRow extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
+              color: statusColor,
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Text(payment.status.label,
-                style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
+                style: const TextStyle(
+                        fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700)),
           ),
         ],
       ),

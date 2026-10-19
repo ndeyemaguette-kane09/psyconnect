@@ -75,6 +75,28 @@ class _PsyWalletScreenState extends State<PsyWalletScreen> {
     if (result == true) await _load();
   }
 
+  final _withdrawalsKey = GlobalKey();
+
+  void _openPayments() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PsyTransactionHistoryScreen(
+          psychologistId: widget.psychologistId,
+        ),
+      ),
+    );
+  }
+
+  void _showWithdrawals() {
+    final ctx = _withdrawalsKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final wallet = _wallet;
@@ -82,288 +104,227 @@ class _PsyWalletScreenState extends State<PsyWalletScreen> {
     final canWithdraw = !_loading && wallet != null && balance > 0;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Mon portefeuille'),
-        backgroundColor: AppColors.white,
-        foregroundColor: AppColors.text,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          color: AppColors.teal,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-            children: [
-              AppHero(
-                padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 36),
+          children: [
+            const Text(
+              'Disponible à retirer',
+              style: TextStyle(fontSize: 16, color: AppColors.muted),
+            ),
+            const SizedBox(height: 6),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
+                ),
+              )
+            else
+              Text.rich(
+                TextSpan(
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          'SOLDE DISPONIBLE',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.72),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.4,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            borderRadius: AppRadius.mdAll,
-                          ),
-                          child: const Text(
-                            'Démonstration',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _loading
-                        ? const SizedBox(
-                            height: 34,
-                            width: 34,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.4, color: Colors.white),
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                formatAmount(balance),
-                                style: const TextStyle(
-                                  color: AppColors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 34,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Text(
-                                'F CFA',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                    if (wallet != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Après commission de '
-                        '${wallet.commissionRatePercent.toStringAsFixed(0)} % '
-                        'prélevée par la plateforme.',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.78),
-                          fontSize: 12,
-                        ),
+                    TextSpan(text: formatAmount(balance)),
+                    const TextSpan(
+                      text: ' F CFA',
+                      style: TextStyle(
+                        fontSize: 22,
+                        color: AppColors.muted,
+                        letterSpacing: 0,
                       ),
-                    ],
+                    ),
                   ],
                 ),
-              ),
-
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                AppCard(
-                  color: AppColors.dangerBg,
-                  shadow: const [],
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          color: AppColors.danger, size: 19),
-                      const SizedBox(width: 11),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _error!,
-                              style: const TextStyle(
-                                  color: AppColors.danger, fontSize: 13),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _load,
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: const Text('Réessayer'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                style: const TextStyle(
+                  fontSize: 50,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1.5,
+                  height: 1,
+                  color: AppColors.text,
                 ),
-              ],
-
-              const SizedBox(height: 22),
-
-              ElevatedButton.icon(
-                onPressed: canWithdraw ? _openWithdraw : null,
-                icon: const Icon(Icons.arrow_outward, size: 19),
-                label: const Text('Retirer mes fonds'),
               ),
-
-              if (!_loading && _error == null && balance <= 0) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'Aucun montant à retirer pour l\'instant. Votre solde se '
-                  'remplit à chaque consultation payée par un patient.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-
-              if (wallet != null) ...[
-                const SizedBox(height: 24),
-                AppCard(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  child: Column(
-                    children: [
-                      _SummaryRow(
-                        label: 'Revenus nets encaissés',
-                        value: wallet.totalNetRevenue,
-                      ),
-                      const Divider(height: 22),
-                      _SummaryRow(
-                        label: 'Déjà retiré',
-                        value: wallet.totalWithdrawn,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-
-              const SectionHeader(
-                title: 'Recevoir sur',
-                subtitle: 'Transfert mobile ou virement bancaire',
+            const SizedBox(height: 8),
+            if (wallet != null)
+              Text(
+                'Après la commission PsyConnect de '
+                '${wallet.commissionRatePercent.toStringAsFixed(0)} %',
+                style: const TextStyle(fontSize: 14.5, color: AppColors.muted),
               ),
-              const SizedBox(height: 12),
-              const Row(
-                children: [
-                  Expanded(child: _PayoutTile(method: WithdrawalMethod.wave)),
-                  SizedBox(width: 10),
-                  Expanded(
-                      child:
-                          _PayoutTile(method: WithdrawalMethod.orangeMoney)),
-                  SizedBox(width: 10),
-                  Expanded(
-                      child:
-                          _PayoutTile(method: WithdrawalMethod.bankTransfer)),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              const SectionHeader(title: 'Mes retraits'),
-              const SizedBox(height: 12),
-              if (wallet == null || wallet.withdrawals.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceAlt,
-                    borderRadius: AppRadius.mdAll,
-                  ),
-                  child: const Text(
-                    'Aucun retrait effectué',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13.5),
-                  ),
-                )
-              else
-                AppCard(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < wallet.withdrawals.length; i++) ...[
-                        _WithdrawalRow(withdrawal: wallet.withdrawals[i]),
-                        if (i != wallet.withdrawals.length - 1)
-                          const Divider(height: 1),
-                      ],
-                    ],
-                  ),
-                ),
-
+            const Text(
+              'Mode démonstration : aucun virement réel',
+              style: TextStyle(fontSize: 14, color: AppColors.goldDark),
+            ),
+            if (_error != null) ...[
               const SizedBox(height: 16),
-
               AppCard(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PsyTransactionHistoryScreen(
-                      psychologistId: widget.psychologistId,
-                    ),
-                  ),
-                ),
-                padding: const EdgeInsets.all(AppSpacing.md),
+                color: AppColors.dangerBg,
                 child: Row(
                   children: [
-                    const Icon(Icons.receipt_long_outlined,
-                          color: AppColors.tealDark, size: 20),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Paiements reçus',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14.5,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Le détail séance par séance',
-                            style:
-                                TextStyle(color: AppColors.muted, fontSize: 12),
-                          ),
-                        ],
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                            color: AppColors.danger, fontSize: 14.5),
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppColors.faint),
+                    TextButton(
+                      onPressed: _load,
+                      child: const Text('Réessayer'),
+                    ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              const AppNoticeCard(
-                icon: Icons.info_outline,
-                title: 'Versements de démonstration',
-                message:
-                    'Les retraits vers Wave, Orange Money ou un compte bancaire '
-                    'ne donnent lieu à aucun virement réel. Ils sont enregistrés '
-                    'et déduits de votre solde comme le ferait un versement.',
+            ],
+            const SizedBox(height: 26),
+            Row(
+              children: [
+                Expanded(
+                  child: _WalletAction(
+                    icon: Icons.arrow_upward_rounded,
+                    label: 'Retirer',
+                    primary: true,
+                    onTap: canWithdraw ? _openWithdraw : null,
+                  ),
+                ),
+                Expanded(
+                  child: _WalletAction(
+                    icon: Icons.arrow_downward_rounded,
+                    label: 'Paiements reçus',
+                    onTap: _openPayments,
+                  ),
+                ),
+                Expanded(
+                  child: _WalletAction(
+                    icon: Icons.history_rounded,
+                    label: 'Mes retraits',
+                    onTap: _showWithdrawals,
+                  ),
+                ),
+              ],
+            ),
+            if (!_loading && _error == null && balance <= 0) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'Rien à retirer pour l\'instant. Votre solde se remplit à '
+                'chaque consultation payée par un patient.',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  height: 1.45,
+                  color: AppColors.muted,
+                ),
               ),
             ],
-          ),
+            if (wallet != null) ...[
+              const SizedBox(height: 30),
+              const Text(
+                'En résumé',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _SummaryRow(
+                label: 'Revenus nets encaissés',
+                value: wallet.totalNetRevenue,
+              ),
+              const SizedBox(height: 8),
+              _SummaryRow(
+                label: 'Déjà retiré',
+                value: wallet.totalWithdrawn,
+              ),
+            ],
+            const SizedBox(height: 30),
+            Text(
+              'Mes retraits',
+              key: _withdrawalsKey,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (wallet == null || wallet.withdrawals.isEmpty)
+              const Text(
+                'Aucun retrait pour l\'instant.',
+                style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+              )
+            else
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  children: [
+                    for (final w in wallet.withdrawals)
+                      _WithdrawalRow(withdrawal: w),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletAction extends StatelessWidget {
+  const _WalletAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final bg = primary
+        ? (enabled ? AppColors.teal : AppColors.borderStrong)
+        : AppColors.white;
+    final ink = primary ? AppColors.background : AppColors.text;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(icon, color: ink, size: 24),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: primary ? FontWeight.w800 : FontWeight.w700,
+                color: AppColors.text,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -383,14 +344,14 @@ class _SummaryRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 13),
+            style: const TextStyle(color: AppColors.muted, fontSize: 16),
           ),
         ),
         Text(
-          '${formatAmount(value)} F CFA',
+          '${formatAmount(value)} F',
           style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
             color: AppColors.text,
           ),
         ),
@@ -405,71 +366,64 @@ class _WithdrawalRow extends StatelessWidget {
   final PsychologistWithdrawal withdrawal;
 
   static const _monthNames = [
-    'janv.',
-    'févr.',
-    'mars',
-    'avr.',
-    'mai',
-    'juin',
-    'juil.',
-    'août',
-    'sept.',
-    'oct.',
-    'nov.',
-    'déc.',
+    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
   ];
 
-  String get _methodLabel {
+  WithdrawalMethod? get _method {
     switch (withdrawal.method.toUpperCase()) {
       case 'WAVE':
-        return 'Wave';
+        return WithdrawalMethod.wave;
       case 'ORANGE_MONEY':
-        return 'Orange Money';
+        return WithdrawalMethod.orangeMoney;
       case 'BANK_TRANSFER':
-        return 'Virement bancaire';
+        return WithdrawalMethod.bankTransfer;
       default:
-        return withdrawal.method;
+        return null;
     }
-  }
-
-  String get _date {
-    final d = withdrawal.createdAt;
-    return '${d.day} ${_monthNames[d.month - 1]} ${d.year}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final method = _method;
+    final d = withdrawal.createdAt;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(vertical: 13),
       child: Row(
         children: [
+          if (method != null)
+            _PayoutMark(method: method, size: 44)
+          else
+            const SizedBox(width: 44, height: 44),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _methodLabel,
+                  method == null
+                      ? 'Retrait · ${withdrawal.method}'
+                      : 'Retrait · ${method.label}',
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
                     color: AppColors.text,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  _date,
+                  '${d.day} ${_monthNames[d.month - 1]} ${d.year}',
                   style:
-                      const TextStyle(color: AppColors.muted, fontSize: 12),
+                      const TextStyle(color: AppColors.muted, fontSize: 14),
                 ),
               ],
             ),
           ),
           Text(
-            '− ${formatAmount(withdrawal.amount)} F CFA',
+            '− ${formatAmount(withdrawal.amount)} F',
             style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: AppColors.tealDark,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: AppColors.text,
             ),
           ),
         ],
@@ -478,9 +432,7 @@ class _WithdrawalRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Marques des opérateurs
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PayoutMark extends StatelessWidget {
   const _PayoutMark({required this.method, this.size = 44});
@@ -538,7 +490,6 @@ class _PayoutMark extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(size * 0.28),
-        border: Border.all(color: AppColors.border),
       ),
       child: Image.asset(
         asset,
@@ -562,40 +513,7 @@ class _PayoutMark extends StatelessWidget {
   }
 }
 
-class _PayoutTile extends StatelessWidget {
-  const _PayoutTile({required this.method});
-
-  final WithdrawalMethod method;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.md),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _PayoutMark(method: method, size: 38),
-          const SizedBox(height: 9),
-          Text(
-            method.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: AppColors.text,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Feuille de retrait
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _WithdrawSheet extends StatefulWidget {
   const _WithdrawSheet({required this.maxAmount, required this.onSubmit});
@@ -745,9 +663,6 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.lock_outline,
-                      size: 14, color: AppColors.muted),
-                  const SizedBox(width: 7),
                   Expanded(
                     child: Text(
                       'Opérateur simulé : aucun virement n\'est réellement '
@@ -762,7 +677,6 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
                 const SizedBox(height: 16),
                 AppCard(
                   color: AppColors.dangerBg,
-                  shadow: const [],
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -783,8 +697,11 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
               ],
 
               const SizedBox(height: 22),
-              ElevatedButton(
+              FilledButton(
                 onPressed: _submitting ? null : _submit,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                ),
                 child: _submitting
                     ? const SizedBox(
                         height: 20,
@@ -833,8 +750,8 @@ class _PayoutOption extends StatelessWidget {
     return AppCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: selected ? AppColors.teal : AppColors.border,
-      shadow: selected ? null : const [],
+      color: selected ? AppColors.tealSoft : AppColors.white,
+      borderColor: selected ? AppColors.teal : null,
       child: Row(
         children: [
           _PayoutMark(method: method, size: 42),

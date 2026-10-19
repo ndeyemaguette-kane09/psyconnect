@@ -120,180 +120,188 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Signaler un psychologue')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // bannière d'info
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.text,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Signaler un psychologue',
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Vous signalez ${widget.psychologistName}. L\'équipe PsyConnect '
+              'examinera votre signalement, et vous resterez anonyme.',
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.5,
+                color: AppColors.muted,
+              ),
+            ),
+            const SizedBox(height: 26),
+            const Text(
+              'Que s\'est-il passé ?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                children: [
+                  for (final r in reportReasons)
+                    InkWell(
+                      onTap: () => setState(() {
+                        _selectedReason = r;
+                        _error = null;
+                      }),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                r.label,
+                                style: TextStyle(
+                                  fontSize: 15.5,
+                                  fontWeight: _selectedReason == r
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Icon(
+                              _selectedReason == r
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: _selectedReason == r
+                                  ? AppColors.teal
+                                  : AppColors.borderStrong,
+                              size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Racontez si vous le souhaitez',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _descController,
+              maxLines: 5,
+              maxLength: 500,
+              style: const TextStyle(fontSize: 16),
+              decoration: const InputDecoration(
+                hintText: 'Les faits, avec le plus de précision possible',
+                contentPadding: EdgeInsets.all(16),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Une preuve ? (facultatif)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Une capture d\'écran ou un document : JPG, PNG ou PDF, '
+              '20 Mo maximum.',
+              style: TextStyle(color: AppColors.muted, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            if (_fileName != null)
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.tealLight,
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline,
-                        color: AppColors.tealDark, size: 20),
-                    const SizedBox(width: 10),
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        color: AppColors.tealLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.attach_file,
+                          color: AppColors.teal, size: 19),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Vous signalez ${widget.psychologistName}. '
-                        'Votre signalement sera examiné par l\'administrateur. '
-                        'Vous resterez anonyme.',
+                        _fileName!,
                         style: const TextStyle(
-                            color: AppColors.tealDark, fontSize: 13),
+                            fontSize: 15, color: AppColors.text),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close,
+                          color: AppColors.muted, size: 20),
+                      tooltip: 'Retirer',
+                      onPressed: _removeFile,
                     ),
                   ],
                 ),
+              )
+            else
+              OutlinedButton.icon(
+                onPressed: _pickFile,
+                icon: const Icon(Icons.upload_file_outlined),
+                label: const Text('Joindre un fichier'),
               ),
-              const SizedBox(height: 24),
-
-              // motif
-              Text('Motif *', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<ReportReasonOption>(
-                initialValue: _selectedReason,
-                hint: const Text('Choisir un motif'),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: AppColors.white,
-                  border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: AppColors.tealMid),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                ),
-                items: reportReasons
-                    .map((r) => DropdownMenuItem(
-                          value: r,
-                          child: Text(r.label,
-                              overflow: TextOverflow.ellipsis),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  _selectedReason = v;
-                  _error = null;
-                }),
-                isExpanded: true,
+            const SizedBox(height: 28),
+            if (_error != null) ...[
+              Text(
+                _error!,
+                style: const TextStyle(color: AppColors.danger, fontSize: 14.5),
               ),
-              const SizedBox(height: 20),
-
-              // description (optionnelle)
-              Text('Détails (optionnel)',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _descController,
-                maxLines: 4,
-                maxLength: 500,
-                decoration: InputDecoration(
-                  hintText:
-                      'Décrivez les faits avec le plus de précision possible…',
-                  filled: true,
-                  fillColor: AppColors.white,
-                  border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: AppColors.tealMid),
-                  ),
-                  contentPadding: const EdgeInsets.all(14),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // pièce jointe (photo ou PDF)
-              Text('Preuve (optionnel)',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              const Text(
-                'Vous pouvez joindre une capture d\'écran ou un document '
-                '(JPG, PNG, PDF – max 20 Mo).',
-                style: TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
-              const SizedBox(height: 10),
-
-              if (_fileName != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    border: Border.all(color: AppColors.tealMid),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.attach_file,
-                          color: AppColors.teal, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _fileName!,
-                          style: const TextStyle(
-                              fontSize: 13, color: AppColors.text),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close,
-                            color: AppColors.muted, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: _removeFile,
-                      ),
-                    ],
-                  ),
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _pickFile,
-                    icon: const Icon(Icons.upload_file_outlined),
-                    label: const Text('Joindre un fichier'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: AppColors.tealMid),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 28),
-
-              // erreur
-              if (_error != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.errorBg,
-                  ),
-                  child: Text(_error!,
-                      style: const TextStyle(
-                          color: AppColors.rose, fontSize: 13)),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Envoyer le signalement'),
-              ),
+              const SizedBox(height: 12),
             ],
-          ),
+            ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Envoyer le signalement'),
+            ),
+          ],
         ),
       ),
     );

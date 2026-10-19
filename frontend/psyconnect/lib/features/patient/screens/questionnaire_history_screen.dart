@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../models/questionnaire_models.dart';
+import '../services/psychologist_service.dart';
 import '../services/questionnaire_service.dart';
 import 'questionnaire_fill_screen.dart';
 
@@ -18,6 +19,8 @@ class QuestionnaireHistoryScreen extends StatefulWidget {
 class _QuestionnaireHistoryScreenState
     extends State<QuestionnaireHistoryScreen> {
   final _service = QuestionnaireService();
+  final _psychologistService = PsychologistService();
+  Map<int, String> _psychologistNames = {};
 
   bool _loading = true;
   String? _error;
@@ -36,8 +39,16 @@ class _QuestionnaireHistoryScreenState
     });
     try {
       final list = await _service.getMyQuestionnaires();
+      final names = <int, String>{};
+      try {
+        final psychologists = await _psychologistService.getAllPsychologists();
+        for (final p in psychologists) {
+          names[p.id] = p.fullName;
+        }
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
+        _psychologistNames = names;
         _questionnaires = list;
         _loading = false;
       });
@@ -55,16 +66,9 @@ class _QuestionnaireHistoryScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.white,
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.text,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.text),
-        title: const Text(
-          'Mes questionnaires',
-          style: TextStyle(
-              color: AppColors.text,
-              fontWeight: FontWeight.w700,
-              fontSize: 15),
-        ),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -109,16 +113,48 @@ class _QuestionnaireHistoryScreenState
                           ),
                         ],
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                        itemCount: _questionnaires.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (context, i) =>
-                            _QuestionnaireCard(
-                          questionnaire: _questionnaires[i],
-                          onTap: () => _openDetail(_questionnaires[i]),
-                        ),
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+                            child: Text(
+                              'Mes questionnaires',
+                              style:
+                                  Theme.of(context).textTheme.displayMedium,
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(4, 0, 4, 20),
+                            child: Text(
+                              'Envoyés par votre psychologue pour suivre '
+                              'votre évolution.',
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Column(
+                              children: [
+                                for (final q in _questionnaires)
+                                  _QuestionnaireCard(
+                                    questionnaire: q,
+                                    psychologistName:
+                                        _psychologistNames[q.psychologistId],
+                                    onTap: () => _openDetail(q),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
       ),
     );
@@ -126,14 +162,14 @@ class _QuestionnaireHistoryScreenState
 
   void _openDetail(Questionnaire q) {
     if (q.isPending) {
-      // questionnaire non encore rempli → ouvrir l'écran de remplissage
+      // questionnaire non encore rempli -> ouvrir l'écran de remplissage
       Navigator.of(context)
           .push(MaterialPageRoute(
         builder: (_) => QuestionnaireFillScreen(questionnaire: q),
       ))
           .then((_) => _load()); // rafraîchir après retour
     } else {
-      // questionnaire complété → afficher les résultats
+      // questionnaire complété -> afficher les résultats
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => QuestionnaireResultScreen(questionnaire: q),
       ));
@@ -145,20 +181,19 @@ class _QuestionnaireCard extends StatelessWidget {
   const _QuestionnaireCard({
     required this.questionnaire,
     required this.onTap,
+    this.psychologistName,
   });
 
   final Questionnaire questionnaire;
   final VoidCallback onTap;
+  final String? psychologistName;
 
-  Color get _typeColor =>
-      questionnaire.type == QuestionnaireType.PHQ9
-          ? const Color(0xFF5C6BC0) // indigo — dépression
-          : const Color(0xFF26A69A); // teal — anxiété
+  static const _months = [
+    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+  ];
 
-  Color get _typeBg =>
-      questionnaire.type == QuestionnaireType.PHQ9
-          ? const Color(0xFFE8EAF6)
-          : AppColors.tealLight;
+  bool get _isPhq => questionnaire.type == QuestionnaireType.PHQ9;
 
   @override
   Widget build(BuildContext context) {
@@ -166,101 +201,107 @@ class _QuestionnaireCard extends StatelessWidget {
     final completed = !q.isPending;
     final date = completed ? q.completedAt : q.sentAt;
     final dateLabel = date != null
-        ? '${date.day.toString().padLeft(2, '0')}/'
-            '${date.month.toString().padLeft(2, '0')}/'
-            '${date.year}'
+        ? '${date.day} ${_months[date.month - 1]} ${date.year}'
         : '';
+    final ink = _isPhq ? AppColors.goldDark : AppColors.teal;
+    final soft = _isPhq ? AppColors.goldLight : AppColors.tealLight;
 
     return InkWell(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.white,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // badge type
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _typeBg,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: soft,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                q.typeName,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
                 ),
-                child: Center(
-                  child: Text(
-                    q.typeName,
-                    style: TextStyle(
-                      color: _typeColor,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    q.typeDescription,
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 11,
+                      fontSize: 15.5,
+                      color: AppColors.text,
                     ),
+                  ),
+                  if (psychologistName != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Envoyé par $psychologistName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    completed
+                        ? [
+                            if (q.severity != null) q.severity!,
+                            'rempli le $dateLabel',
+                          ].join(' · ')
+                        : 'Reçu le $dateLabel',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            if (completed && q.score != null)
+              Text(
+                '${q.score}/${q.maxScore}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  color: AppColors.text,
+                ),
+              )
+            else
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.goldDark,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'À remplir',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      q.typeDescription,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14),
-                    ),
-                    const SizedBox(height: 3),
-                    if (completed && q.severity != null)
-                      Text(
-                        q.severity!,
-                        style: TextStyle(
-                            color: _typeColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
-                      )
-                    else
-                      const Text(
-                        'En attente de réponse',
-                        style: TextStyle(
-                            color: AppColors.gold,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    const SizedBox(height: 4),
-                    Text(
-                      completed ? 'Complété le $dateLabel' : 'Reçu le $dateLabel',
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              // score ou icône en attente
-              if (completed && q.score != null) ...[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${q.score}/${q.maxScore}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: _typeColor,
-                      ),
-                    ),
-                    const Text('score',
-                        style: TextStyle(
-                            color: AppColors.muted, fontSize: 10)),
-                  ],
-                ),
-              ] else
-                const Icon(Icons.edit_outlined,
-                    color: AppColors.gold, size: 20),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right,
-                  color: AppColors.muted, size: 18),
-            ],
-          ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.muted, size: 22),
+          ],
         ),
       ),
     );

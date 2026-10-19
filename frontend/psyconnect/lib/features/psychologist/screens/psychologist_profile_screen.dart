@@ -9,6 +9,7 @@ import '../../auth/screens/splash_screen.dart';
 import '../../patient/models/psychologist_models.dart';
 import '../../patient/screens/contact_admin_screen.dart';
 import '../../patient/services/psychologist_service.dart';
+import '../../patient/widgets/psychologist_card.dart';
 import '../../payment/screens/psy_wallet_screen.dart';
 import 'edit_psychologist_profile_screen.dart';
 import 'psy_availability_screen.dart';
@@ -116,276 +117,301 @@ class _PsychologistProfileScreenState
     );
   }
 
+  void _push(Widget Function(int psychologistId) builder) {
+    final psychologistId = context.read<AuthProvider>().session?.profileId;
+    if (psychologistId == null) return;
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => builder(psychologistId)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AuthProvider>().session;
-    final name = _me != null ? _me!.fullName : (session?.pseudo ?? '');
+    final me = _me;
+    final name = me != null ? me.fullName : (session?.pseudo ?? '');
+    final subtitle = [
+      if (me != null && me.specialty.trim().isNotEmpty) me.specialty.trim(),
+      if (me?.city?.trim().isNotEmpty ?? false) me!.city!.trim(),
+    ].join(' · ');
+    final bio = me?.bio?.trim() ?? '';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil'),
         actions: [
-          if (_me != null)
-            IconButton(
+          if (me != null)
+            TextButton(
               onPressed: _editProfile,
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Modifier le profil',
+              child: const Text(
+                'Modifier',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
             ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            children: [
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_error != null)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.muted)),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                            onPressed: _load, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  ),
-                )
-              else ...[
-                Center(
-                  child: Column(
-                    children: [
-                      const CircleAvatar(
-                        radius: 36,
-                        backgroundColor: AppColors.tealLight,
-                        child: Icon(Icons.person,
-                            color: AppColors.tealDark, size: 38),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 36),
+          children: [
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else ...[
+              Center(
+                child: Column(
+                  children: [
+                    AppAvatar(name: name, size: 96),
+                    const SizedBox(height: 12),
+                    Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 26,
+                        color: AppColors.text,
                       ),
-                      const SizedBox(height: 12),
-                      Text(name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 18)),
-                      const SizedBox(height: 2),
-                      Text(_me?.specialty ?? '',
-                          style: const TextStyle(color: AppColors.muted)),
-                      if (_me?.rating != null && _me!.rating! > 0) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.star,
-                                color: AppColors.gold, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${_me!.rating!.toStringAsFixed(1)} '
-                              '(${_me!.totalReviews ?? 0} avis)',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const SectionHeader(title: 'Informations professionnelles'),
-                const SizedBox(height: 8),
-                _InfoRow(
-                    icon: Icons.badge_outlined,
-                    label: 'Numéro de licence',
-                    value: _me?.licenseNumber),
-                const SizedBox(height: 10),
-                _InfoRow(
-                    icon: Icons.work_history_outlined,
-                    label: "Années d'expérience",
-                    value: _me?.yearsOfExperience?.toString()),
-                const SizedBox(height: 10),
-                _InfoRow(
-                    icon: Icons.payments_outlined,
-                    label: 'Prix consultation',
-                    value: _me?.consultationPrice != null
-                        ? '${_me!.consultationPrice} FCFA'
-                        : null),
-                const SizedBox(height: 10),
-                _InfoRow(
-                    icon: Icons.translate_outlined,
-                    label: 'Langues parlées',
-                    value: _me?.languages),
-                const SizedBox(height: 10),
-                _InfoRow(
-                    icon: Icons.location_on_outlined,
-                    label: 'Ville',
-                    value: _me?.city),
-                const SizedBox(height: 10),
-                _InfoRow(
-                    icon: Icons.map_outlined,
-                    label: 'Adresse du cabinet',
-                    value: _me?.address),
-                const SizedBox(height: 10),
-                _InfoRow(
-                    icon: Icons.description_outlined,
-                    label: 'Bio',
-                    value: _me?.bio),
-                const SizedBox(height: 10),
-                _InfoRow(
-                  icon: Icons.verified_outlined,
-                  label: 'Justificatif',
-                  value: _me?.hasLicenseDocument == true
-                      ? 'Fourni'
-                      : 'Non fourni',
-                ),
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Planning'),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final psychologistId =
-                          context.read<AuthProvider>().session?.profileId;
-                      if (psychologistId == null) return;
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PsyAvailabilityScreen(
-                            psychologistId: psychologistId,
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 16, color: AppColors.muted),
+                      ),
+                    if (me?.rating != null && me!.rating! > 0)
+                      Text(
+                        '${me.rating!.toStringAsFixed(1).replaceAll('.', ',')}'
+                        ' sur 5 · ${me.totalReviews ?? 0} avis',
+                        style: const TextStyle(
+                            fontSize: 15, color: AppColors.muted),
+                      ),
+                    if (me != null && !me.hasLicenseDocument)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Justificatif de diplôme à fournir',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: AppColors.goldDark,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.calendar_today_outlined,
-                        color: AppColors.teal),
-                    label: const Text('Mes disponibilités',
-                        style: TextStyle(color: AppColors.teal)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.teal),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 26),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Ce que voient vos patients',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _Fact(
+                label: 'Prix d\'une séance',
+                value: me?.consultationPrice != null
+                    ? '${formatPrice(me!.consultationPrice!)} F'
+                    : null,
+              ),
+              _Fact(
+                label: 'Expérience',
+                value: me?.yearsOfExperience != null
+                    ? '${me!.yearsOfExperience} an'
+                        '${me.yearsOfExperience! > 1 ? 's' : ''}'
+                    : null,
+              ),
+              _Fact(label: 'Langues', value: me?.languages),
+              _Fact(label: 'Cabinet', value: me?.address),
+              if (bio.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                  child: Text(
+                    '« $bio »',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.55,
+                      color: AppColors.text,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Revenus'),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final psychologistId =
-                          context.read<AuthProvider>().session?.profileId;
-                      if (psychologistId == null) return;
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PsyWalletScreen(
-                            psychologistId: psychologistId,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.account_balance_wallet_outlined,
-                        color: AppColors.teal),
-                    label: const Text('Mon portefeuille',
-                        style: TextStyle(color: AppColors.teal)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.teal),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+              if (me?.licenseNumber?.trim().isNotEmpty ?? false)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                  child: Text(
+                    'Licence ${me!.licenseNumber!.trim()}',
+                    style:
+                        const TextStyle(fontSize: 14, color: AppColors.muted),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Aide'),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final psychologistId =
-                          context.read<AuthProvider>().session?.profileId;
-                      if (psychologistId == null) return;
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ContactAdminScreen(
-                            profileId: psychologistId,
+              const SizedBox(height: 24),
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  children: [
+                    _MenuRow(
+                      icon: Icons.calendar_today_outlined,
+                      tint: AppColors.tealLight,
+                      ink: AppColors.teal,
+                      title: 'Mes disponibilités',
+                      subtitle: 'Les créneaux que vos patients peuvent réserver',
+                      onTap: () => _push((id) =>
+                          PsyAvailabilityScreen(psychologistId: id)),
+                    ),
+                    _MenuRow(
+                      icon: Icons.account_balance_wallet_outlined,
+                      tint: AppColors.goldLight,
+                      ink: AppColors.goldDark,
+                      title: 'Mon portefeuille',
+                      subtitle: 'Revenus et retraits',
+                      onTap: () =>
+                          _push((id) => PsyWalletScreen(psychologistId: id)),
+                    ),
+                    _MenuRow(
+                      icon: Icons.chat_bubble_outline,
+                      tint: AppColors.sand,
+                      ink: AppColors.text,
+                      title: 'Écrire à l\'équipe',
+                      onTap: () => _push((id) => ContactAdminScreen(
+                            profileId: id,
                             role: UserRole.psychologist,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.support_agent_outlined,
-                        color: AppColors.teal),
-                    label: const Text('Contacter l\'administrateur',
-                        style: TextStyle(color: AppColors.teal)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.teal),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                          )),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: _logout,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  ),
+                  child: const Text(
+                    'Se déconnecter',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
-                const SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout, color: AppColors.rose),
-                    label: const Text('Se déconnecter',
-                        style: TextStyle(color: AppColors.rose)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.rose),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label, this.value});
+class _Fact extends StatelessWidget {
+  const _Fact({required this.label, this.value});
 
-  final IconData icon;
   final String label;
   final String? value;
 
   @override
   Widget build(BuildContext context) {
     final hasValue = value != null && value!.trim().isNotEmpty;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: AppColors.muted),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style:
-                      const TextStyle(color: AppColors.muted, fontSize: 11)),
-              const SizedBox(height: 2),
-              Text(
-                hasValue ? value! : 'Non renseigné',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: hasValue ? AppColors.tealDark : AppColors.muted,
-                  fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 16, color: AppColors.muted),
+            ),
           ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              hasValue ? value!.trim() : 'Non renseigné',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: hasValue ? FontWeight.w700 : FontWeight.w400,
+                color: hasValue ? AppColors.text : AppColors.muted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.icon,
+    required this.tint,
+    required this.ink,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final Color ink;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, size: 19, color: ink),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                          fontSize: 13.5, color: AppColors.muted),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

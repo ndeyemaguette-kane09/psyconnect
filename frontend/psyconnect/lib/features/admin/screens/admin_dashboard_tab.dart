@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/models/psychologist_models.dart';
 import '../models/admin_models.dart';
 import '../services/admin_service.dart';
+import '../../patient/models/report_models.dart';
+import '../../patient/models/support_message_models.dart';
+import 'admin_config_tab.dart';
 
 // Onglet tableau de bord administrateur : KPIs, validations en attente et
 // répartition des séances par type. Ces données sont calculées côté client
@@ -30,7 +30,8 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
   AdminProfileStats? _profileStats;
   List<PsychologistProfile> _pendingPsychologists = [];
   List<Appointment> _appointments = [];
-  String? _busyPsychologistAction;
+  List<ReportModel> _pendingReports = [];
+  List<SupportMessageModel> _pendingMessages = [];
 
   @override
   void initState() {
@@ -59,6 +60,7 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
         _appointments = results[2] as List<Appointment>;
         _loading = false;
       });
+      _loadInbox();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -69,45 +71,21 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
     }
   }
 
-  Future<void> _setVerified(PsychologistProfile psy, bool verified) async {
-    setState(() => _busyPsychologistAction = '${psy.id}');
+  Future<void> _loadInbox() async {
     try {
-      await _adminService.setPsychologistVerified(psy.id, verified);
-      if (!mounted) return;
-      setState(() {
-        _pendingPsychologists =
-            _pendingPsychologists.where((p) => p.id != psy.id).toList();
-      });
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Action impossible pour le moment.')),
-      );
-    } finally {
-      if (mounted) setState(() => _busyPsychologistAction = null);
-    }
+      final reports = await _adminService.listReports(status: 'PENDING');
+      if (mounted) setState(() => _pendingReports = reports);
+    } catch (_) {}
+    try {
+      final messages =
+          await _adminService.listSupportMessages(status: 'PENDING');
+      if (mounted) setState(() => _pendingMessages = messages);
+    } catch (_) {}
   }
 
-  // Distinct de _setVerified : passer verified=false ne retire pas la demande
-  // de la liste (un profil en attente a déjà verified=false). Il faut passer
-  // par l'endpoint rejected pour marquer explicitement le refus.
-  Future<void> _reject(PsychologistProfile psy) async {
-    setState(() => _busyPsychologistAction = '${psy.id}');
-    try {
-      await _adminService.setPsychologistRejected(psy.id, true);
-      if (!mounted) return;
-      setState(() {
-        _pendingPsychologists =
-            _pendingPsychologists.where((p) => p.id != psy.id).toList();
-      });
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Action impossible pour le moment.')),
-      );
-    } finally {
-      if (mounted) setState(() => _busyPsychologistAction = null);
-    }
+  Future<void> _openPage(Widget page) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    if (mounted) _loadInbox();
   }
 
   int get _appointmentsThisMonth {
@@ -118,342 +96,322 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
         .length;
   }
 
-  // Répartition en pourcentage par type de consultation, calculée côté client.
-  Map<ConsultationType, double> get _typeBreakdown {
-    if (_appointments.isEmpty) return {};
-    final counts = <ConsultationType, int>{};
-    for (final a in _appointments) {
-      counts[a.consultationType] = (counts[a.consultationType] ?? 0) + 1;
-    }
-    return counts.map((k, v) => MapEntry(k, v / _appointments.length));
-  }
-
   @override
   Widget build(BuildContext context) {
-    final pseudo = context.watch<AuthProvider>().session?.pseudo ?? '';
+    final now = DateTime.now();
+    final greeting = now.hour < 12
+        ? 'Bonjour'
+        : now.hour < 18
+            ? 'Bon après-midi'
+            : 'Bonsoir';
+    final pending = _pendingPsychologists;
+    final stats = _profileStats;
 
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? ListView(
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_kWeekdays[now.weekday - 1]} ${now.day} '
+                    '${_kMonths[now.month - 1]}',
+                    style:
+                        const TextStyle(fontSize: 15, color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    greeting,
+                    style: Theme.of(context)
+                        .textTheme
+                        .displayLarge
+                        ?.copyWith(fontSize: 30),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Administration PsyConnect',
+                    style: TextStyle(fontSize: 15, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else ...[
+              _ValidationsPanel(
+                pending: pending,
+                onOpen: widget.onSeeAllValidations,
+              ),
+              if (_pendingReports.isNotEmpty || _pendingMessages.isNotEmpty) ...[
+                const SizedBox(height: 26),
+                const _Heading('À traiter'),
+                AppCard(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 100),
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(_error!,
-                                    textAlign: TextAlign.center,
-                                    style:
-                                        const TextStyle(color: AppColors.muted)),
-                                const SizedBox(height: 12),
-                                OutlinedButton(
-                                    onPressed: _load,
-                                    child: const Text('Réessayer')),
-                              ],
-                            ),
-                          ),
+                      if (_pendingReports.isNotEmpty)
+                        _InboxRow(
+                          icon: Icons.flag_outlined,
+                          tint: AppColors.goldLight,
+                          ink: AppColors.goldDark,
+                          title: 'Signalements',
+                          subtitle:
+                              '${_pendingReports.length} en attente',
+                          count: _pendingReports.length,
+                          onTap: () => _openPage(const AdminReportsPage()),
                         ),
-                      ),
-                    ],
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: AppColors.teal,
+                      if (_pendingMessages.isNotEmpty)
+                        _InboxRow(
+                          icon: Icons.chat_bubble_outline,
+                          tint: AppColors.sand,
+                          ink: AppColors.text,
+                          title: 'Messages des utilisateurs',
+                          subtitle: '${_pendingMessages.length} en attente · '
+                              '${_pendingMessages.first.subject}',
+                          count: _pendingMessages.length,
+                          onTap: () =>
+                              _openPage(const AdminSupportMessagesPage()),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Administration',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 2),
-                            Text(
-                              'PsyConnect Sénégal · Connecté en tant que $pseudo',
-                              style: const TextStyle(
-                                  color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          _Kpi(
-                              value: '${_profileStats?.totalPatients ?? 0}',
-                              label: 'Patients actifs',
-                              color: AppColors.teal),
-                          const SizedBox(width: 10),
-                          _Kpi(
-                              value:
-                                  '${_profileStats?.verifiedPsychologists ?? 0}',
-                              label: 'Psys vérifiés',
-                              color: AppColors.gold),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          _Kpi(
-                              value:
-                                  '${_profileStats?.pendingPsychologists ?? 0}',
-                              label: 'En attente',
-                              color: AppColors.rose),
-                          const SizedBox(width: 10),
-                          _Kpi(
-                              value: '$_appointmentsThisMonth',
-                              label: 'Séances / mois',
-                              color: AppColors.tealDark),
-                        ],
-                      ),
-                      const SizedBox(height: 26),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Validations en attente',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 15)),
-                          if (_pendingPsychologists.isNotEmpty)
-                            TextButton(
-                              onPressed: widget.onSeeAllValidations,
-                              child: const Text('Voir tout'),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (_pendingPsychologists.isEmpty)
-                        AppCard(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          borderColor: AppColors.tealMid,
-                          shadow: const [],
-                          child: const Row(
-                            children: [
-                              Icon(Icons.check_circle_outline,
-                                  color: AppColors.teal),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Aucun psychologue en attente de validation.',
-                                  style: TextStyle(color: AppColors.muted),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        for (final psy in _pendingPsychologists.take(3)) ...[
-                          _ValidationCard(
-                            psychologist: psy,
-                            busy: _busyPsychologistAction == '${psy.id}',
-                            onAccept: () => _setVerified(psy, true),
-                            onReject: () => _reject(psy),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                      const SizedBox(height: 22),
-                      if (_typeBreakdown.isNotEmpty) ...[
-                        const Text('Séances par type',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 15)),
-                        const SizedBox(height: 10),
-                        AppCard(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          borderColor: AppColors.tealMid,
-                          shadow: const [],
-                          child: Column(
-                            children: [
-                              for (final type in ConsultationType.values)
-                                if (_typeBreakdown[type] != null)
-                                  _TypeBar(
-                                    label: type.label,
-                                    ratio: _typeBreakdown[type]!,
-                                    color: _colorForType(type),
-                                  ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ),
+                ),
+              ],
+              const SizedBox(height: 26),
+              const _Heading('La plateforme'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text.rich(
+                  TextSpan(
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.6,
+                      color: AppColors.textSecondary,
+                    ),
+                    children: [
+                      _bold('${stats?.totalPatients ?? 0} patients'),
+                      const TextSpan(text: ' actifs et '),
+                      _bold('${stats?.verifiedPsychologists ?? 0} '
+                          'psychologues'),
+                      const TextSpan(text: ' vérifiés. '),
+                      _bold('$_appointmentsThisMonth séance'
+                          '${_appointmentsThisMonth > 1 ? 's' : ''}'),
+                      const TextSpan(text: ' ce mois-ci.'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Color _colorForType(ConsultationType type) {
-    switch (type) {
-      case ConsultationType.video:
-        return AppColors.teal;
-      case ConsultationType.audio:
-        return AppColors.gold;
-      case ConsultationType.physical:
-        return AppColors.rose;
-      case ConsultationType.chat:
-        return AppColors.tealDark;
-    }
-  }
+  TextSpan _bold(String text) => TextSpan(
+        text: text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: AppColors.text,
+        ),
+      );
 }
 
-class _Kpi extends StatelessWidget {
-  const _Kpi({required this.value, required this.label, required this.color});
+const _kWeekdays = [
+  'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche',
+];
 
-  final String value;
-  final String label;
-  final Color color;
+const _kMonths = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+
+class _Heading extends StatelessWidget {
+  const _Heading(this.title);
+
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: AppCard(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.sm),
-        borderColor: AppColors.tealMid,
-        shadow: const [],
-        child: Column(
-          children: [
-            Text(value,
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 20, color: color)),
-            const SizedBox(height: 4),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-          ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: AppColors.text,
         ),
       ),
     );
   }
 }
 
-class _ValidationCard extends StatelessWidget {
-  const _ValidationCard({
-    required this.psychologist,
-    required this.busy,
-    required this.onAccept,
-    required this.onReject,
+class _ValidationsPanel extends StatelessWidget {
+  const _ValidationsPanel({
+    required this.pending,
+    required this.onOpen,
   });
 
-  final PsychologistProfile psychologist;
-  final bool busy;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
+  final List<PsychologistProfile> pending;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: AppColors.tealMid,
-      shadow: const [],
+    if (pending.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 4),
+        child: Text(
+          'Aucun psychologue en attente de validation.',
+          style: TextStyle(fontSize: 16, color: AppColors.muted),
+        ),
+      );
+    }
+    final count = pending.length;
+    final names = pending.take(2).map((p) => p.fullName).join(', ');
+
+    return AppPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Validations en attente',
+            style: TextStyle(color: Color(0xFFC9DCD2), fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            count == 1
+                ? '1 psychologue attend votre réponse'
+                : '$count psychologues attendent votre réponse',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 23,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
-              const CircleAvatar(
-                backgroundColor: AppColors.tealLight,
-                child: Icon(Icons.person, color: AppColors.tealDark),
-              ),
-              const SizedBox(width: 12),
+              for (final p in pending.take(4))
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: AppAvatar(name: p.fullName, size: 40),
+                ),
+              const SizedBox(width: 8),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(psychologist.fullName,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text(
-                      '${psychologist.specialty}'
-                      '${psychologist.city != null ? ' · ${psychologist.city}' : ''}',
-                      style:
-                          const TextStyle(color: AppColors.muted, fontSize: 12),
-                    ),
-                  ],
+                child: Text(
+                  count > 2 ? '$names…' : names,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(color: Color(0xFFE3EDE7), fontSize: 15),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (busy)
-            const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: onAccept,
-                    style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.teal,
-                        minimumSize: const Size.fromHeight(38)),
-                    child: const Text('Accepter'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onReject,
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.rose,
-                        side: const BorderSide(color: AppColors.rose),
-                        minimumSize: const Size.fromHeight(38)),
-                    child: const Text('Refuser'),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: onOpen,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.background,
+              foregroundColor: AppColors.teal,
             ),
+            child: const Text('Examiner les profils'),
+          ),
         ],
       ),
     );
   }
 }
 
-class _TypeBar extends StatelessWidget {
-  const _TypeBar({required this.label, required this.ratio, required this.color});
+class _InboxRow extends StatelessWidget {
+  const _InboxRow({
+    required this.icon,
+    required this.tint,
+    required this.ink,
+    required this.title,
+    required this.subtitle,
+    required this.count,
+    required this.onTap,
+  });
 
-  final String label;
-  final double ratio;
-  final Color color;
+  final IconData icon;
+  final Color tint;
+  final Color ink;
+  final String title;
+  final String subtitle;
+  final int count;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final pct = (ratio * 100).round();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 13)),
-              Text('$pct%',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: color)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ClipRRect(
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 6,
-              backgroundColor: AppColors.scaffoldOuter,
-              color: color,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, size: 19, color: ink),
             ),
-          ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(fontSize: 14, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.gold,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

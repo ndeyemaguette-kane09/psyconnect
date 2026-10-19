@@ -34,6 +34,6 @@ public interface PaymentService {
 
     // historique détaillé des paiements reçus par un psy : 1 ligne = 1 RDV
     // completed ou refunded, trié par date desc. le pseudo patient est résolu
-    // côté Flutter pour ne pas coupler payment-service → user-service
+    // côté Flutter pour ne pas coupler payment-service -> user-service
     List<PaymentTransactionDto> getTransactionsByPsychologistId(Long psychologistId);
 }

@@ -134,18 +134,36 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
       children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(4, 0, 4, 18),
+          child: Text(
+            'Les nouvelles de l\'équipe PsyConnect',
+            style: TextStyle(fontSize: 15, color: AppColors.muted),
+          ),
+        ),
         for (final b in _broadcasts)
-          _BroadcastEntry(broadcast: b, unread: _isUnread(b)),
-        Container(height: 1, color: AppColors.border),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: AppCard(
+              padding: const EdgeInsets.fromLTRB(18, 2, 18, 2),
+              child: _BroadcastEntry(
+                broadcast: b,
+                unread: _isUnread(b),
+              ),
+            ),
+          ),
       ],
     );
   }
 }
 
 class _BroadcastEntry extends StatelessWidget {
-  const _BroadcastEntry({required this.broadcast, required this.unread});
+  const _BroadcastEntry({
+    required this.broadcast,
+    required this.unread,
+  });
 
   final _Broadcast broadcast;
   final bool unread;
@@ -182,11 +200,7 @@ class _BroadcastEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: Padding(
+    return Padding(
         padding: const EdgeInsets.fromLTRB(0, 16, 0, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,7 +211,7 @@ class _BroadcastEntry extends StatelessWidget {
                   child: Text(
                     _dateline,
                     style: const TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13.5,
                       color: AppColors.muted,
                     ),
                   ),
@@ -227,9 +241,9 @@ class _BroadcastEntry extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               broadcast.title,
-              style: const TextStyle(
-                fontSize: 16.5,
-                fontWeight: FontWeight.w700,
+              style: TextStyle(
+                fontSize: 17.5,
+                fontWeight: FontWeight.w800,
                 color: AppColors.text,
                 height: 1.3,
               ),
@@ -237,15 +251,14 @@ class _BroadcastEntry extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               broadcast.message,
-              style: const TextStyle(
-                fontSize: 14.5,
+              style: TextStyle(
+                fontSize: 15.5,
                 color: AppColors.textSecondary,
-                height: 1.55,
+                height: 1.5,
               ),
             ),
           ],
         ),
-      ),
     );
   }
 }

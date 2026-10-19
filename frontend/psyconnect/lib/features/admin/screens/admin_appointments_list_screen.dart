@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/services/profile_service.dart';
@@ -134,10 +133,7 @@ class _AdminAppointmentsListScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
         title: const Text('Rendez-vous',
             style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w700)),
         iconTheme: const IconThemeData(color: AppColors.text),
@@ -273,9 +269,7 @@ class _AppointmentRow extends StatelessWidget {
         psychologist != null ? psychologist!.fullName : 'Psy #${appointment.psychologistId}';
 
     return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: AppColors.tealMid,
-      shadow: const [],
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -286,13 +280,14 @@ class _AppointmentRow extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(appointment.status.label,
-                    style: TextStyle(
-                        fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
+                    style: const TextStyle(
+                        fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700)),
               ),
             ],
           ),

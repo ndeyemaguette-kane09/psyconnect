@@ -150,7 +150,7 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
                             decoration: BoxDecoration(
                               color: i <= _index
                                   ? AppColors.teal
-                                  : AppColors.border,
+                                  : AppColors.sand,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -179,10 +179,10 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
                   Text(
                     item.question,
                     style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.text,
-                      height: 1.3,
+                      height: 1.25,
                     ),
                   ),
                   const SizedBox(height: 26),
@@ -220,9 +220,7 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.teal,
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                        shape: const StadiumBorder(),
                       ),
                       child: _submitting
                           ? const SizedBox(
@@ -258,14 +256,13 @@ class _AnswerOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(6),
-      side: BorderSide(
-        color: selected ? AppColors.teal : AppColors.borderStrong,
-        width: selected ? 1.5 : 1,
-      ),
+      borderRadius: BorderRadius.circular(18),
+      side: selected
+          ? const BorderSide(color: AppColors.teal, width: 1.6)
+          : BorderSide.none,
     );
     return Material(
-      color: selected ? AppColors.tealSoft : AppColors.white,
+      color: selected ? AppColors.tealLight : AppColors.white,
       shape: shape,
       child: InkWell(
         onTap: onTap,
@@ -278,15 +275,15 @@ class _AnswerOption extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected ? AppColors.tealDark : AppColors.text,
+                    fontSize: 16,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    color: selected ? AppColors.tealDeep : AppColors.text,
                   ),
                 ),
               ),
               if (selected)
-                const Icon(Icons.check_circle_outline,
-                    color: AppColors.teal, size: 20),
+                const Icon(Icons.check_circle,
+                    color: AppColors.teal, size: 22),
             ],
           ),
         ),
@@ -319,7 +316,7 @@ class _CareScreen extends StatelessWidget {
                   width: 52,
                   height: 52,
                   decoration: const BoxDecoration(
-                    color: AppColors.tealSoft,
+                    color: AppColors.tealLight,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.favorite_border,
@@ -330,8 +327,8 @@ class _CareScreen extends StatelessWidget {
               const Text(
                 'Ce que vous vivez compte',
                 style: TextStyle(
-                  fontSize: 27,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.text,
                   height: 1.2,
                 ),
@@ -355,9 +352,7 @@ class _CareScreen extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+                  shape: const StadiumBorder(),
                 ),
                 child: const Text('Parler à un psychologue maintenant'),
               ),
@@ -449,9 +444,7 @@ SeverityBand severityBandOf(QuestionnaireType type, int score) {
   return bands.last;
 }
 
-// ======================================================
 // ecran de resultats (apres soumission par le patient)
-// ======================================================
 class QuestionnaireResultScreen extends StatelessWidget {
   const QuestionnaireResultScreen({
     super.key,
@@ -538,12 +531,10 @@ class QuestionnaireResultScreen extends StatelessWidget {
                     const SizedBox(height: 18),
                     if (viewedByPsychologist)
                       Container(
-                        padding: const EdgeInsets.only(left: 8),
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            left: BorderSide(
-                                color: Color(0xFF8E3B2A), width: 2),
-                          ),
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.dangerBg,
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Text(
                           'Question 9 : idées suicidaires signalées. À '
@@ -560,8 +551,8 @@ class QuestionnaireResultScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                         decoration: BoxDecoration(
-                          color: AppColors.tealSoft,
-                          borderRadius: BorderRadius.circular(6),
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(18),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,8 +586,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                   ],
                   const SizedBox(height: 30),
                   _ScoreBar(bands: bands, score: score, max: max),
-                  const SizedBox(height: 22),
-                  Container(height: 1, color: AppColors.border),
+                  const SizedBox(height: 18),
                   for (final b in bands)
                     _BandRow(band: b, active: identical(b, active)),
                   const SizedBox(height: 18),
@@ -621,9 +611,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
                   padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+                  shape: const StadiumBorder(),
                 ),
                 child: Text(
                   viewedByPsychologist ? 'Retour' : "Retour à l'accueil",
@@ -678,7 +666,13 @@ class _ScoreBar extends StatelessWidget {
             for (var i = 0; i < bands.length; i++) ...[
               Expanded(
                 flex: bands[i].max - bands[i].min + 1,
-                child: Container(height: 10, color: bands[i].color),
+                child: Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: bands[i].color,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
               ),
               if (i != bands.length - 1) const SizedBox(width: 3),
             ],
@@ -709,16 +703,12 @@ class _BandRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(
-      fontSize: 13.5,
-      fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+      fontSize: 15,
+      fontWeight: active ? FontWeight.w800 : FontWeight.w400,
       color: active ? AppColors.text : AppColors.muted,
     );
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+    return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 9),
         child: Row(
           children: [
             Container(
@@ -734,7 +724,6 @@ class _BandRow extends StatelessWidget {
             Text('${band.min} – ${band.max}', style: style),
           ],
         ),
-      ),
     );
   }
 }

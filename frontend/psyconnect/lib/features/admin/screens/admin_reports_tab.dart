@@ -5,7 +5,6 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/psychologist_models.dart';
 import '../../patient/models/report_models.dart';
@@ -77,12 +76,10 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
   }
 
   void _showDetail(ReportModel report) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => _ReportDetailSheet(
         report: report,
+        psychologistName: _psychologistName(report),
         psychologistLabel: _psychologistLabel(report),
         adminService: _service,
         onUpdated: (updated) {
@@ -93,115 +90,139 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
           });
         },
       ),
-    );
+    ));
+  }
+
+  String _psychologistName(ReportModel report) =>
+      _psyById[report.psychologistProfileId]?.fullName ??
+      'Psychologue #${report.psychologistProfileId}';
+
+  String _psychologistDetails(ReportModel report) {
+    final psy = _psyById[report.psychologistProfileId];
+    if (psy == null) return '';
+    return [
+      if (psy.specialty.trim().isNotEmpty) psy.specialty.trim(),
+      if (psy.city != null && psy.city!.trim().isNotEmpty) psy.city!.trim(),
+    ].join(' · ');
   }
 
   @override
   Widget build(BuildContext context) {
+    final pendingCount = _reports.where((r) => r.status == 'PENDING').length;
+    const filters = [
+      ('PENDING', 'En attente'),
+      ('REVIEWED', 'Traités'),
+      ('DISMISSED', 'Rejetés'),
+      (null, 'Tous'),
+    ];
+
     return SafeArea(
+      top: false,
       child: RefreshIndicator(
         onRefresh: _load,
-        child: Column(
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Signalements',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
                 children: [
-                  Text('Signalements',
-                      style: Theme.of(context).textTheme.displayMedium),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _FilterChip(
-                          label: 'Tous',
-                          selected: _statusFilter == null,
-                          onTap: () => _applyFilter(null),
-                        ),
-                        const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'En attente',
-                          selected: _statusFilter == 'PENDING',
-                          onTap: () => _applyFilter('PENDING'),
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'Traités',
-                          selected: _statusFilter == 'REVIEWED',
-                          onTap: () => _applyFilter('REVIEWED'),
-                          color: AppColors.teal,
-                        ),
-                        const SizedBox(width: 8),
-                        _FilterChip(
-                          label: 'Rejetés',
-                          selected: _statusFilter == 'DISMISSED',
-                          onTap: () => _applyFilter('DISMISSED'),
-                          color: AppColors.muted,
-                        ),
-                      ],
+                  for (final (value, label) in filters)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _FilterChip(
+                        label: value == 'PENDING' &&
+                                _statusFilter == 'PENDING' &&
+                                pendingCount > 0
+                            ? '$label ($pendingCount)'
+                            : label,
+                        selected: _statusFilter == value,
+                        onTap: () => _applyFilter(value),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
-
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? ListView(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(40),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(_error!,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          color: AppColors.muted)),
-                                  const SizedBox(height: 12),
-                                  OutlinedButton(
-                                      onPressed: _load,
-                                      child: const Text('Réessayer')),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      : _reports.isEmpty
-                          ? ListView(
-                              children: const [
-                                Padding(
-                                  padding: EdgeInsets.all(40),
-                                  child: Center(
-                                    child: Text(
-                                      'Aucun signalement pour le moment.',
-                                      style:
-                                          TextStyle(color: AppColors.muted),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-                              itemCount: _reports.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (_, i) => _ReportCard(
-                                report: _reports[i],
-                                psychologistLabel:
-                                    _psychologistLabel(_reports[i]),
-                                onTap: () => _showDetail(_reports[i]),
-                              ),
-                            ),
-            ),
+            const SizedBox(height: 16),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (_reports.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Aucun signalement pour le moment.',
+                  style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              )
+            else
+              for (final r in _reports)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _ReportCard(
+                    report: r,
+                    psychologistName: _psychologistName(r),
+                    psychologistDetails: _psychologistDetails(r),
+                    onTap: () => _showDetail(r),
+                  ),
+                ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+const _kMonths = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+String _formatDate(DateTime d) => '${d.day} ${_kMonths[d.month - 1]} ${d.year}';
+
+class _StatusLabel extends StatelessWidget {
+  const _StatusLabel({required this.status, required this.label});
+
+  final String status;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = status == 'PENDING';
+    final color = switch (status) {
+      'PENDING' => AppColors.gold,
+      'DISMISSED' => AppColors.danger,
+      _ => AppColors.muted,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: pending ? AppColors.text : Colors.white,
         ),
       ),
     );
@@ -211,147 +232,120 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
 class _ReportCard extends StatelessWidget {
   const _ReportCard({
     required this.report,
-    required this.psychologistLabel,
+    required this.psychologistName,
+    required this.psychologistDetails,
     required this.onTap,
   });
 
   final ReportModel report;
-  final String psychologistLabel;
+  final String psychologistName;
+  final String psychologistDetails;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = switch (report.status) {
-      'PENDING' => Colors.orange,
-      'REVIEWED' => AppColors.teal,
-      'DISMISSED' => AppColors.muted,
-      _ => AppColors.muted,
-    };
+    final meta = [
+      'Par un patient anonyme',
+      if (report.hasEvidence) 'preuve jointe',
+      if (report.createdAt != null) _formatDate(report.createdAt!),
+    ].join(' · ');
 
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderColor: AppColors.tealMid,
-      shadow: const [],
-      child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.flag, color: AppColors.tealDark, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          report.reasonLabel,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-                          border: Border.all(
-                              color: statusColor.withValues(alpha: 0.4)),
-                        ),
-                        child: Text(
-                          report.statusLabel,
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: statusColor,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    psychologistLabel,
-                    style: const TextStyle(
-                        color: AppColors.text,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Signalé par #anonyme',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12),
-                  ),
-                  if (report.description != null &&
-                      report.description!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      report.description!,
+                  Expanded(
+                    child: Text(
+                      report.reasonLabel,
                       style: const TextStyle(
-                          color: AppColors.text, fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                        height: 1.3,
+                      ),
                     ),
-                  ],
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      if (report.hasEvidence) ...[
-                        const Icon(Icons.attach_file,
-                            color: AppColors.teal, size: 14),
-                        const SizedBox(width: 4),
-                        const Text('Preuve jointe',
-                            style: TextStyle(
-                                color: AppColors.teal, fontSize: 11)),
-                        const SizedBox(width: 12),
-                      ],
-                      if (report.createdAt != null)
+                  ),
+                  const SizedBox(width: 10),
+                  _StatusLabel(
+                      status: report.status, label: report.statusLabel),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  AppAvatar(name: psychologistName, size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          _formatDate(report.createdAt!),
+                          psychologistName,
                           style: const TextStyle(
-                              color: AppColors.muted, fontSize: 11),
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
                         ),
-                    ],
+                        if (psychologistDetails.isNotEmpty)
+                          Text(
+                            psychologistDetails,
+                            style: const TextStyle(
+                                fontSize: 13.5, color: AppColors.muted),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
-          ],
+              if (report.description != null &&
+                  report.description!.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '« ${report.description!.trim()} »',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Text(
+                meta,
+                style: const TextStyle(fontSize: 13.5, color: AppColors.muted),
+              ),
+            ],
+          ),
         ),
+      ),
     );
-  }
-
-  static String _formatDate(DateTime d) {
-    const months = [
-      'janv.',
-      'févr.',
-      'mars',
-      'avr.',
-      'mai',
-      'juin',
-      'juil.',
-      'août',
-      'sept.',
-      'oct.',
-      'nov.',
-      'déc.'
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 }
 
 class _ReportDetailSheet extends StatefulWidget {
   const _ReportDetailSheet({
     required this.report,
+    required this.psychologistName,
     required this.psychologistLabel,
     required this.adminService,
     required this.onUpdated,
   });
 
   final ReportModel report;
+  final String psychologistName;
   final String psychologistLabel;
   final AdminService adminService;
   final ValueChanged<ReportModel> onUpdated;
@@ -441,190 +435,171 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final isPending = _report.status == 'PENDING';
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-      ),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 24),
-      child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.tealMid,
-                  ),
-                ),
-              ),
 
-              Row(
-                children: [
-                  const Icon(Icons.flag, color: AppColors.tealDark, size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _report.reasonLabel,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              _InfoRow('Psychologue', widget.psychologistLabel),
-              _InfoRow('Patient', '#anonyme'),
-              _InfoRow('Statut', _report.statusLabel),
-              if (_report.createdAt != null)
-                _InfoRow('Soumis le', _fmtDate(_report.createdAt!)),
-              if (_report.description != null &&
-                  _report.description!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text('Description',
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 6),
-                Text(_report.description!,
-                    style: Theme.of(context).textTheme.bodyMedium),
-              ],
-
-              if (_report.hasEvidence) ...[
-                const SizedBox(height: 16),
-                if (_evidenceError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(_evidenceError!,
-                        style: const TextStyle(
-                            color: AppColors.rose, fontSize: 12)),
-                  ),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _openingEvidence ? null : _openEvidence,
-                    icon: _openingEvidence
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.download_outlined),
-                    label: const Text('Voir la preuve jointe'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: AppColors.tealMid),
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 20),
-              Text('Note admin (optionnel)',
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _noteController,
-                maxLines: 3,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                decoration: InputDecoration(
-                  hintText: 'Commentaire interne sur ce signalement…',
-                  filled: true,
-                  fillColor: AppColors.background,
-                  border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: AppColors.tealMid),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
-                ),
-              ),
-              if (_report.adminNote != null &&
-                  _report.adminNote!.isNotEmpty &&
-                  _noteController.text.isEmpty) ...[
-                const SizedBox(height: 6),
+    return Scaffold(
+      appBar: AppBar(),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'Note existante : ${_report.adminNote}',
+                  _report.reasonLabel,
                   style: const TextStyle(
-                      color: AppColors.muted, fontSize: 12),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                    height: 1.2,
+                  ),
                 ),
+                const SizedBox(height: 8),
+                _StatusLabel(status: _report.status, label: _report.statusLabel),
               ],
-
-              if (_actionError != null) ...[
-                const SizedBox(height: 12),
-                Text(_actionError!,
-                    style:
-                        const TextStyle(color: AppColors.rose, fontSize: 12)),
-              ],
-
-              const SizedBox(height: 20),
-              if (isPending) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _busy ? null : () => _doAction('REVIEWED'),
-                        style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.teal,
-                            minimumSize: const Size.fromHeight(44)),
-                        child: _busy
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white),
-                              )
-                            : const Text('Marquer comme traité'),
-                      ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                AppAvatar(name: widget.psychologistName, size: 48),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.psychologistLabel,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _busy ? null : () => _doAction('DISMISSED'),
-                        style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.muted,
-                            side: const BorderSide(color: AppColors.muted),
-                            minimumSize: const Size.fromHeight(44)),
-                        child: const Text('Rejeter'),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _busy
-                        ? null
-                        : () => _doAction(_report.status),
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44),
-),
-                    child: _busy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Mettre à jour la note'),
                   ),
                 ),
               ],
-            ],
+            ),
           ),
+          const SizedBox(height: 14),
+          _InfoRow('Signalé par', 'Un patient anonyme'),
+          if (_report.createdAt != null)
+            _InfoRow('Le', _formatDate(_report.createdAt!)),
+          if (_report.description != null &&
+              _report.description!.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
+              child: Text(
+                '« ${_report.description!.trim()} »',
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 1.55,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+          if (_report.hasEvidence) ...[
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                onPressed: _openingEvidence ? null : _openEvidence,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.white,
+                  foregroundColor: AppColors.text,
+                ),
+                icon: _openingEvidence
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.attach_file, size: 20),
+                label: const Text('Voir la preuve jointe'),
+              ),
+            ),
+            if (_evidenceError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                child: Text(
+                  _evidenceError!,
+                  style:
+                      const TextStyle(color: AppColors.danger, fontSize: 14),
+                ),
+              ),
+          ],
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 26, 4, 10),
+            child: Text(
+              'Note interne',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          TextField(
+            controller: _noteController,
+            maxLines: 3,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => FocusScope.of(context).unfocus(),
+            decoration: const InputDecoration(
+              hintText: 'Visible uniquement par l\'équipe (optionnel)',
+            ),
+          ),
+          if (_actionError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+              child: Text(
+                _actionError!,
+                style: const TextStyle(color: AppColors.danger, fontSize: 14),
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 10, 20, 14 + MediaQuery.of(context).viewInsets.bottom),
+          child: _busy
+              ? const SizedBox(
+                  height: 48,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : isPending
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => _doAction('REVIEWED'),
+                            child: const Text('Marquer traité'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => _doAction('DISMISSED'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.sand,
+                              foregroundColor: AppColors.text,
+                            ),
+                            child: const Text('Rejeter'),
+                          ),
+                        ),
+                      ],
+                    )
+                  : FilledButton(
+                      onPressed: () => _doAction(_report.status),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.sand,
+                        foregroundColor: AppColors.text,
+                        minimumSize: const Size.fromHeight(50),
+                      ),
+                      child: const Text('Mettre à jour la note'),
+                    ),
         ),
+      ),
     );
-  }
-
-  static String _fmtDate(DateTime d) {
-    const months = [
-      'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'
-    ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 }
 
@@ -636,19 +611,22 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Row(
           children: [
-            SizedBox(
-              width: 110,
-              child: Text(label,
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 13)),
-            ),
             Expanded(
-              child: Text(value,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13)),
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 16, color: AppColors.muted),
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
             ),
           ],
         ),
@@ -660,37 +638,31 @@ class _FilterChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.color,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = color ?? AppColors.teal;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? activeColor.withValues(alpha: 0.12)
-              : AppColors.white,
-          border: Border.all(
-              color: selected ? activeColor : AppColors.tealMid),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight:
-                selected ? FontWeight.w700 : FontWeight.normal,
-            color: selected ? activeColor : AppColors.muted,
+    return Material(
+      color: selected ? AppColors.teal : AppColors.sand,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: selected ? AppColors.background : AppColors.text,
+              ),
+            ),
           ),
         ),
       ),

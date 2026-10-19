@@ -8,7 +8,10 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/screens/medical_history_screen.dart';
+import '../../messaging/screens/chat_screen.dart';
+import '../../messaging/services/messaging_service.dart';
 import '../../patient/services/appointment_service.dart';
+import '../utils/patient_name.dart';
 import '../services/psy_patient_link_service.dart';
 import 'clinical_notes_screen.dart';
 import 'patient_questionnaires_screen.dart';
@@ -108,83 +111,92 @@ class _PatientsTabState extends State<PatientsTab> {
     }
   }
 
+  void _openPatient(_PatientEntry entry) {
+    final psychologistId =
+        context.read<AuthProvider>().session?.profileId ?? 0;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _PatientPage(
+        entry: entry,
+        isFollowed: _followedIds.contains(entry.patientId),
+        psychologistId: psychologistId,
+        onFollowChanged: (followed) => setState(() {
+          if (followed) {
+            _followedIds = {..._followedIds, entry.patientId};
+          } else {
+            _followedIds =
+                _followedIds.where((id) => id != entry.patientId).toSet();
+          }
+        }),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final followedCount =
+        _patients.where((e) => _followedIds.contains(e.patientId)).length;
+
     return SafeArea(
+      bottom: false,
       child: RefreshIndicator(
         onRefresh: _load,
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              sliver: SliverToBoxAdapter(
-                child: Text('Mes patients',
-                    style: Theme.of(context).textTheme.displayMedium),
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Mes patients',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
               ),
             ),
+            if (!_loading && _error == null && _patients.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                child: Text(
+                  '${_patients.length} patient${_patients.length > 1 ? 's' : ''}'
+                  ' · $followedCount suivi${followedCount > 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              ),
+            const SizedBox(height: 16),
             if (_loading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_error != null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.wifi_off,
-                            color: AppColors.muted, size: 36),
-                        const SizedBox(height: 8),
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.muted)),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                            onPressed: _load, child: const Text('Réessayer')),
-                      ],
-                    ),
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (_patients.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Text(
+                  'Aucun patient pour le moment. Ils apparaîtront ici après '
+                  'leur première demande de rendez-vous.',
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    height: 1.5,
+                    color: AppColors.muted,
                   ),
                 ),
               )
-            else if (_patients.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Text('Aucun patient pour le moment.',
-                      style: TextStyle(color: AppColors.muted)),
-                ),
-              )
             else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-                sliver: SliverList.separated(
-                  itemCount: _patients.length,
-                  separatorBuilder: (_, __) => const SizedBox.shrink(),
-                  itemBuilder: (context, i) {
-                    final entry = _patients[i];
-                    return _PatientCard(
-                      entry: entry,
-                      isFollowed: _followedIds.contains(entry.patientId),
-                      psychologistId: context
-                              .read<AuthProvider>()
-                              .session
-                              ?.profileId ??
-                          0,
-                      onFollowChanged: (followed) => setState(() {
-                        if (followed) {
-                          _followedIds = {..._followedIds, entry.patientId};
-                        } else {
-                          _followedIds = _followedIds
-                              .where((id) => id != entry.patientId)
-                              .toSet();
-                        }
-                      }),
-                    );
-                  },
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  children: [
+                    for (final entry in _patients)
+                      _PatientRow(
+                        entry: entry,
+                        isFollowed: _followedIds.contains(entry.patientId),
+                        onTap: () => _openPatient(entry),
+                      ),
+                  ],
                 ),
               ),
           ],
@@ -210,98 +222,111 @@ class _PatientEntry {
   final List<Appointment> visits;
 }
 
-class _PatientCard extends StatelessWidget {
-  const _PatientCard({
+const _kWeekdayNames = [
+  'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche',
+];
+
+const _kMonthNames = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+
+const _kMonthShort = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+String _hour(DateTime d) => d.minute == 0
+    ? '${d.hour} h'
+    : '${d.hour} h ${d.minute.toString().padLeft(2, '0')}';
+
+Color _statusColor(AppointmentStatus status) {
+  switch (status) {
+    case AppointmentStatus.pending:
+      return AppColors.goldDark;
+    case AppointmentStatus.confirmed:
+      return AppColors.teal;
+    case AppointmentStatus.completed:
+      return AppColors.muted;
+    case AppointmentStatus.cancelled:
+    case AppointmentStatus.rejected:
+      return AppColors.danger;
+  }
+}
+
+class _PatientRow extends StatelessWidget {
+  const _PatientRow({
     required this.entry,
     required this.isFollowed,
-    required this.psychologistId,
-    required this.onFollowChanged,
+    required this.onTap,
   });
 
   final _PatientEntry entry;
   final bool isFollowed;
-  final int psychologistId;
-  final ValueChanged<bool> onFollowChanged;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final profile = entry.profile;
-    final name = profile != null
-        ? '${profile.firstName} ${profile.lastName}'.trim()
-        : 'Patient';
+    final name = patientDisplayName(entry.profile);
     final last = entry.lastVisit;
-    final lastVisitLabel = '${last.day.toString().padLeft(2, '0')}/'
-        '${last.month.toString().padLeft(2, '0')}/${last.year}';
+    final count = entry.appointmentCount;
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => _PatientDetailSheet(
-              entry: entry,
-              isFollowed: isFollowed,
-              psychologistId: psychologistId,
-              onFollowChanged: onFollowChanged,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
+          children: [
+            AppAvatar(name: name, size: 46),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16.5,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  Text(
+                    '$count consultation${count > 1 ? 's' : ''} · dernière le '
+                    '${last.day} ${_kMonthShort[last.month - 1]}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(color: AppColors.muted, fontSize: 14),
+                  ),
+                ],
+              ),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            child: Row(
-              children: [
-                AppAvatar(name: name.isEmpty ? 'Patient' : name, size: 42),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name.isEmpty ? 'Patient' : name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14.5,
-                          color: AppColors.text,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${entry.appointmentCount} consultation'
-                        '${entry.appointmentCount > 1 ? 's' : ''} · dernière le '
-                        '$lastVisitLabel',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 12),
-                      ),
-                      if (isFollowed) ...[
-                        const SizedBox(height: 6),
-                        const AppPill(label: 'Suivi', dense: true),
-                      ],
-                    ],
+            if (isFollowed)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Text(
+                  'Suivi',
+                  style: TextStyle(
+                    color: AppColors.teal,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(width: 10),
-                const Icon(Icons.chevron_right,
-                    color: AppColors.faint, size: 20),
-              ],
-            ),
-          ),
+              ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
+          ],
         ),
       ),
     );
   }
 }
 
-class _PatientDetailSheet extends StatefulWidget {
-  const _PatientDetailSheet({
+class _PatientPage extends StatefulWidget {
+  const _PatientPage({
     required this.entry,
     required this.isFollowed,
     required this.psychologistId,
@@ -314,13 +339,15 @@ class _PatientDetailSheet extends StatefulWidget {
   final ValueChanged<bool> onFollowChanged;
 
   @override
-  State<_PatientDetailSheet> createState() => _PatientDetailSheetState();
+  State<_PatientPage> createState() => _PatientPageState();
 }
 
-class _PatientDetailSheetState extends State<_PatientDetailSheet> {
+class _PatientPageState extends State<_PatientPage> {
   final _linkService = PsyPatientLinkService();
+  final _messagingService = MessagingService();
   late bool _followed;
   bool _toggling = false;
+  bool _openingChat = false;
 
   @override
   void initState() {
@@ -348,319 +375,408 @@ class _PatientDetailSheetState extends State<_PatientDetailSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur : $e'),
-          backgroundColor: AppColors.rose,
-        ),
+        const SnackBar(content: Text('Action impossible. Réessayez.')),
       );
     } finally {
       if (mounted) setState(() => _toggling = false);
     }
   }
 
+  Future<void> _openChat(String name) async {
+    if (_openingChat) return;
+    setState(() => _openingChat = true);
+    try {
+      final conversation = await _messagingService
+          .startOrGetConversation(widget.entry.patientId);
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          conversationId: conversation.id,
+          otherDisplayName: name,
+        ),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir la discussion.')),
+      );
+    } finally {
+      if (mounted) setState(() => _openingChat = false);
+    }
+  }
+
+  void _push(Widget page) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final profile = widget.entry.profile;
     final entry = widget.entry;
-    final name = profile != null
-        ? '${profile.firstName} ${profile.lastName}'.trim()
-        : 'Patient';
+    final profile = entry.profile;
+    final name = patientDisplayName(profile);
+    final anonymous = profile?.anonymousMode == true;
+    final first = entry.visits.last.startTime;
+    final count = entry.appointmentCount;
+    final language = profile?.preferredLanguage?.trim() ?? '';
+    final contactName = profile?.emergencyContactName?.trim() ?? '';
+    final contactPhone = profile?.emergencyContactPhone?.trim() ?? '';
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.75,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            border: Border(top: BorderSide(color: AppColors.borderStrong)),
-          ),
-          child: ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.tealMid,
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.center,
-                    color: AppColors.tealLight,
-                    child: const Icon(Icons.person_outline,
-                        color: AppColors.tealDark, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(name.isEmpty ? 'Patient' : name,
+    return Scaffold(
+      appBar: AppBar(),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 36),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                AppAvatar(name: name, size: 70),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 18)),
-                  ),
-                  if (profile?.anonymousMode == true)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.muted.withValues(alpha: 0.12),
-                      ),
-                      child: const Text('Mode anonyme',
-                          style: TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _toggling
-                  ? const Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _toggleFollow,
-                        icon: Icon(
-                          _followed
-                              ? Icons.person_remove_outlined
-                              : Icons.person_add_outlined,
-                          size: 18,
-                        ),
-                        label: Text(
-                          _followed ? 'Retirer du suivi' : 'Marquer comme suivi',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor:
-                              _followed ? AppColors.rose : AppColors.tealDark,
-                          side: BorderSide(
-                            color:
-                                _followed ? AppColors.rose : AppColors.tealDark,
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                          height: 1.15,
                         ),
                       ),
-                    ),
-              const SizedBox(height: 20),
-              const SectionHeader(title: 'Informations médicales'),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => MedicalHistoryScreen(
-                      patientId: entry.patientId,
-                      patientName: name.isEmpty ? null : name,
-                    ),
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.medical_information_outlined,
-                          size: 18, color: AppColors.tealDark),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text('Antécédents médicaux',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Patient depuis ${_kMonthNames[first.month - 1]} '
+                        '${first.year} · $count consultation'
+                        '${count > 1 ? 's' : ''}',
+                        style: const TextStyle(
+                            fontSize: 15, color: AppColors.muted),
                       ),
-                      const Icon(Icons.chevron_right, color: AppColors.muted),
+                      if (anonymous)
+                        const Text(
+                          'Mode anonyme : pseudonyme choisi par le patient',
+                          style:
+                              TextStyle(fontSize: 15, color: AppColors.muted),
+                        )
+                      else if (language.isNotEmpty)
+                        Text(
+                          'Parle $language',
+                          style: const TextStyle(
+                              fontSize: 15, color: AppColors.muted),
+                        ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ClinicalNotesScreen(
-                      patientId: entry.patientId,
-                      patientName: name.isEmpty ? null : name,
-                    ),
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.edit_note_outlined,
-                          size: 18, color: AppColors.tealDark),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text('Mes notes cliniques (privées)',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                      ),
-                      const Icon(Icons.chevron_right, color: AppColors.muted),
-                    ],
-                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _openingChat ? null : () => _openChat(name),
+                  child: const Text('Écrire'),
                 ),
               ),
-              const SizedBox(height: 10),
-              _InfoRow(
-                icon: Icons.language_outlined,
-                label: 'Langue préférée',
-                value: profile?.preferredLanguage,
-              ),
-              const SizedBox(height: 20),
-              const SectionHeader(title: 'Questionnaires PHQ-9 / GAD-7'),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PatientQuestionnairesScreen(
-                      patientId: entry.patientId,
-                      patientName: name.isEmpty ? null : name,
-                    ),
-                  ),
-                ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.assignment_outlined,
-                          size: 18, color: Color(0xFF7C4DFF)),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text('Voir l\'historique & envoyer',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                      ),
-                      const Icon(Icons.chevron_right, color: AppColors.muted),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const SectionHeader(title: "Contact d'urgence"),
-              const SizedBox(height: 8),
-              _InfoRow(
-                icon: Icons.person_pin_outlined,
-                label: 'Nom',
-                value: profile?.emergencyContactName,
-              ),
-              const SizedBox(height: 10),
-              _InfoRow(
-                icon: Icons.phone_outlined,
-                label: 'Téléphone',
-                value: profile?.emergencyContactPhone,
-              ),
-              const SizedBox(height: 20),
-              SectionHeader(title: 
-                  'Historique des rendez-vous (${entry.visits.length})'),
-              const SizedBox(height: 8),
-              ...entry.visits.map((a) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _VisitRow(appointment: a),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: FilledButton(
+                  onPressed: () => _push(PatientQuestionnairesScreen(
+                    patientId: entry.patientId,
+                    patientName: name,
                   )),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.white,
+                    foregroundColor: AppColors.text,
+                  ),
+                  child: const Text('Envoyer un questionnaire'),
+                ),
+              ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 26),
+          const _Heading('Son suivi'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              children: [
+                _LinkRow(
+                  icon: Icons.edit_note_outlined,
+                  tint: AppColors.tealLight,
+                  ink: AppColors.teal,
+                  title: 'Mes notes cliniques',
+                  subtitle: 'Visibles par vous seule',
+                  onTap: () => _push(ClinicalNotesScreen(
+                    patientId: entry.patientId,
+                    patientName: name,
+                  )),
+                ),
+                _LinkRow(
+                  icon: Icons.assignment_outlined,
+                  tint: AppColors.goldLight,
+                  ink: AppColors.goldDark,
+                  title: 'Questionnaires',
+                  subtitle: 'Historique des scores PHQ-9 et GAD-7',
+                  onTap: () => _push(PatientQuestionnairesScreen(
+                    patientId: entry.patientId,
+                    patientName: name,
+                  )),
+                ),
+                _LinkRow(
+                  icon: Icons.medical_information_outlined,
+                  tint: AppColors.sand,
+                  ink: AppColors.text,
+                  title: 'Antécédents médicaux',
+                  onTap: () => _push(MedicalHistoryScreen(
+                    patientId: entry.patientId,
+                    patientName: name,
+                  )),
+                ),
+              ],
+            ),
+          ),
+          if (!anonymous) ...[
+            const SizedBox(height: 26),
+            const _Heading('Contact d\'urgence'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: contactName.isEmpty && contactPhone.isEmpty
+                  ? const Text(
+                      'Non renseigné par le patient',
+                      style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (contactName.isNotEmpty)
+                          Text(
+                            contactName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        if (contactPhone.isNotEmpty)
+                          Text(
+                            contactPhone,
+                            style: const TextStyle(
+                                fontSize: 15, color: AppColors.muted),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
+          const SizedBox(height: 26),
+          const _Heading('Consultations'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              children: [
+                for (final a in entry.visits)
+                  _VisitRow(
+                    appointment: a,
+                    isFirst: identical(a, entry.visits.last),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: _toggling ? null : _toggleFollow,
+              style: TextButton.styleFrom(
+                foregroundColor: _followed ? AppColors.danger : AppColors.teal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              ),
+              child: Text(
+                _toggling
+                    ? 'Mise à jour…'
+                    : _followed
+                        ? 'Retirer de mon suivi'
+                        : 'Ajouter à mon suivi',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label, this.value});
+class _Heading extends StatelessWidget {
+  const _Heading(this.title);
 
-  final IconData icon;
-  final String label;
-  final String? value;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    final hasValue = value != null && value!.trim().isNotEmpty;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: AppColors.muted),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style:
-                      const TextStyle(color: AppColors.muted, fontSize: 11)),
-              const SizedBox(height: 2),
-              Text(
-                hasValue ? value! : 'Non renseigné',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: hasValue ? AppColors.tealDark : AppColors.muted,
-                  fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
-                ),
-              ),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: AppColors.text,
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _LinkRow extends StatelessWidget {
+  const _LinkRow({
+    required this.icon,
+    required this.tint,
+    required this.ink,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final Color ink;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, size: 20, color: ink),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                          fontSize: 13.5, color: AppColors.muted),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _VisitRow extends StatelessWidget {
-  const _VisitRow({required this.appointment});
+  const _VisitRow({required this.appointment, required this.isFirst});
 
   final Appointment appointment;
-
-  Color get _statusColor {
-    switch (appointment.status) {
-      case AppointmentStatus.pending:
-        return AppColors.gold;
-      case AppointmentStatus.confirmed:
-        return AppColors.teal;
-      case AppointmentStatus.completed:
-        return AppColors.muted;
-      case AppointmentStatus.cancelled:
-      case AppointmentStatus.rejected:
-        return AppColors.rose;
-    }
-  }
+  final bool isFirst;
 
   @override
   Widget build(BuildContext context) {
     final start = appointment.startTime;
-    final date = '${start.day.toString().padLeft(2, '0')}/'
-        '${start.month.toString().padLeft(2, '0')}/${start.year} à '
-        '${start.hour.toString().padLeft(2, '0')}h'
-        '${start.minute.toString().padLeft(2, '0')}';
+    final past = appointment.status == AppointmentStatus.completed ||
+        appointment.status == AppointmentStatus.cancelled ||
+        appointment.status == AppointmentStatus.rejected;
+    final ink = past ? AppColors.muted : AppColors.teal;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.tealLight.withValues(alpha: 0.25),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Expanded(
-            child: Text(date, style: const TextStyle(fontSize: 13)),
-          ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            width: 46,
+            height: 54,
             decoration: BoxDecoration(
-              color: _statusColor.withValues(alpha: 0.12),
+              color: past ? AppColors.surfaceAlt : AppColors.tealLight,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(23),
+                bottom: Radius.circular(7),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  start.day.toString().padLeft(2, '0'),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                    color: ink,
+                  ),
+                ),
+                Text(
+                  _kMonthShort[start.month - 1],
+                  style: TextStyle(fontSize: 11, color: ink),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_kWeekdayNames[start.weekday - 1]}, ${_hour(start)} · '
+                  '${appointment.consultationType.label.toLowerCase()}',
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                if (isFirst)
+                  const Text(
+                    'Première consultation',
+                    style: TextStyle(fontSize: 13.5, color: AppColors.muted),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: _statusColor(appointment.status),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               appointment.status.label,
-              style: TextStyle(
-                  color: _statusColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

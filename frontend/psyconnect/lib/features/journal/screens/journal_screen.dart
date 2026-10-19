@@ -106,7 +106,6 @@ class _JournalScreenState extends State<JournalScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mon journal'),
         backgroundColor: AppColors.background,
         elevation: 0,
         foregroundColor: AppColors.text,
@@ -154,23 +153,37 @@ class _JournalScreenState extends State<JournalScreen> {
     }
 
     final children = <Widget>[
+      Text('Mon journal', style: Theme.of(context).textTheme.displayMedium),
+      const SizedBox(height: 6),
+      const Row(
+        children: [
+          Icon(Icons.lock_outline, size: 15, color: AppColors.muted),
+          SizedBox(width: 6),
+          Text(
+            'Vous seul y avez accès.',
+            style: TextStyle(fontSize: 15, color: AppColors.muted),
+          ),
+        ],
+      ),
+      const SizedBox(height: 20),
       _WriteRow(onTap: () => _openEditor()),
     ];
     String? currentMonth;
     for (final entry in _entries) {
       final d = entry.createdAt;
-      final month = '${_kMonths[d.month - 1].toUpperCase()} ${d.year}';
+      final monthName = _kMonths[d.month - 1];
+      final month =
+          '${monthName[0].toUpperCase()}${monthName.substring(1)} ${d.year}';
       if (month != currentMonth) {
         currentMonth = month;
         children.add(Padding(
-          padding: const EdgeInsets.fromLTRB(0, 22, 0, 8),
+          padding: const EdgeInsets.fromLTRB(0, 28, 0, 4),
           child: Text(
             month,
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-              color: AppColors.tealDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
             ),
           ),
         ));
@@ -180,18 +193,95 @@ class _JournalScreenState extends State<JournalScreen> {
         onTap: () => _openEditor(entry: entry),
       ));
     }
-    children.add(Container(height: 1, color: AppColors.border));
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 40),
       children: children,
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Humeur
-// ─────────────────────────────────────────────────────────────────────────────
+const _moodColors = {
+  1: Color(0xFFB5532F),
+  2: Color(0xFFC97B54),
+  3: Color(0xFFD2A04A),
+  4: Color(0xFF6E9384),
+  5: Color(0xFF1E4D43),
+};
+
+class _MoodShape extends StatelessWidget {
+  const _MoodShape({required this.rating, this.size = 36});
+
+  final int rating;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _moodColors[rating] ?? AppColors.gold;
+    final r = size / 2;
+    switch (rating) {
+      case 1:
+        return SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Transform.rotate(
+              angle: 0.785398,
+              child: Container(
+                width: size * 0.72,
+                height: size * 0.72,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(size * 0.12),
+                ),
+              ),
+            ),
+          ),
+        );
+      case 2:
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(size * 0.3),
+          ),
+        );
+      case 3:
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(r),
+              bottom: Radius.circular(size * 0.15),
+            ),
+          ),
+        );
+      case 4:
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(r),
+              topRight: Radius.circular(r),
+              bottomLeft: Radius.circular(r),
+              bottomRight: Radius.circular(size * 0.15),
+            ),
+          ),
+        );
+      default:
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        );
+    }
+  }
+}
 
 const _moodLabels = {
   1: 'Très difficile',
@@ -223,34 +313,27 @@ class _MoodScale extends StatelessWidget {
                 child: _MoodPoint(
                   rating: rating,
                   selected: selected,
+                  dimmed: value != null && !selected,
                   onTap: () => onChanged(selected ? null : rating),
                 ),
               ),
             );
           }),
         ),
-        const SizedBox(height: 10),
-        const Row(
-          children: [
-            Text('Très difficile',
-                style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
-            Spacer(),
-            Text('Très bien',
-                style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
-          ],
-        ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 20,
+          height: 22,
           child: Center(
             child: Text(
               value == null
-                  ? 'Facultatif — vous pouvez écrire sans noter votre humeur.'
+                  ? 'Facultatif : vous pouvez écrire sans choisir.'
                   : _moodLabel(value!),
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: value == null ? FontWeight.w400 : FontWeight.w700,
-                color: value == null ? AppColors.faint : AppColors.tealDark,
+                fontSize: value == null ? 14 : 16,
+                fontWeight: value == null ? FontWeight.w400 : FontWeight.w800,
+                color: value == null
+                    ? AppColors.muted
+                    : (_moodColors[value!] ?? AppColors.text),
               ),
             ),
           ),
@@ -264,11 +347,13 @@ class _MoodPoint extends StatelessWidget {
   const _MoodPoint({
     required this.rating,
     required this.selected,
+    required this.dimmed,
     required this.onTap,
   });
 
   final int rating;
   final bool selected;
+  final bool dimmed;
   final VoidCallback onTap;
 
   @override
@@ -281,30 +366,16 @@ class _MoodPoint extends StatelessWidget {
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: SizedBox(
-          width: 52,
-          height: 52,
+          width: 58,
+          height: 58,
           child: Center(
-            child: AnimatedContainer(
+            child: AnimatedOpacity(
               duration: AppMotion.fast,
-              curve: Curves.easeOut,
-              width: selected ? 44 : 38,
-              height: selected ? 44 : 38,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.teal : AppColors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? AppColors.teal : AppColors.borderStrong,
-                  width: selected ? 0 : 1.4,
-                ),
-              ),
-              child: Text(
-                '$rating',
-                style: TextStyle(
-                  fontSize: selected ? 17 : 15,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : AppColors.textSecondary,
-                ),
+              opacity: dimmed ? 0.3 : 1,
+              child: AnimatedScale(
+                duration: AppMotion.fast,
+                scale: selected ? 1.15 : 1,
+                child: _MoodShape(rating: rating, size: 38),
               ),
             ),
           ),
@@ -332,23 +403,21 @@ class _WriteRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      shape: const RoundedRectangleBorder(
-        side: BorderSide(color: AppColors.borderStrong),
-      ),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
         child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           child: Row(
             children: [
-              Icon(Icons.edit_outlined, size: 19, color: AppColors.teal),
-              SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Écrire quelque chose…',
-                  style: TextStyle(fontSize: 14.5, color: AppColors.faint),
+                  'Comment s\'est passée votre journée ?',
+                  style: TextStyle(fontSize: 16, color: AppColors.muted),
                 ),
               ),
+              Icon(Icons.edit_outlined, size: 20, color: AppColors.teal),
             ],
           ),
         ),
@@ -366,61 +435,70 @@ class _JournalEntryRow extends StatelessWidget {
   String get _formattedDate {
     final d = entry.createdAt;
     return '${_kWeekdays[d.weekday - 1]} ${d.day} · '
-        '${d.hour.toString().padLeft(2, '0')}h'
+        '${d.hour.toString().padLeft(2, '0')} h '
         '${d.minute.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _formattedDate,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.muted,
+    final mood = entry.moodRating;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 34,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: mood == null
+                    ? Container(
+                        width: 10,
+                        height: 10,
+                        margin: const EdgeInsets.only(top: 5, left: 6),
+                        decoration: const BoxDecoration(
+                          color: AppColors.borderStrong,
+                          shape: BoxShape.circle,
                         ),
+                      )
+                    : Align(
+                        alignment: Alignment.topLeft,
+                        child: _MoodShape(rating: mood, size: 22),
                       ),
-                    ),
-                    if (entry.moodRating != null)
-                      Text(
-                        _moodLabel(entry.moodRating!),
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.tealDark,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  entry.content,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    height: 1.55,
-                    color: AppColors.text,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mood == null
+                        ? _formattedDate
+                        : '$_formattedDate · ${_moodLabel(mood)}',
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    entry.content,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.55,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -428,9 +506,7 @@ class _JournalEntryRow extends StatelessWidget {
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Feuille de création / édition
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _JournalEntrySheet extends StatefulWidget {
   const _JournalEntrySheet({
@@ -517,7 +593,7 @@ class _JournalEntrySheetState extends State<_JournalEntrySheet> {
             children: [
               Text(
                 isEditing ? 'Modifier l\'entrée' : 'Nouvelle entrée',
-                style: theme.textTheme.headlineSmall,
+                style: theme.textTheme.displaySmall,
               ),
               const SizedBox(height: 4),
               Row(
@@ -535,9 +611,13 @@ class _JournalEntrySheetState extends State<_JournalEntrySheet> {
               ),
 
               const SizedBox(height: 24),
-              Text(
-                'Comment s\'est passée votre journée ?',
-                style: theme.textTheme.titleSmall,
+              const Text(
+                'Comment vous sentez-vous ?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
               ),
               const SizedBox(height: 14),
               _MoodScale(
@@ -551,35 +631,21 @@ class _JournalEntrySheetState extends State<_JournalEntrySheet> {
                 maxLines: 7,
                 minLines: 5,
                 textCapitalization: TextCapitalization.sentences,
+                style: const TextStyle(fontSize: 16.5, height: 1.5),
                 decoration: const InputDecoration(
-                  hintText: 'Écrivez librement…',
+                  hintText: 'Écrivez librement, sans vous juger',
                   alignLabelWithHint: true,
+                  fillColor: AppColors.background,
+                  contentPadding: EdgeInsets.all(16),
                 ),
               ),
 
               if (_error != null) ...[
                 const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerBg,
-                    borderRadius: AppRadius.smAll,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          color: AppColors.danger, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(
-                              color: AppColors.danger, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
+                Text(
+                  _error!,
+                  style: const TextStyle(
+                      color: AppColors.danger, fontSize: 14.5),
                 ),
               ],
 
