@@ -199,7 +199,7 @@ extension PaymentStatusX on PaymentStatus {
   }
 }
 
-// reflete l'enum PaymentMethod de payment-service — tous simules, pas
+// reflete l'enum PaymentMethod de payment-service, tous simules, pas
 // de vraie integration Orange Money/Wave/carte
 enum PaymentMethod { orangeMoney, wave, card }
 

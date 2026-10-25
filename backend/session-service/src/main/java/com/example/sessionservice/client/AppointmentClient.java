@@ -16,18 +16,11 @@ import com.example.sessionservice.exception.ForbiddenOperationException;
 import com.example.sessionservice.exception.ResourceNotFoundException;
 import com.example.sessionservice.exception.ServiceUnavailableException;
 import com.example.sessionservice.security.SecurityUtils;
+import com.example.sessionservice.security.ServiceTokenProvider;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 
-/**
- * Appels vers appointment-service :
- * - GET /appointments/{id}                         -> valider le RDV
- * - PATCH /appointments/{id}/status?status=...    -> marquer COMPLETED en fin de session
- *
- * Le JWT de l'utilisateur courant est toujours transmis pour que
- * appointment-service puisse vérifier l'appartenance au RDV.
- */
 @Component
 public class AppointmentClient {
 
@@ -35,13 +28,16 @@ public class AppointmentClient {
 
     private final RestTemplate restTemplate;
     private final String appointmentServiceUrl;
+    private final ServiceTokenProvider serviceTokenProvider;
 
     public AppointmentClient(
             RestTemplate restTemplate,
-            @Value("${services.appointment.url}") String appointmentServiceUrl
+            @Value("${services.appointment.url}") String appointmentServiceUrl,
+            ServiceTokenProvider serviceTokenProvider
     ) {
         this.restTemplate = restTemplate;
         this.appointmentServiceUrl = appointmentServiceUrl;
+        this.serviceTokenProvider = serviceTokenProvider;
     }
 
     @CircuitBreaker(name = "appointmentService")
@@ -85,7 +81,7 @@ public class AppointmentClient {
     private HttpHeaders authHeaders() {
         HttpHeaders headers = new HttpHeaders();
         String auth = SecurityUtils.currentAuthorizationHeader();
-        if (auth != null) headers.set("Authorization", auth);
+        headers.set("Authorization", auth != null ? auth : serviceTokenProvider.authorizationHeader());
         return headers;
     }
 

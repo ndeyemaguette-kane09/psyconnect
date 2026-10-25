@@ -1,4 +1,4 @@
-# PsyConnect — stack complète Docker Compose
+# PsyConnect : stack complète Docker Compose
 #
 # Démarrage :
 #   docker compose up --build        # premier lancement (build des images)
@@ -8,20 +8,20 @@
 #   - Docker Desktop installé et démarré
 #   - Ollama en cours d'exécution sur le Mac (`ollama serve`)
 #     avec le modèle qwen2.5:3b téléchargé (`ollama pull qwen2.5:3b`)
-#     → ai-companion-service le contacte via host.docker.internal:11434
+#     (ai-companion-service le contacte via host.docker.internal:11434)
 #
 # Points d'entrée :
-#   API Gateway  → http://localhost:8080
-#   Eureka UI    → http://localhost:8761
-#   Zipkin UI    → http://localhost:9411
+#   API Gateway  : http://localhost:8080
+#   Eureka UI    : http://localhost:8761
+#   Zipkin UI    : http://localhost:9411
 #
 # Ordre de démarrage géré par les healthchecks :
-#   postgres (healthy) → eureka (healthy) → tous les services applicatifs
+#   postgres, puis eureka, puis les services applicatifs
 #
 
 services:
 
-  # ─── Infrastructure ───────────────────────────────────────────────────────
+  # infrastructure
 
   postgres:
     image: postgres:16-alpine
@@ -35,7 +35,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5434:5432"                  # exposé sur 5434 (5433 utilisé par l'ancien container)
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -50,7 +50,7 @@ services:
       - "9411:9411"
     restart: unless-stopped
 
-  # ─── Service Discovery ────────────────────────────────────────────────────
+  # service discovery
 
   eureka-server:
     build:
@@ -72,7 +72,7 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # ─── Microservices applicatifs ────────────────────────────────────────────
+  # microservices applicatifs
   # Tous dépendent de : postgres (healthy) + eureka-server (healthy)
 
   mailpit:
@@ -123,8 +123,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
       # les justificatifs psy sont stockés dans ce volume persistant
       LICENSE_DOCS_DIR: uploads/license-documents
-      # URL explicite avec port — sans ça, HTTP utilise le port 80 par défaut
-      # et les appels vers notification-service (port 8086) tombent dans le vide
+      # URL complète avec le port de notification-service
       NOTIFICATION_SERVICE_URL: http://notification-service:8086
     volumes:
       - user_uploads:/app/uploads
@@ -268,7 +267,7 @@ services:
       - api-gateway
     restart: unless-stopped
 
-# ─── Volumes persistants ────────────────────────────────────────────────────
+# volumes persistants
 
 volumes:
   postgres_data:    # données PostgreSQL (survit aux `docker compose down`)

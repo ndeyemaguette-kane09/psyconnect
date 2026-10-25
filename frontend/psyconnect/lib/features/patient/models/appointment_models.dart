@@ -159,6 +159,8 @@ class Appointment {
   // date de creation, pas la meme chose que startTime
   // absente sur les vieux RDV, on prend startTime a la place
   final DateTime createdAt;
+  final CancellationReason? cancellationReason;
+  final DateTime? cancelledAt;
 
   Appointment({
     required this.id,
@@ -169,6 +171,8 @@ class Appointment {
     required this.consultationType,
     required this.status,
     required this.createdAt,
+    this.cancellationReason,
+    this.cancelledAt,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -185,6 +189,28 @@ class Appointment {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : startTime,
+      cancellationReason:
+          CancellationReasonX.fromApiValue(json['cancellationReason'] as String?),
+      cancelledAt: json['cancelledAt'] != null
+          ? DateTime.parse(json['cancelledAt'] as String)
+          : null,
     );
+  }
+}
+
+enum CancellationReason { patient, psychologistNoResponse, unpaid }
+
+extension CancellationReasonX on CancellationReason {
+  static CancellationReason? fromApiValue(String? value) {
+    switch (value) {
+      case 'PATIENT':
+        return CancellationReason.patient;
+      case 'PSYCHOLOGIST_NO_RESPONSE':
+        return CancellationReason.psychologistNoResponse;
+      case 'UNPAID':
+        return CancellationReason.unpaid;
+      default:
+        return null;
+    }
   }
 }

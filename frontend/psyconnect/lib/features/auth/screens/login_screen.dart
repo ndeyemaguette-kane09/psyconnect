@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../home/screens/home_screen.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/error_banner.dart';
@@ -47,261 +45,177 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          const _BrandHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (auth.isBannedAccount) ...[
-                      const _BannedAccountCard(),
-                      const SizedBox(height: 16),
-                    ] else if (auth.errorMessage != null) ...[
-                      ErrorBanner(message: auth.errorMessage!),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Carte formulaire
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: AppRadius.lgAll,
+      appBar: AppBar(),
+      body: SafeArea(
+        top: false,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              sliver: SliverFillRemaining(
+                hasScrollBody: false,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          'Bon retour',
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text('Bon retour', style: theme.textTheme.displaySmall),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Connectez-vous pour retrouver votre espace.',
-                            style: theme.textTheme.bodySmall,
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(4, 6, 4, 0),
+                        child: Text(
+                          'Connectez-vous pour retrouver votre espace.',
+                          style:
+                              TextStyle(fontSize: 16, color: AppColors.muted),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      if (auth.isBannedAccount) ...[
+                        const _BannedAccountCard(),
+                        const SizedBox(height: 16),
+                      ] else if (auth.errorMessage != null) ...[
+                        ErrorBanner(message: auth.errorMessage!),
+                        const SizedBox(height: 16),
+                      ],
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(
+                          labelText: 'E-mail',
+                          hintText: 'vous@exemple.sn',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return "L'email est requis";
+                          }
+                          if (!value.contains('@')) return 'Email invalide';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        onFieldSubmitted: (_) {
+                          if (!auth.isLoading) _submit(auth);
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Mot de passe',
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Afficher le mot de passe'
+                                : 'Masquer le mot de passe',
+                            icon: Icon(_obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined),
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
                           ),
-                          const SizedBox(height: 22),
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            autofillHints: const [AutofillHints.email],
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                              hintText: 'vous@exemple.sn',
-                              prefixIcon: Icon(Icons.mail_outline_rounded),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return "L'email est requis";
-                              }
-                              if (!value.contains('@')) return 'Email invalide';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            textInputAction: TextInputAction.done,
-                            autofillHints: const [AutofillHints.password],
-                            onFieldSubmitted: (_) {
-                              if (!auth.isLoading) _submit(auth);
-                            },
-                            decoration: InputDecoration(
-                              labelText: 'Mot de passe',
-                              prefixIcon: const Icon(Icons.lock_outline_rounded),
-                              suffixIcon: IconButton(
-                                tooltip: _obscurePassword
-                                    ? 'Afficher le mot de passe'
-                                    : 'Masquer le mot de passe',
-                                icon: Icon(_obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined),
-                                onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Le mot de passe est requis';
-                              }
-                              return null;
-                            },
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: auth.isLoading
-                                  ? null
-                                  : () {
-                                      auth.clearError();
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const ForgotPasswordScreen(),
-                                        ),
-                                      );
-                                    },
-                              child: const Text('Mot de passe oublié ?'),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed:
-                                auth.isLoading ? null : () => _submit(auth),
-                            child: auth.isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.4,
-                                      color: Colors.white,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Le mot de passe est requis';
+                          }
+                          return null;
+                        },
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: auth.isLoading
+                              ? null
+                              : () {
+                                  auth.clearError();
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const ForgotPasswordScreen(),
                                     ),
-                                  )
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text('Se connecter'),
-                                      SizedBox(width: 8),
-                                      Icon(Icons.arrow_forward_rounded,
-                                          size: 18),
-                                    ],
-                                  ),
+                                  );
+                                },
+                          child: const Text(
+                            'Mot de passe oublié ?',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton(
+                        onPressed: auth.isLoading ? null : () => _submit(auth),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                        ),
+                        child: auth.isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Se connecter'),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Pas encore de compte ?',
+                            style: TextStyle(
+                                fontSize: 15.5, color: AppColors.text),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              auth.clearError();
+                              Navigator.of(context).maybePop();
+                            },
+                            child: const Text(
+                              'Créer un compte',
+                              style: TextStyle(
+                                  fontSize: 15.5, fontWeight: FontWeight.w800),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(height: 20),
-                    const _ReassuranceRow(),
-                  ],
+                      const Spacer(),
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(12, 16, 12, 0),
+                        child: Text(
+                          'Vos échanges restent confidentiels. Les '
+                          'psychologues sont vérifiés par l\'équipe PsyConnect.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// En-tête de marque
-
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: AppColors.tealDark,
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 20, 26),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.arrow_back_rounded,
-                    color: Colors.white, size: 22),
-                tooltip: 'Retour',
-              ),
-              const SizedBox(width: 2),
-              Container(
-                width: 44,
-                height: 44,
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.16),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.28)),
-                ),
-                child: SvgPicture.asset('assets/images/psyconnect_mark.svg'),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'PsyConnect',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Espace sécurisé',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class _ReassuranceRow extends StatelessWidget {
-  const _ReassuranceRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _ReassuranceItem(
-            icon: Icons.shield_outlined, label: 'Données\nchiffrées'),
-        SizedBox(width: 24),
-        _ReassuranceItem(
-            icon: Icons.visibility_off_outlined, label: 'Anonymat\npossible'),
-        SizedBox(width: 24),
-        _ReassuranceItem(
-            icon: Icons.verified_user_outlined, label: 'Psychologues\nvérifiés'),
-      ],
-    );
-  }
-}
-
-class _ReassuranceItem extends StatelessWidget {
-  const _ReassuranceItem({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: AppColors.teal),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.muted,
-            height: 1.3,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -310,118 +224,73 @@ class _ReassuranceItem extends StatelessWidget {
 // Remplace le bandeau d'erreur générique. Affiche les coordonnées admin
 // pour que l'utilisateur sache qui contacter.
 
-// ⚠️ Mettez à jour les coordonnées admin avant la mise en production.
+// Mettez à jour les coordonnées admin avant la mise en production.
 const _adminEmail = 'admin@psyconnect.sn';
 const _adminPhone = '+221 78 000 00 00';
 
 class _BannedAccountCard extends StatelessWidget {
   const _BannedAccountCard();
 
+  void _copy(BuildContext context, String value, String done) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(done), duration: const Duration(seconds: 2)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.warningBg,
-        borderRadius: AppRadius.mdAll,
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
-              Icon(Icons.block_rounded, color: AppColors.warning, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Compte suspendu',
-                  style: TextStyle(
-                    color: Color(0xFF7A4F00),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           const Text(
-            'Votre compte a été suspendu par l\'administrateur. '
-            'Si vous pensez qu\'il s\'agit d\'une erreur, '
-            'contactez-nous :',
-            style:
-                TextStyle(color: Color(0xFF7A4F00), fontSize: 13, height: 1.4),
-          ),
-          const SizedBox(height: 12),
-          _ContactRow(
-            icon: Icons.mail_outline,
-            label: _adminEmail,
-            onTap: () {
-              Clipboard.setData(const ClipboardData(text: _adminEmail));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Adresse copiée'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 6),
-          _ContactRow(
-            icon: Icons.phone_outlined,
-            label: _adminPhone,
-            onTap: () {
-              Clipboard.setData(const ClipboardData(text: _adminPhone));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Numéro copié'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContactRow extends StatelessWidget {
-  const _ContactRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.warning),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF7A4F00),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.underline,
-                decorationColor: AppColors.warning,
-              ),
+            'Votre compte est suspendu',
+            style: TextStyle(
+              color: AppColors.danger,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
             ),
           ),
-          const SizedBox(width: 6),
-          const Text(
-            '(copier)',
-            style: TextStyle(color: AppColors.warning, fontSize: 11),
+          const SizedBox(height: 4),
+          Text.rich(
+            TextSpan(
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
+              children: [
+                const TextSpan(text: 'Si c\'est une erreur, écrivez-nous : '),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: GestureDetector(
+                    onTap: () => _copy(context, _adminEmail, 'Adresse copiée'),
+                    child: const Text(_adminEmail,
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text)),
+                  ),
+                ),
+                const TextSpan(text: ' ou '),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: GestureDetector(
+                    onTap: () => _copy(context, _adminPhone, 'Numéro copié'),
+                    child: const Text(_adminPhone,
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text)),
+                  ),
+                ),
+                const TextSpan(text: '. Touchez pour copier.'),
+              ],
+            ),
           ),
         ],
       ),

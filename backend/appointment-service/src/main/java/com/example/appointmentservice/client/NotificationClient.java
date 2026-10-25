@@ -12,7 +12,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.example.appointmentservice.security.SecurityUtils;
+import com.example.appointmentservice.security.ServiceTokenProvider;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -26,12 +26,16 @@ public class NotificationClient {
     private final RestTemplate restTemplate;
     private final String notificationServiceUrl;
 
+    private final ServiceTokenProvider serviceTokenProvider;
+
     public NotificationClient(
             RestTemplate restTemplate,
-            @Value("${services.notification.url}") String notificationServiceUrl
+            @Value("${services.notification.url}") String notificationServiceUrl,
+            ServiceTokenProvider serviceTokenProvider
     ) {
         this.restTemplate = restTemplate;
         this.notificationServiceUrl = notificationServiceUrl;
+        this.serviceTokenProvider = serviceTokenProvider;
     }
 
     @CircuitBreaker(name = "notificationService")
@@ -46,13 +50,7 @@ public class NotificationClient {
         notification.put("userRole", userRole);
 
         HttpHeaders headers = new HttpHeaders();
-        try {
-            String authorization = SecurityUtils.currentAuthorizationHeader();
-            if (authorization != null) {
-                headers.set("Authorization", authorization);
-            }
-        } catch (IllegalStateException ignored) {
-        }
+        headers.set("Authorization", serviceTokenProvider.authorizationHeader());
 
         restTemplate.exchange(
                 notificationServiceUrl + "/notifications",
@@ -60,6 +58,35 @@ public class NotificationClient {
                 new HttpEntity<>(notification, headers),
                 Object.class
         );
+    }
+
+    @CircuitBreaker(name = "notificationService")
+    @Retry(name = "notificationService", fallbackMethod = "fallbackSendAboutAppointment")
+    public void sendAboutAppointment(Long userId, String title, String message, String type,
+                                     String userRole, Long appointmentId) {
+
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("userId", userId);
+        notification.put("title", title);
+        notification.put("message", message);
+        notification.put("type", type);
+        notification.put("userRole", userRole);
+        notification.put("appointmentId", appointmentId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", serviceTokenProvider.authorizationHeader());
+
+        restTemplate.exchange(
+                notificationServiceUrl + "/notifications",
+                HttpMethod.POST,
+                new HttpEntity<>(notification, headers),
+                Object.class
+        );
+    }
+
+    private void fallbackSendAboutAppointment(Long userId, String title, String message, String type,
+                                              String userRole, Long appointmentId, Throwable t) {
+        fallbackSend(userId, title, message, type, userRole, t);
     }
 
     private void fallbackSend(Long userId, String title, String message, String type, String userRole, Throwable t) {

@@ -151,8 +151,8 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'En cas de danger immédiat, composez le 15 (SAMU) '
-                            'ou le 1515 (Croix-Rouge Sénégal).',
+                            'En cas de danger immédiat, composez le 1515 (SAMU), '
+                            'le 17 (Police) ou le 18 (Pompiers).',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,

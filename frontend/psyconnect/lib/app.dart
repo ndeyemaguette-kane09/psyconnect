@@ -8,7 +8,7 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'features/home/screens/home_screen.dart';
 
-// Overlay de touche — mettre false pour désactiver
+// Overlay de touche, mettre false pour désactiver
 const bool kShowTouchIndicators = true;
 
 class PsyConnectApp extends StatelessWidget {

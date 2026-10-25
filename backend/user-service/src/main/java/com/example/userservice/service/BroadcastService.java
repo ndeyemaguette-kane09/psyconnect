@@ -7,7 +7,7 @@ import com.example.userservice.dto.BroadcastRequest;
 
 public interface BroadcastService {
 
-    // compte les profils ciblés (synchrone, rapide — juste une requête COUNT)
+    // compte les profils ciblés (synchrone, rapide, juste une requête COUNT)
     int countTargets(BroadcastRequest request);
 
     // persiste l'annonce puis envoie les notifications en arrière-plan (@Async)

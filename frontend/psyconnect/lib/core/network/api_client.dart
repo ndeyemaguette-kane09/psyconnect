@@ -93,9 +93,6 @@ class ApiClient {
         .timeout(ApiConstants.timeout));
   }
 
-  // Requête multipart avec champs texte et fichier optionnel (ex : signalement
-  // patient). Spring exige MULTIPART_FORM_DATA_VALUE même sans pièce jointe,
-  // d'où le multipart systématique même si filePath est null.
   Future<dynamic> postMultipartFields(
     String path, {
     Map<String, String> fields = const {},
@@ -130,9 +127,6 @@ class ApiClient {
     });
   }
 
-  // Envoie un fichier en multipart/form-data (justificatif du psychologue).
-  // Le timeout est délibérément plus long : un fichier de plusieurs Mo peut
-  // dépasser 15 s sur un réseau mobile.
   Future<dynamic> postMultipart(
     String path, {
     required String fieldName,
@@ -153,12 +147,6 @@ class ApiClient {
         fieldName,
         filePath,
         filename: fileNameOverride,
-        // Sans ce forçage, http déduirait le Content-Type depuis l'extension
-        // de filePath — le chemin temporaire renvoyé par file_picker. Sur iOS,
-        // ce chemin n'a souvent aucune extension (cache du picker), ce qui
-        // produit "application/octet-stream" et provoque un rejet backend.
-        // On préfère déduire le type depuis le nom original du fichier
-        // (fileNameOverride), dont l'extension est fiable.
         contentType: _guessMediaType(fileNameOverride ?? filePath),
       ));
 
@@ -169,9 +157,6 @@ class ApiClient {
     });
   }
 
-  // Déduit le Content-Type depuis l'extension (PDF/PNG/JPEG : les seuls
-  // formats acceptés par user-service pour le justificatif). Retourne null
-  // si l'extension est inconnue, laissant http choisir lui-même.
   MediaType? _guessMediaType(String nameOrPath) {
     final lower = nameOrPath.toLowerCase();
     if (lower.endsWith('.pdf')) return MediaType('application', 'pdf');
@@ -246,9 +231,6 @@ class ApiClient {
 
   ApiException _toApiException(int statusCode, dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
-      // Erreur métier : { "message": "…" }, éventuellement accompagnée de
-      // timestamp/status. On vérifie la présence de la clé "message" plutôt
-      // que la taille de la map pour distinguer ce format des autres.
       if (decoded.containsKey('message')) {
         final errorCode = decoded['errorCode']?.toString();
         return ApiException(
@@ -258,9 +240,6 @@ class ApiClient {
         );
       }
 
-      // Page d'erreur par défaut de Spring Boot sans handler personnalisé :
-      // {timestamp, status, error, path} sans clé "message". On ne la traite
-      // pas comme une erreur de validation pour éviter d'afficher un timestamp brut.
       if (decoded.containsKey('timestamp') &&
           decoded.containsKey('status') &&
           decoded.containsKey('path')) {

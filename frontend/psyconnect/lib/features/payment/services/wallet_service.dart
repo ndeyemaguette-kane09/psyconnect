@@ -5,7 +5,7 @@ import '../models/wallet_models.dart';
 // appelle les endpoints du solde :
 // GET /patients/{id}/wallet, POST .../wallet/deposit, .../wallet/withdraw.
 // /debit et /credit existent côté backend mais c'est juste pour les
-// appels entre services — jamais utilisés ici.
+// appels entre services, jamais utilisés ici.
 class WalletService {
   WalletService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 

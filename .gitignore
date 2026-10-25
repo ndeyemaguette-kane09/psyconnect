@@ -76,3 +76,19 @@ backend/*/bin/
 
 ### Dossier de travail temporaire ###
 tmp/
+
+### Environnement Python local ###
+**/venv/
+**/.venv/
+
+### Documents de travail (gardés en local, hors dépôt) ###
+docs/*
+!docs/screenshots/
+!docs/diagrammes/
+admin/
+patient/
+psy/
+finish/
+video/
+logo/
+diplomes_factices/

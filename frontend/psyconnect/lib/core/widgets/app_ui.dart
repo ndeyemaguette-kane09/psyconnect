@@ -407,8 +407,8 @@ class AppAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = _tone;
-    final width = size * 0.84;
-    final height = size * 0.9;
+    final width = size * 0.86;
+    final height = size * 0.8;
     return SizedBox(
       width: size,
       height: height,

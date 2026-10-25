@@ -156,6 +156,11 @@ public class PatientProfileController {
             @PathVariable Long id,
             @RequestBody WalletAmountRequest request
     ) {
+        if (httpRequest.isUserInRole("SERVICE")) {
+            return ResponseEntity.ok(
+                    patientProfileService.creditWalletAsService(id, request.getAmount())
+            );
+        }
         return ResponseEntity.ok(
                 patientProfileService.creditWallet(
                         id, request.getAmount(), currentAuthUserId(httpRequest)

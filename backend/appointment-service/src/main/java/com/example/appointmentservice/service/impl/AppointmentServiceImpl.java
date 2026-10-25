@@ -14,6 +14,7 @@ import com.example.appointmentservice.dto.CreateAppointmentRequest;
 import com.example.appointmentservice.dto.RescheduleAppointmentRequest;
 import com.example.appointmentservice.entity.Appointment;
 import com.example.appointmentservice.entity.AppointmentStatus;
+import com.example.appointmentservice.entity.CancellationReason;
 import com.example.appointmentservice.exception.ForbiddenOperationException;
 import com.example.appointmentservice.exception.ResourceNotFoundException;
 import com.example.appointmentservice.repository.AppointmentRepository;
@@ -60,6 +61,10 @@ public class AppointmentServiceImpl
     }
 
     private void checkParticipant(Appointment appointment) {
+
+        if (SecurityUtils.hasRole("SERVICE")) {
+            return;
+        }
 
         if (SecurityUtils.hasRole("PATIENT")) {
             Long ownPatientId = ownershipResolver.resolveOwnPatientId();
@@ -125,6 +130,12 @@ public class AppointmentServiceImpl
     
             throw new RuntimeException(
                     "Les rendez-vous ne peuvent pas être programmés dans le passé"
+            );
+        }
+
+        if (request.getStartTime().isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new RuntimeException(
+                    "Un rendez-vous doit être réservé au moins 2 heures à l'avance"
             );
         }
 
@@ -222,12 +233,13 @@ public class AppointmentServiceImpl
             String message
     ) {
 
-        notificationClient.send(
+        notificationClient.sendAboutAppointment(
                 patientId,
                 title,
                 message,
                 "APPOINTMENT",
-                "PATIENT"
+                "PATIENT",
+                appointmentId
         );
     }
 
@@ -238,12 +250,13 @@ public class AppointmentServiceImpl
             String message
     ) {
 
-        notificationClient.send(
+        notificationClient.sendAboutAppointment(
                 psychologistId,
                 title,
                 message,
                 "APPOINTMENT",
-                "PSYCHOLOGIST"
+                "PSYCHOLOGIST",
+                appointmentId
         );
     }
 
@@ -284,6 +297,14 @@ public class AppointmentServiceImpl
         AppointmentStatus newStatus =
                 AppointmentStatus.valueOf(status.toUpperCase());
 
+        if (SecurityUtils.hasRole("SERVICE")
+                && !(newStatus == AppointmentStatus.COMPLETED
+                        && appointment.getStatus() == AppointmentStatus.CONFIRMED)) {
+            throw new ForbiddenOperationException(
+                    "Un service interne ne peut que clôturer un rendez-vous confirmé"
+            );
+        }
+
         boolean callerIsPsychologist = SecurityUtils.hasRole("PSYCHOLOGIST");
         if (
             (newStatus == AppointmentStatus.CONFIRMED
@@ -305,9 +326,9 @@ public class AppointmentServiceImpl
                         "Seul un rendez-vous en attente peut être confirmé"
                 );
             }
-            if (!appointment.getStartTime().isAfter(LocalDateTime.now())) {
+            if (!appointment.getStartTime().isAfter(LocalDateTime.now().plusHours(2))) {
                 throw new ForbiddenOperationException(
-                        "Ce rendez-vous est déjà passé : il ne peut plus être confirmé"
+                        "Le délai est dépassé : un rendez-vous doit être confirmé au moins 2 heures avant son début"
                 );
             }
         }
@@ -315,6 +336,11 @@ public class AppointmentServiceImpl
         appointment.setStatus(
                 newStatus
         );
+
+        if (newStatus == AppointmentStatus.CANCELLED) {
+            appointment.setCancellationReason(CancellationReason.PATIENT);
+            appointment.setCancelledAt(LocalDateTime.now());
+        }
 
         Appointment updatedAppointment =
                 appointmentRepository.save(
@@ -365,6 +391,18 @@ public class AppointmentServiceImpl
                     updatedAppointment.getPatientId(),
                     title,
                     message
+            );
+        }
+
+        if (newStatus == AppointmentStatus.CANCELLED) {
+            notifyPsychologist(
+                    updatedAppointment.getId(),
+                    updatedAppointment.getPsychologistId(),
+                    "Rendez-vous annulé",
+                    "Un patient a annulé son rendez-vous du "
+                            + updatedAppointment.getStartTime().format(
+                                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'à' HH:mm"))
+                            + "."
             );
         }
 
@@ -443,6 +481,18 @@ public class AppointmentServiceImpl
         if (patientConflict) {
             throw new RuntimeException(
                     "Vous avez déjà un autre rendez-vous sur ce nouveau créneau"
+            );
+        }
+
+        if (appointment.getStartTime().isBefore(LocalDateTime.now().plusHours(48))) {
+            throw new RuntimeException(
+                    "Un rendez-vous ne peut plus être reporté moins de 48 heures avant son début"
+            );
+        }
+
+        if (request.getNewStartTime().isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new RuntimeException(
+                    "Le nouveau créneau doit commencer au moins 2 heures après maintenant"
             );
         }
 
@@ -589,6 +639,14 @@ public class AppointmentServiceImpl
 
         response.setCreatedAt(
                 appointment.getCreatedAt()
+        );
+
+        response.setCancellationReason(
+                appointment.getCancellationReason()
+        );
+
+        response.setCancelledAt(
+                appointment.getCancelledAt()
         );
 
         return response;

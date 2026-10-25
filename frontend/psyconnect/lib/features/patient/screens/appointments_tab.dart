@@ -450,7 +450,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         appointment.consultationType == ConsultationType.audio;
     if (appointment.status == AppointmentStatus.confirmed &&
         isCallType &&
-        callWindowOpen) {
+        callWindowOpen &&
+        _paidAppointmentIds.contains(appointment.id)) {
       return () => _joinCall(appointment, psychologist);
     }
     return null;
@@ -544,7 +545,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         appointment.consultationType == ConsultationType.audio;
     final canJoinCall = appointment.status == AppointmentStatus.confirmed &&
         isCallType &&
-        callWindowOpen;
+        callWindowOpen &&
+        _paidAppointmentIds.contains(appointment.id);
     final callNotYetOpen = appointment.status == AppointmentStatus.confirmed &&
         isCallType &&
         !callWindowOpen &&

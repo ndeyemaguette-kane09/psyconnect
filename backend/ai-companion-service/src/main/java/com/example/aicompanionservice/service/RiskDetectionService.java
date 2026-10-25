@@ -6,23 +6,7 @@ import java.text.Normalizer;
 import java.util.List;
 import java.util.regex.Pattern;
 
-/**
- * Filtre de securite applique AVANT tout appel au modele de langage.
- *
- * Pourquoi un filtre separe plutot que de tout confier au prompt systeme :
- * un LLM peut deriver sous insistance ou reformulation de l'utilisateur,
- * meme avec des instructions explicites ("ne jamais...") dans son prompt
- * systeme. Pour un contenu a risque (idees suicidaires, automutilation), on
- * ne veut pas dependre de la fiabilite du modele : ce filtre, lui, est
- * deterministe et ne "derive" jamais.
- *
- * Volontairement permissif (mieux vaut un faux positif - qui affiche un
- * message bienveillant avec des numeros utiles - qu'un faux negatif).
- *
- * Limite assumee : detection par mots-cles/regex en francais. Ne couvre pas
- * toutes les formulations possibles (wolof, argot, fautes d'orthographe
- * volontaires...). C'est un garde-fou, pas une detection clinique fiable.
- */
+// filtre lancé avant le modèle : si détresse, on renvoie les numéros d'urgence sans appeler le LLM
 @Service
 public class RiskDetectionService {
 
@@ -41,7 +25,12 @@ public class RiskDetectionService {
             "plus la force de continuer", "plus aucune raison de continuer",
             "personne ne me manquerait", "le monde irait mieux sans moi",
             "je veux disparaitre", "envie de disparaitre",
-            "plus rien ne me retient", "j'ai prepare (ma|ce qu'il faut pour)"
+            "plus rien ne me retient", "j'ai prepare (ma|ce qu'il faut pour)",
+            "(n'en|ne) peux plus (de )?(vivre|cette vie|la vie)",
+            "plus la force de vivre", "fatiguee? de vivre",
+            "marre de (vivre|la vie|cette vie)",
+            "envie d'en finir", "ma vie n'a plus (de|aucun) sens",
+            "(ne plus|pas) me reveiller", "(voudrais|veux|aimerais) etre morte?"
     ).stream()
             .map(p -> Pattern.compile(p, Pattern.CASE_INSENSITIVE))
             .toList();
@@ -63,10 +52,6 @@ public class RiskDetectionService {
         return false;
     }
 
-    /**
-     * Minuscules + suppression des accents, pour que "épuisé(e)", "ça",
-     * etc. matchent les motifs ecrits sans diacritiques.
-     */
     private String normalize(String text) {
 
         String lower = text.toLowerCase();
@@ -77,6 +62,7 @@ public class RiskDetectionService {
 
         return withoutAccents
                 .replaceAll("[\\u2018\\u2019\\u02BC\\u0060\\u00B4]", "'")
+                .replaceAll("[\\u00A0\\u202F]", " ")
                 .replaceAll("\\s+", " ");
     }
 }

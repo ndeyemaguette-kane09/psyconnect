@@ -96,10 +96,6 @@ class PaymentServiceImplTest {
         SecurityContextHolder.clearContext();
     }
 
-    /**
-     * Simule un appelant authentifié avec le rôle PATIENT, propriétaire du
-     * rendez-vous dont l'id patient est {@code ownPatientId}.
-     */
     private void authenticateAsPatientOwning(Long ownPatientId) {
         SecurityContextHolder.getContext().setAuthentication(
                 new TestingAuthenticationToken("patient", null, "ROLE_PATIENT")

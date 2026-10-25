@@ -2,6 +2,7 @@ package com.example.sessionservice.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -22,7 +23,9 @@ public final class SecurityUtils {
     }
 
     public static String currentAuthorizationHeader() {
-        return currentRequest().getHeader("Authorization");
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (!(attributes instanceof ServletRequestAttributes servletAttributes)) return null;
+        return servletAttributes.getRequest().getHeader("Authorization");
     }
 
     public static boolean hasRole(String role) {

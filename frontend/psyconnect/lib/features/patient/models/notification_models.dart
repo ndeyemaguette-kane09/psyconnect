@@ -76,6 +76,7 @@ class AppNotification {
   final AppNotificationType type;
   final DateTime createdAt;
   final bool isRead;
+  final int? appointmentId;
 
   AppNotification({
     required this.id,
@@ -85,6 +86,7 @@ class AppNotification {
     required this.type,
     required this.createdAt,
     required this.isRead,
+    this.appointmentId,
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) =>
@@ -98,5 +100,6 @@ class AppNotification {
             ? DateTime.parse(json['createdAt'] as String)
             : DateTime.now(),
         isRead: json['isRead'] as bool? ?? false,
+        appointmentId: (json['appointmentId'] as num?)?.toInt(),
       );
 }

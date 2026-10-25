@@ -32,9 +32,11 @@ private NotificationType type;
 
     private Boolean isRead;
 
-    // "PATIENT" ou "PSYCHOLOGIST" — stocké pour isoler les notifications
+    // "PATIENT" ou "PSYCHOLOGIST", stocké pour isoler les notifications
     // quand patientProfileId et psychologistProfileId partagent la même valeur numérique
     private String userRole;
+
+    private Long appointmentId;
 
     @PrePersist
     public void prePersist() {

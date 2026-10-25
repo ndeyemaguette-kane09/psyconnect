@@ -14,11 +14,6 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
-// Avis d'un patient sur un psychologue. Un seul avis par couple
-// patient-psychologue (modifiable après chaque nouvelle séance), uniquement
-// si le patient a déjà eu un rendez-vous TERMINÉ avec ce psychologue (vérifié via
-// AppointmentClient, cf. ReviewServiceImpl). Toujours anonyme : aucune
-// référence au patient n'est jamais exposée (ni au psychologue, ni en public).
 @Entity
 @Getter
 @Setter

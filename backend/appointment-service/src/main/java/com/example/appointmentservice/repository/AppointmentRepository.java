@@ -11,7 +11,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AppointmentRepository
         extends JpaRepository<Appointment, Long> {
 
-
     // Conflit psy : créneau chevauche un RDV actif (PENDING ou CONFIRMED)
     boolean existsByPsychologistIdAndStartTimeLessThanAndEndTimeGreaterThanAndStatusIn(
             Long psychologistId,
@@ -51,6 +50,14 @@ List<Appointment> findByPsychologistId(Long psychologistId);
 List<Appointment> findByPatientId(Long patientId);
 
 List<Appointment> findByStatus(AppointmentStatus status);
+
+List<Appointment> findByStatusAndStartTimeBefore(AppointmentStatus status, LocalDateTime time);
+
+List<Appointment> findByStatusAndStartTimeBetween(
+        AppointmentStatus status,
+        LocalDateTime from,
+        LocalDateTime to
+);
 
 long countByStatus(AppointmentStatus status);
 

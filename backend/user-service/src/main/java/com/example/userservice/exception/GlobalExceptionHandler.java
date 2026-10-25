@@ -50,6 +50,14 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage());
     }
 
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<Map<String, Object>>
+    handleInsufficientBalance(
+            InsufficientBalanceException ex
+    ) {
+        return buildResponse(HttpStatus.PAYMENT_REQUIRED, "Payment Required", ex.getMessage());
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>>
     handleDataIntegrityViolation(

@@ -40,9 +40,6 @@ public class NotificationServiceImpl
         return null;
     }
 
-    // Une notification appartient à un profil identifié par (userId, userRole).
-    // Sans le rôle, patientProfileId=3 et psychologistProfileId=3 seraient
-    // indiscernables — un psy verrait les notifs du patient ayant le même id.
     private void checkOwnership(Long notificationUserId, String notificationUserRole) {
 
         String role = currentRole();

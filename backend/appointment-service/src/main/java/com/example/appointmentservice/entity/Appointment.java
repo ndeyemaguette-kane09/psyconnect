@@ -46,6 +46,14 @@ public class Appointment {
     @Column(columnDefinition = "boolean default false")
     private Boolean reminderSent = Boolean.FALSE;
 
+    @Column(columnDefinition = "boolean default false")
+    private Boolean paymentReminderSent = Boolean.FALSE;
+
+    @Enumerated(EnumType.STRING)
+    private CancellationReason cancellationReason;
+
+    private LocalDateTime cancelledAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

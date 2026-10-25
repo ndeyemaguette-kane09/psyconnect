@@ -292,9 +292,6 @@ class _AnswerOption extends StatelessWidget {
   }
 }
 
-// Proposition d'aide immédiate, affichée lorsqu'un patient signale des idées
-// suicidaires à l'item 9 du PHQ-9. Volontairement non bloquante : c'est une
-// porte ouverte, pas une alerte.
 class _CareScreen extends StatelessWidget {
   const _CareScreen({required this.result});
 

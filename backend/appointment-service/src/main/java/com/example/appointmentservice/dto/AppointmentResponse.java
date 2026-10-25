@@ -3,6 +3,7 @@ package com.example.appointmentservice.dto;
 import java.time.LocalDateTime;
 
 import com.example.appointmentservice.entity.AppointmentStatus;
+import com.example.appointmentservice.entity.CancellationReason;
 import com.example.appointmentservice.entity.ConsultationType;
 
 import lombok.Getter;
@@ -22,4 +23,7 @@ public class AppointmentResponse {
 
     // Date de création, inchangée même si le rendez-vous est reporté
     private LocalDateTime createdAt;
+
+    private CancellationReason cancellationReason;
+    private LocalDateTime cancelledAt;
 }

@@ -134,7 +134,7 @@ public class OwnershipResolver {
                     "Accès refusé lors de la résolution du profil " + profileLabel
             );
         } catch (RestClientException ex) {
-            // Panne réseau — le retry se chargera de réessayer
+            // Panne réseau, le retry se chargera de réessayer
             throw new ServiceUnavailableException(
                     "user-service indisponible pour la vérification de propriété (" + profileLabel + ")",
                     ex

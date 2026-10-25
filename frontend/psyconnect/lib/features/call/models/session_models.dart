@@ -16,9 +16,7 @@ extension SessionStatusX on SessionStatus {
   }
 }
 
-// session simulee cote backend (pas de vrai SDK Agora/WebRTC) :
-// meetingToken c'est juste un texte SIM-AGORA-<uuid> genere au demarrage,
-// jamais utilise par un vrai service de visio
+// session d'appel renvoyee par session-service, meetingToken = nom du salon Jitsi
 class CallSession {
   final int id;
   // null pour les sessions d'urgence (pas de RDV associé)

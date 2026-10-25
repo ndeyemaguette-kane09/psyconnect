@@ -10,7 +10,7 @@ import '../services/admin_service.dart';
 import 'admin_reports_tab.dart';
 import 'admin_support_messages_tab.dart';
 
-// onglet "Paramètres" — 3 sections :
+// onglet "Paramètres", 3 sections :
 //   1. Réglages plateforme (taux commission)
 //   2. Modération (accès aux signalements)
 //   3. Communication (broadcast annonce admin -> utilisateurs)

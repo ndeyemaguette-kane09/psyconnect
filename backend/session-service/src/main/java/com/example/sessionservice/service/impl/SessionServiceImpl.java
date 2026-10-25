@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.sessionservice.client.AppointmentClient;
 import com.example.sessionservice.client.NotificationClient;
+import com.example.sessionservice.client.PaymentClient;
 import com.example.sessionservice.dto.AppointmentDto;
 import com.example.sessionservice.dto.SessionResponse;
 import com.example.sessionservice.dto.StartEmergencySessionRequest;
@@ -31,33 +32,23 @@ public class SessionServiceImpl implements SessionService {
     private final AppointmentClient appointmentClient;
     private final NotificationClient notificationClient;
     private final OwnershipResolver ownershipResolver;
+    private final PaymentClient paymentClient;
 
-    // Verrou en memoire, un seul par instance du service : protege la sequence
-    // "verifier qu'aucune session IN_PROGRESS n'existe puis en creer une" contre
-    // une execution concurrente. Sans lui, deux appels quasi simultanes a
-    // /sessions/start (typiquement patient + psy qui rejoignent en meme temps)
-    // passent tous les deux le controle "aucune session en cours" AVANT que l'un
-    // des deux ait sauvegarde la sienne : chacun cree alors sa propre session,
-    // avec un meetingToken (donc un salon Jitsi) different -> les deux
-    // participants se retrouvent chacun seul dans sa salle. C'est la cause
-    // reelle du bug "salle d'attente" constatee en test reel, pas une simple absence
-    // de controle : le controle existait deja (existsByAppointmentIdAndStatus)
-    // mais n'etait pas atomique avec la creation.
-    // Limite assumee : ce verrou ne protege que cette instance JVM. Suffisant
-    // ici (un seul exemplaire de chaque service, pas de scaling horizontal dans
-    // ce MVP), a documenter comme limite si le sujet revient en soutenance.
+    // évite deux salons quand patient et psy rejoignent au même moment
     private final Object sessionStartLock = new Object();
 
     public SessionServiceImpl(
             SessionRepository sessionRepository,
             AppointmentClient appointmentClient,
             NotificationClient notificationClient,
-            OwnershipResolver ownershipResolver
+            OwnershipResolver ownershipResolver,
+            PaymentClient paymentClient
     ) {
         this.sessionRepository = sessionRepository;
         this.appointmentClient = appointmentClient;
         this.notificationClient = notificationClient;
         this.ownershipResolver = ownershipResolver;
+        this.paymentClient = paymentClient;
     }
 
     // vérifie que l'appelant est bien patient ou psy du RDV
@@ -76,14 +67,6 @@ public class SessionServiceImpl implements SessionService {
         checkParticipant(appt);
 
         synchronized (sessionStartLock) {
-            // "Get" avant "create" : si une session IN_PROGRESS existe deja pour
-            // ce rendez-vous (demarree par l'autre participant, ou par nous-memes
-            // apres avoir quitte puis relance l'appel), on la rejoint au lieu
-            // d'en creer une nouvelle. C'est ce qui garantit que les deux
-            // participants atterrissent toujours dans le meme salon Jitsi.
-            // Volontairement AVANT les controles de statut/horaire ci-dessous :
-            // rejoindre une session deja ouverte doit marcher meme si on s'y
-            // reconnecte un peu apres la fin theorique du creneau.
             Optional<Session> existing = sessionRepository
                     .findFirstByAppointmentIdAndStatus(appt.getId(), SessionStatus.IN_PROGRESS);
             if (existing.isPresent()) {
@@ -101,12 +84,13 @@ public class SessionServiceImpl implements SessionService {
                         "Ce rendez-vous n'a pas encore commencé : vous pourrez rejoindre "
                                 + "l'appel 10 minutes avant l'heure prévue");
             }
-            // +30 min de marge, alignee sur la fenetre "callWindowOpen" deja
-            // utilisee cote Flutter (appointments_tab.dart / agenda_tab.dart) :
-            // avant, le backend refusait un tout premier demarrage passe
-            // l'heure de fin exacte, alors que l'UI le proposait encore.
             if (now.isAfter(appt.getEndTime().plusMinutes(30))) {
                 throw new RuntimeException("Le créneau de ce rendez-vous est terminé");
+            }
+
+            if (!paymentClient.isPaid(appt.getId())) {
+                throw new RuntimeException(
+                        "Ce rendez-vous n'est pas encore payé : réglez-le pour pouvoir rejoindre l'appel");
             }
 
             // nom de room Jitsi : psyconnect-{rdvId}-{uuid8}

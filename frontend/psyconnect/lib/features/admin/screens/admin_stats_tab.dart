@@ -8,7 +8,7 @@ import '../services/admin_service.dart';
 import 'admin_appointments_list_screen.dart';
 import 'admin_payments_list_screen.dart';
 
-// onglet "Stats" — vue globale RDV + paiements, via
+// onglet "Stats", vue globale RDV + paiements, via
 // GET /admin/stats/appointments : statuts + agregats deja calcules cote
 // backend, contrairement au Dashboard qui derive tout cote client
 class AdminStatsTab extends StatefulWidget {
@@ -156,7 +156,7 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
                 ),
               ),
               const SizedBox(height: 18),
-              // part de revenus de l'admin — taux reglable depuis l'onglet
+              // part de revenus de l'admin, taux reglable depuis l'onglet
               // Config, pas une valeur figee en dur
               const _Heading('Qui touche quoi'),
               _Bar(parts: [

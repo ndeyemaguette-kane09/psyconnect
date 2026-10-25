@@ -8,16 +8,13 @@ import httpx
 
 from app import config
 
-
 class PatientNotFoundError(Exception):
     # profil patient pas trouvé (404 cote user-service)
     pass
 
-
 class UserServiceUnavailableError(Exception):
     # user-service (via la gateway) a pas répondu correctement
     pass
-
 
 def _auth_headers(authorization: Optional[str]) -> Dict[str, str]:
     # GET /patients/{id} exige un JWT. le service ML a pas son propre jeton,
@@ -26,7 +23,6 @@ def _auth_headers(authorization: Optional[str]) -> Dict[str, str]:
     if not authorization:
         return {}
     return {"Authorization": authorization}
-
 
 async def fetch_patient_profile(
     patient_id: int, authorization: Optional[str] = None
@@ -49,11 +45,7 @@ async def fetch_patient_profile(
 
     return response.json()
 
-
 async def fetch_psychologists(authorization: Optional[str] = None) -> List[Dict[str, Any]]:
-    # GET /psychologists est public, mais on relaie le jeton quand meme.
-    # verifiedOnly=true : un psy pas encore approuve (ou refuse) par l'admin
-    # ne doit jamais etre recommande a un patient, meme via le scoring ML
     url = f"{config.GATEWAY_URL}/psychologists?verifiedOnly=true"
 
     try:

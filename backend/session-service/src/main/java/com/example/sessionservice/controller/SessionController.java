@@ -29,11 +29,6 @@ public class SessionController {
         this.sessionService = sessionService;
     }
 
-    /**
-     * Démarre une session vidéo pour un RDV.
-     * Le premier participant crée la session et obtient le meetingToken (nom de room Jitsi).
-     * Le second rejoint via GET /sessions/appointment/{id}.
-     */
     @PostMapping("/start")
     public ResponseEntity<SessionResponse> startSession(
             @Valid @RequestBody StartSessionRequest request
@@ -41,10 +36,6 @@ public class SessionController {
         return ResponseEntity.ok(sessionService.startSession(request));
     }
 
-    /**
-     * Démarre une session d'urgence sans rendez-vous.
-     * Utilisé par le bouton SOS du patient pour un appel direct au psy dispo.
-     */
     @PostMapping("/emergency")
     public ResponseEntity<SessionResponse> startEmergencySession(
             @Valid @RequestBody StartEmergencySessionRequest request
@@ -52,10 +43,6 @@ public class SessionController {
         return ResponseEntity.ok(sessionService.startEmergencySession(request));
     }
 
-    /**
-     * Termine une session en cours.
-     * Met à jour le statut du RDV dans appointment-service (best-effort).
-     */
     @PutMapping("/{id}/end")
     public ResponseEntity<SessionResponse> endSession(@PathVariable Long id) {
         return ResponseEntity.ok(sessionService.endSession(id));
@@ -67,10 +54,6 @@ public class SessionController {
         return ResponseEntity.ok(sessionService.getSessionById(id));
     }
 
-    /**
-     * Récupère toutes les sessions d'un RDV.
-     * Utilisé par le 2e participant pour trouver la session IN_PROGRESS et rejoindre.
-     */
     @GetMapping("/appointment/{appointmentId}")
     public ResponseEntity<List<SessionResponse>> getSessionsByAppointment(
             @PathVariable Long appointmentId

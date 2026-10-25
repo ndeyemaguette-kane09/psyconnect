@@ -3,7 +3,6 @@ package com.example.userservice.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-
 @Entity
 @Table(name = "psychologist_profiles")
 public class PsychologistProfile {
@@ -20,19 +19,11 @@ public class PsychologistProfile {
 
     private String bio;
 
-    // Langues parlées : non demandées à l'inscription (uniquement modifiables
-    // depuis "Profil > Modifier"), donc doit rester optionnel en base.
-    // c'était nullable=false par erreur -> création de profil impossible
-    // pour tout nouveau psychologue (corrigé le 2026-06-30)
     private String languages;
 
     @Column(nullable = false)
     private String specialty;
 
-    // Optionnel à l'inscription (champ "Années d'expérience" sans validator
-    // côté Flutter) : Integer (pas int) pour accepter null sans NPE au
-    // unboxing, et sans contrainte NOT NULL en base (corrigé le 2026-06-30,
-    // même bug que languages/licenseNumber)
     private Integer yearsOfExperience;
 
     private String city;
@@ -56,9 +47,6 @@ public class PsychologistProfile {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean rejected = false;
 
-    // Numéro de licence : optionnel à l'inscription côté Flutter, à ne pas
-    // confondre avec le justificatif (fichier) qui, lui, est obligatoire.
-    // c'était nullable=false par erreur, même bug que languages (2026-06-30)
     private String licenseNumber;
 
     private Integer consultationPrice;
@@ -88,7 +76,6 @@ public class PsychologistProfile {
 
     public PsychologistProfile() {
     }
-
 
     public Long getId() {
         return id;

@@ -15,15 +15,6 @@ import com.example.appointmentservice.entity.Appointment;
 import com.example.appointmentservice.entity.AppointmentStatus;
 import com.example.appointmentservice.entity.ConsultationType;
 
-/**
- * Test d'intégration JPA : vérifie que les requêtes de détection de conflit
- * de créneau fonctionnent correctement contre une vraie base (H2 en mémoire).
- *
- * On utilise @DataJpaTest qui démarre uniquement la couche JPA, sans le
- * serveur web ni les clients REST — c'est rapide (~2 secondes).
- *
- * Le cas clé : un RDV annulé (CANCELLED) ne doit PAS bloquer le créneau.
- */
 @DataJpaTest
 class AppointmentRepositoryIT {
 

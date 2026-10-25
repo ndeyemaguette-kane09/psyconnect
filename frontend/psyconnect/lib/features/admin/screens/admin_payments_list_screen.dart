@@ -7,7 +7,7 @@ import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
 
 // ecran qui s'ouvre depuis Stats (clic sur "Paiements" ou la carte
-// de revenu) — pas dans la maquette v2. liste complete des paiements
+// de revenu), pas dans la maquette v2. liste complete des paiements
 // (GET /admin/payments). y'a pas de filtre par statut cote backend
 // pour les paiements, donc on filtre nous meme cote client
 class AdminPaymentsListScreen extends StatefulWidget {

@@ -7,11 +7,6 @@ import com.example.userservice.dto.ReviewResponse;
 
 public interface ReviewService {
 
-    /**
-     * Cree ou met a jour l'avis du patient appelant sur ce psychologue.
-     * Refuse (403) si l'appelant n'est pas un patient ayant deja eu un
-     * rendez-vous COMPLETED avec ce psychologue.
-     */
     ReviewResponse upsertReview(
             Long psychologistId,
             CreateOrUpdateReviewRequest request,
