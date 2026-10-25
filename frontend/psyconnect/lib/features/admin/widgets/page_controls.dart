@@ -11,7 +11,7 @@ List<T> paginate<T>(List<T> items, int page, int pageSize) {
   return items.skip(start).take(pageSize).toList();
 }
 
-// nombre de pages pour totalItems a pageSize par page — toujours au moins 1
+// nombre de pages pour totalItems a pageSize par page, toujours au moins 1
 // page meme si la liste est vide ("Page 1 / 1"), plus simple que de gerer
 // un cas vide a part
 int pageCountFor(int totalItems, int pageSize) {
@@ -19,7 +19,7 @@ int pageCountFor(int totalItems, int pageSize) {
   return ((totalItems - 1) ~/ pageSize) + 1;
 }
 
-// barre "< page x/y >" — cachee toute seule s'il y a qu'une page
+// barre "< page x/y >", cachee toute seule s'il y a qu'une page
 class PageControls extends StatelessWidget {
   const PageControls({
     super.key,

@@ -12,7 +12,7 @@ import '../services/messaging_service.dart';
 
 // ecran de discussion patient <-> psy.
 // pas de websocket cote backend, le "temps reel" c'est juste un polling
-// toutes les 6 secondes — ca suffit pour une messagerie de cabinet
+// toutes les 6 secondes, ca suffit pour une messagerie de cabinet
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,

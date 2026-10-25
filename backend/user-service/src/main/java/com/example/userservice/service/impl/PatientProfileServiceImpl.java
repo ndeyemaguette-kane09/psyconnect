@@ -11,6 +11,7 @@ import com.example.userservice.entity.UserProfile;
 import com.example.userservice.entity.WalletTransaction;
 import com.example.userservice.entity.WalletTransactionType;
 import com.example.userservice.exception.ForbiddenOperationException;
+import com.example.userservice.exception.InsufficientBalanceException;
 import com.example.userservice.exception.ResourceNotFoundException;
 import com.example.userservice.repository.PatientProfileRepository;
 import com.example.userservice.repository.UserProfileRepository;
@@ -156,6 +157,8 @@ public class PatientProfileServiceImpl
                     pseudo != null ? pseudo : "Patient anonyme"
             );
             response.setLastName("");
+            response.setEmergencyContactName(null);
+            response.setEmergencyContactPhone(null);
         }
 
         return response;
@@ -333,7 +336,7 @@ public class PatientProfileServiceImpl
 
         double balance = currentBalance(patientProfile);
         if (balance < amount) {
-            throw new RuntimeException(
+            throw new InsufficientBalanceException(
                     "Solde PsyConnect insuffisant pour ce paiement (solde actuel : "
                             + formatAmount(balance) + " F CFA). Rechargez votre solde "
                             + "avant de payer ce rendez-vous."
@@ -353,10 +356,19 @@ public class PatientProfileServiceImpl
 
     @Override
     public WalletResponse creditWallet(Long patientId, Double amount, Long callerAuthUserId) {
+        return credit(findOwnedPatientProfile(patientId, callerAuthUserId), amount);
+    }
+
+    @Override
+    public WalletResponse creditWalletAsService(Long patientId, Double amount) {
+        PatientProfile patientProfile = patientProfileRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
+        return credit(patientProfile, amount);
+    }
+
+    private WalletResponse credit(PatientProfile patientProfile, Double amount) {
 
         validatePositiveAmount(amount);
-
-        PatientProfile patientProfile = findOwnedPatientProfile(patientId, callerAuthUserId);
 
         double newBalance = currentBalance(patientProfile) + amount;
         patientProfile.setWalletBalance(newBalance);

@@ -1,20 +1,5 @@
 package com.example.aicompanionservice.service;
 
-/**
- * Textes fixes du compagnon IA : le prompt systeme envoye au modele, et le
- * message de repli affiche quand le filtre de securite (RiskDetectionService)
- * detecte un contenu a risque et decide de NE PAS appeler le modele.
- *
- * Pourquoi separer ces deux textes :
- * - SYSTEM_PROMPT cadre le comportement du modele pour les echanges normaux
- *   (preparation a une premiere consultation, jamais de diagnostic).
- * - SAFETY_FALLBACK_MESSAGE n'est JAMAIS genere par le modele : c'est un
- *   texte fixe, garanti, renvoye directement par RiskDetectionService quand
- *   un signal de detresse est detecte. On ne fait pas confiance au modele
- *   pour gerer correctement une situation de crise (un LLM peut deriver sous
- *   insistance de l'utilisateur), donc ce cas de figure contourne
- *   completement l'appel a Ollama.
- */
 public final class CompanionPrompts {
 
     private CompanionPrompts() {

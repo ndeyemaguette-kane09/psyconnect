@@ -350,12 +350,6 @@ public class PsychologistProfileServiceImpl
         PsychologistProfile profile = psychologistProfileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Psychologist profile not found"));
 
-        // Pas de vérification d'ownership ici : Spring Security garantit
-        // hasRole("PSYCHOLOGIST") en amont — seuls les psys atteignent cet
-        // endpoint. Un psy ne connaît pas l'id interne d'un autre psy, et
-        // activer l'urgence pour autrui ne lui apporterait rien.
-        // On profite de l'appel pour backfiller authUserId si absent (profils
-        // anciens créés avant l'ajout du champ).
         if (profile.getAuthUserId() == null && callerAuthUserId != null) {
             profile.setAuthUserId(callerAuthUserId);
         }

@@ -10,9 +10,6 @@ import '../services/profile_service.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
-// Gère tout le flux d'inscription et de connexion : register -> login ->
-// createUserProfile -> createPatientProfile / createPsychologistProfile.
-// Utilise Provider pour que les écrans réagissent aux changements d'état.
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
     AuthService? authService,
@@ -30,16 +27,10 @@ class AuthProvider extends ChangeNotifier {
   // true quand la dernière erreur de connexion vient d'un compte banni (ACCOUNT_BANNED).
   // Utilisé par LoginScreen pour afficher une carte dédiée avec les coordonnées admin.
   bool isBannedAccount = false;
-  // Passe à true si l'envoi du justificatif échoue pendant l'inscription.
-  // Le profil est créé malgré tout ; l'écran d'inscription informe alors
-  // l'utilisateur de renvoyer le document depuis ses paramètres.
   bool licenseUploadWarning = false;
 
   AuthSession? session;
 
-  // À appeler au démarrage pour reprendre une session existante. Si la
-  // lecture du stockage échoue, la session est considérée absente. Le
-  // timeout évite un blocage de l'écran de chargement sur iOS.
   Future<void> restoreSession() async {
     try {
       final token = await TokenStorage.readToken()
@@ -64,10 +55,6 @@ class AuthProvider extends ChangeNotifier {
           userProfileId: userProfileId,
           profileId: profileId,
         );
-        // Un psychologue non encore validé (ou refusé) garde l'accès à
-      // l'app comme n'importe quel utilisateur — il est juste invisible
-      // des patients et ne peut pas recevoir de rendez-vous (filtré et
-      // vérifié côté backend). Pas de restriction de session ici.
       status = AuthStatus.authenticated;
       } else {
         status = AuthStatus.unauthenticated;
@@ -121,9 +108,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Étape 2 : connexion depuis l'écran de login. La méthode login() ne
-  // renvoie que l'authUserId ; on récupère userProfileId et profileId
-  // séparément. Un échec sur ces récupérations ne bloque pas la connexion.
   Future<bool> login({required String email, required String password}) async {
     clearError();
     _setLoading(true);
@@ -168,10 +152,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Inscription patient complète : connexion juste après le register, puis
-  // création du UserProfile et du PatientProfile. En cas d'erreur,
-  // errorMessage est renseigné ; le compte existe déjà et la connexion
-  // peut être relancée séparément.
   Future<bool> completePatientOnboarding({
     required String email,
     required String password,
@@ -291,10 +271,6 @@ class AuthProvider extends ChangeNotifier {
         profileId: psychologistProfileId,
       );
 
-      // Le document est obligatoire à la saisie (register_screen bloque
-      // si absent), mais l'envoi réseau peut quand même échouer. On ne fait
-      // pas échouer toute l'inscription pour autant : le profil est déjà
-      // créé, et le psy peut renvoyer le justificatif depuis son profil.
       if (licenseDocumentPath != null) {
         try {
           await _profileService.uploadPsychologistLicenseDocument(
@@ -306,12 +282,6 @@ class AuthProvider extends ChangeNotifier {
           licenseUploadWarning = true;
         }
       }
-
-      // Le psychologue reste connecté après l'inscription : son profil est
-      // en attente de validation, mais il peut déjà utiliser l'app (complétée
-      // son profil, consulter les annonces...). Il est simplement invisible
-      // des patients et ne peut recevoir aucun rendez-vous tant que
-      // l'admin ne l'a pas approuvé (filtré et vérifié côté backend).
 
       return true;
     } catch (e) {
@@ -353,10 +323,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Mot de passe oublié : renvoie le code en mode développement (pas encore
-  // d'envoi d'e-mail réel) pour le pré-remplir à l'écran, null sinon.
-  // Le message générique est intentionnel côté backend : on ne révèle pas
-  // si l'adresse e-mail est connue du système.
   Future<bool> forgotPassword({required String email}) async {
     clearError();
     _setLoading(true);

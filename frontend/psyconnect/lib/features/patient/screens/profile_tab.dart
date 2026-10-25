@@ -65,7 +65,7 @@ class _ProfileTabState extends State<ProfileTab> {
       // Profil indisponible : on conserve ce qui a déjà été chargé.
     }
 
-    // questionnaires en attente — pour le badge sur le bouton profil
+    // questionnaires en attente, pour le badge sur le bouton profil
     int pendingCount = 0;
     try {
       final pending = await _questionnaireService.getMyPendingQuestionnaires();

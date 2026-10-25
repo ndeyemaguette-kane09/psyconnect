@@ -55,7 +55,7 @@ public interface PsychologistProfileService {
             Long callerAuthUserId
     );
 
-    // Récupère le justificatif — propriétaire du profil ou administrateur
+    // Récupère le justificatif, propriétaire du profil ou administrateur
     LicenseDocumentResponse getLicenseDocument(
             Long id,
             Long callerAuthUserId,

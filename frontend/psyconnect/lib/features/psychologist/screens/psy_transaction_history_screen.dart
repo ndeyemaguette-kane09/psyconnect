@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../../auth/services/profile_service.dart';
 import '../../payment/models/payment_models.dart';
 import '../../payment/services/payment_service.dart';
+import '../utils/patient_name.dart';
 
 // historique détaillé des paiements reçus par le psy.
 // charge les transactions puis résout les pseudos patients en parallèle
@@ -54,14 +56,7 @@ class _PsyTransactionHistoryScreenState
         uniqueIds.map((pid) async {
           try {
             final profile = await _profileService.getPatientProfileById(pid);
-            if (profile.anonymousMode) {
-              labelMap[pid] = 'Patient anonyme';
-            } else {
-              final initial = profile.lastName.isNotEmpty
-                  ? ' ${profile.lastName[0].toUpperCase()}.'
-                  : '';
-              labelMap[pid] = '${profile.firstName}$initial';
-            }
+            labelMap[pid] = patientDisplayName(profile);
           } catch (_) {
             // si user-service ne répond pas pour ce patient, on garde l'id
             labelMap[pid] = 'Patient #$pid';
@@ -92,114 +87,132 @@ class _PsyTransactionHistoryScreenState
       if (i > 0 && (digits.length - i) % 3 == 0) buf.write(' ');
       buf.write(digits[i]);
     }
-    return '$buf FCFA';
+    return buf.toString();
   }
+
+  static const _months = [
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+  ];
+
+  static const _monthsShort = [
+    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+  ];
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return '—';
-    return '${dt.day.toString().padLeft(2, '0')}/'
-        '${dt.month.toString().padLeft(2, '0')}/'
-        '${dt.year}';
+    return '${dt.day} ${_monthsShort[dt.month - 1]}';
+  }
+
+  List<MapEntry<String, List<PaymentTransaction>>> get _byMonth {
+    final sorted = [..._transactions]
+      ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
+    final now = DateTime.now();
+    final groups = <String, List<PaymentTransaction>>{};
+    for (final t in sorted) {
+      final m = _months[t.paidAt.month - 1];
+      final key = t.paidAt.year == now.year
+          ? '${m[0].toUpperCase()}${m.substring(1)}'
+          : '${m[0].toUpperCase()}${m.substring(1)} ${t.paidAt.year}';
+      groups.putIfAbsent(key, () => []).add(t);
+    }
+    return groups.entries.toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final totalNet = _transactions
+        .where((t) => t.status != PaymentStatus.refunded)
+        .fold<double>(0, (sum, t) => sum + t.netAmount);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
           children: [
-            const Text('Transactions',
-                style: TextStyle(
-                    color: AppColors.text, fontWeight: FontWeight.w700)),
-            if (!_loading && _transactions.isNotEmpty)
-              Text(
-                '${_transactions.length} paiement${_transactions.length > 1 ? 's' : ''}',
-                style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Paiements reçus',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
               ),
+            ),
+            if (!_loading && _transactions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                child: Text(
+                  '${_transactions.length} paiement'
+                  '${_transactions.length > 1 ? 's' : ''} · '
+                  '${_formatXof(totalNet)} F nets',
+                  style:
+                      const TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              ),
+            const SizedBox(height: 20),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (_transactions.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Les paiements de vos patients apparaîtront ici.',
+                  style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              )
+            else
+              for (final group in _byMonth) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                  child: Text(
+                    group.key,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+                AppCard(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    children: [
+                      for (final t in group.value)
+                        _TransactionRow(
+                          transaction: t,
+                          patientLabel: t.patientId != null
+                              ? (_patientLabels[t.patientId!] ??
+                                  'Patient #${t.patientId}')
+                              : 'Patient',
+                          formatXof: _formatXof,
+                          formatDate: _formatDate,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+              ],
           ],
         ),
-        iconTheme: const IconThemeData(color: AppColors.text),
-      ),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_error!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: AppColors.muted)),
-                          const SizedBox(height: 12),
-                          OutlinedButton(
-                              onPressed: _load,
-                              child: const Text('Réessayer')),
-                        ],
-                      ),
-                    ),
-                  )
-                : _transactions.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                                  Icons.receipt_long_outlined,
-                                  size: 32,
-                                  color: AppColors.teal),
-                            const SizedBox(height: 16),
-                            const Text('Aucune transaction',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 15)),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Les paiements reçus apparaîtront ici.',
-                              style: TextStyle(
-                                  color: AppColors.muted, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                          itemCount: _transactions.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (_, i) {
-                            final t = _transactions[i];
-                            return _TransactionCard(
-                              transaction: t,
-                              patientLabel: t.patientId != null
-                                  ? (_patientLabels[t.patientId!] ??
-                                      'Patient #${t.patientId}')
-                                  : '—',
-                              formatXof: _formatXof,
-                              formatDate: _formatDate,
-                            );
-                          },
-                        ),
-                      ),
       ),
     );
   }
 }
 
-class _TransactionCard extends StatelessWidget {
-  const _TransactionCard({
+class _TransactionRow extends StatelessWidget {
+  const _TransactionRow({
     required this.transaction,
     required this.patientLabel,
     required this.formatXof,
@@ -215,123 +228,73 @@ class _TransactionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _isRefunded ? AppColors.gold : AppColors.teal;
-    final bgColor = _isRefunded ? AppColors.goldLight : AppColors.tealLight;
-    final icon = _isRefunded
-        ? Icons.undo_outlined
-        : Icons.check_circle_outline;
+    final rate = transaction.grossAmount > 0
+        ? (transaction.commissionAmount / transaction.grossAmount * 100)
+            .round()
+        : 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // icône statut
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: bgColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 20, color: color),
-            ),
-            const SizedBox(width: 12),
-
-            // infos principales
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // patient + statut
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          patientLabel,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: bgColor,
-                        ),
-                        child: Text(
-                          _isRefunded ? 'Remboursé' : 'Payé',
-                          style: TextStyle(
-                              color: color,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-
-                  // date de la séance
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined,
-                          size: 12, color: AppColors.muted),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Séance du ${formatDate(transaction.appointmentStartTime)}',
-                        style: const TextStyle(
-                            color: AppColors.muted, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-
-                  // référence transaction
-                  Text(
-                    transaction.transactionReference,
-                    style: const TextStyle(
-                        color: AppColors.muted, fontSize: 10),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // montants (colonne droite)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      child: Row(
+        children: [
+          AppAvatar(name: patientLabel, size: 44),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // montant net en avant
                 Text(
-                  (_isRefunded ? '- ' : '+ ') +
-                      formatXof(transaction.netAmount),
-                  style: TextStyle(
+                  patientLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    color: _isRefunded ? AppColors.gold : AppColors.tealDark,
+                    color: AppColors.text,
                   ),
                 ),
-                const SizedBox(height: 2),
-                // montant brut en petit
                 Text(
-                  'Brut ${formatXof(transaction.grossAmount)}',
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 11),
-                ),
-                Text(
-                  'Commission ${formatXof(transaction.commissionAmount)}',
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 11),
+                  'Séance du ${formatDate(transaction.appointmentStartTime)} · '
+                  '${formatXof(transaction.grossAmount)} F moins $rate %',
+                  style:
+                      const TextStyle(fontSize: 13.5, color: AppColors.muted),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${_isRefunded ? '−' : '+'} ${formatXof(transaction.netAmount)} F',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _isRefunded ? AppColors.muted : AppColors.teal,
+                ),
+              ),
+              if (_isRefunded)
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.muted,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'Remboursé',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

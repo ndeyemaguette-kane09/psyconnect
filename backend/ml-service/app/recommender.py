@@ -24,7 +24,6 @@ FRENCH_STOPWORDS = frozenset(
     }
 )
 
-
 def normalize_text(text: str) -> str:
     # minuscule + retire les accents (ex: "Anxiete" -> "anxiete")
 
@@ -36,14 +35,12 @@ def normalize_text(text: str) -> str:
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     return text
 
-
 def tokenize(text: str) -> List[str]:
     # decoupe le texte normalisé en mots (que lettres/chiffres)
 
     normalized = normalize_text(text)
     tokens = re.findall(r"[a-z0-9]+", normalized)
     return [t for t in tokens if t not in FRENCH_STOPWORDS and len(t) > 1]
-
 
 def build_tfidf_matrix(documents: Sequence[str]) -> Tuple[np.ndarray, List[str]]:
     # matrice TF-IDF (documents x vocabulaire).
@@ -76,7 +73,6 @@ def build_tfidf_matrix(documents: Sequence[str]) -> Tuple[np.ndarray, List[str]]
     tfidf = tf * idf
     return tfidf, vocabulary
 
-
 def cosine_similarity(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
     # similarité cosinus entre 2 vecteurs, 0.0 si un des deux est nul
 
@@ -91,7 +87,6 @@ def cosine_similarity(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
     # normalement deja entre 0 et 1, mais on securise au cas ou
     return max(0.0, min(1.0, similarity))
 
-
 def build_psychologist_content(psychologist: Dict[str, Any]) -> str:
     # texte du profil psy pour le TF-IDF
 
@@ -102,7 +97,6 @@ def build_psychologist_content(psychologist: Dict[str, Any]) -> str:
     ]
     return " ".join(parts)
 
-
 def build_patient_query(patient: Dict[str, Any]) -> str:
     # texte de ce que recherche le patient pour le TF-IDF
 
@@ -111,7 +105,6 @@ def build_patient_query(patient: Dict[str, Any]) -> str:
         patient.get("medicalHistory") or "",
     ]
     return " ".join(parts)
-
 
 def same_city_bonus(patient: Dict[str, Any], psychologist: Dict[str, Any]) -> float:
     # la ville est un bonus, jamais un filtre : les seances peuvent se faire
@@ -125,7 +118,6 @@ def same_city_bonus(patient: Dict[str, Any], psychologist: Dict[str, Any]) -> fl
         return 0.0
 
     return 1.0 if patient_city == psychologist_city else 0.0
-
 
 def rank_psychologists(
     patient: Dict[str, Any],

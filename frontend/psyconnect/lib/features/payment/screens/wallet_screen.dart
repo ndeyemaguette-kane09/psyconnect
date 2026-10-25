@@ -241,7 +241,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Column(
                   children: [
-                    for (final t in recent) _TransactionRow(transaction: t),
+                    for (final t in recent) WalletTransactionRow(transaction: t),
                   ],
                 ),
               ),
@@ -308,63 +308,78 @@ const _shortMonths = [
   'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
 ];
 
-class _TransactionRow extends StatelessWidget {
-  const _TransactionRow({required this.transaction});
+PaymentMethod? paymentMethodFromLabel(String? value) {
+  final v = value?.toLowerCase() ?? '';
+  if (v.contains('wave')) return PaymentMethod.wave;
+  if (v.contains('orange')) return PaymentMethod.orangeMoney;
+  if (v.contains('carte') || v.contains('card')) return PaymentMethod.card;
+  return null;
+}
+
+class WalletTransactionRow extends StatelessWidget {
+  const WalletTransactionRow({super.key, required this.transaction});
 
   final WalletTransaction transaction;
 
   @override
   Widget build(BuildContext context) {
     final credit = transaction.type.isCredit;
+    final method = paymentMethodFromLabel(transaction.method);
     final d = transaction.createdAt;
-    final date = '${d.day} ${_shortMonths[d.month - 1]}, '
-        '${d.hour.toString().padLeft(2, '0')}:'
-        '${d.minute.toString().padLeft(2, '0')}';
-    final sub = transaction.method == null || transaction.method!.isEmpty
-        ? date
-        : '$date · ${transaction.method}';
+    final date = '${d.day} ${_shortMonths[d.month - 1]} · '
+        '${d.hour} h ${d.minute.toString().padLeft(2, '0')}';
+    final title = method != null &&
+            (transaction.type == WalletTransactionType.deposit ||
+                transaction.type == WalletTransactionType.withdrawal)
+        ? '${transaction.type.label} · ${method.label}'
+        : transaction.type.label;
+
+    final Widget leading;
+    if (method != null) {
+      leading = BrandMark(method: method, size: 44);
+    } else {
+      final refund = transaction.type == WalletTransactionType.credit;
+      leading = Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: refund ? AppColors.tealLight : AppColors.sand,
+          borderRadius: BorderRadius.circular(44 * 0.28),
+        ),
+        child: Icon(
+          refund ? Icons.undo_rounded : Icons.event_outlined,
+          size: 21,
+          color: refund ? AppColors.teal : AppColors.text,
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: credit ? AppColors.tealLight : AppColors.sand,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              credit ? '+' : '−',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: credit ? AppColors.teal : AppColors.text,
-              ),
-            ),
-          ),
+          leading,
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  transaction.type.label,
+                  title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 15.5,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
                 ),
                 Text(
-                  sub,
+                  date,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13.5, color: AppColors.muted),
+                  style:
+                      const TextStyle(fontSize: 13.5, color: AppColors.muted),
                 ),
               ],
             ),
@@ -386,8 +401,8 @@ class _TransactionRow extends StatelessWidget {
 
 // Marques des opérateurs
 
-class _BrandMark extends StatelessWidget {
-  const _BrandMark({required this.method, this.size = 44});
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key, required this.method, this.size = 44});
 
   final PaymentMethod method;
   final double size;
@@ -463,7 +478,6 @@ class _BrandMark extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(size * 0.28),
-        border: Border.all(color: AppColors.border),
       ),
       child: Image.asset(
         asset,
@@ -776,7 +790,7 @@ class _MethodOption extends StatelessWidget {
       borderColor: selected ? AppColors.teal : AppColors.border,
       child: Row(
         children: [
-          _BrandMark(method: method, size: 42),
+          BrandMark(method: method, size: 42),
           const SizedBox(width: 13),
           Expanded(
             child: Column(

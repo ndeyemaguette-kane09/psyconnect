@@ -26,15 +26,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Démontre que l'envoi de notification reste "best effort" même sous
- * Resilience4j : le contrat de {@link NotificationClient#send} est de ne
- * JAMAIS répercuter une panne de notification-service sur l'appelant
- * (paiement, rendez-vous, session). On vérifie ici à la fois le retry (3
- * tentatives) et l'ouverture du circuit breaker (échec rapide, sans
- * solliciter à nouveau notification-service), tout en confirmant qu'aucune
- * exception ne fuite jamais vers l'appelant.
- */
 @SpringBootTest
 class NotificationClientResilienceTest {
 

@@ -30,21 +30,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Démontre, avec un vrai contexte Spring (les annotations Resilience4j ne
- * sont actives qu'à travers un proxy AOP géré par Spring — un simple
- * {@code new OwnershipResolver(...)} dans un test Mockito pur les
- * ignorerait totalement), que :
- *
- * 1) un échec transitoire de user-service est ré-essayé automatiquement
- *    ({@code @Retry}, 3 tentatives — voir application.properties de test)
- *    avant que l'appel ne soit considéré en échec ;
- * 2) des échecs répétés font basculer le circuit breaker en état OPEN, qui
- *    fait alors échouer les appels suivants immédiatement, sans même
- *    solliciter user-service (CallNotPermittedException côté
- *    Resilience4j, traduite en {@link ServiceUnavailableException} par le
- *    fallback).
- */
 @SpringBootTest
 class OwnershipResolverResilienceTest {
 

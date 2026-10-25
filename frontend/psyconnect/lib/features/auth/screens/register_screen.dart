@@ -26,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _registeredEmail;
   String? _registeredPassword;
 
-  // Étape 1 — compte
+  // Étape 1, compte
   final _accountFormKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -35,7 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _lastNameController = TextEditingController();
   bool _obscurePassword = true;
 
-  // Étape 2 — profil
+  // Étape 2, profil
   final _profileFormKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _cityController = TextEditingController();
@@ -48,10 +48,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _needController = TextEditingController();
   String _language = ProfileConstants.languages.first;
 
-  // Chemin local du justificatif choisi via file_picker, envoyé après la création du profil.
-  // Pas de validator Form pour un file picker : la vérification est faite manuellement.
-  // Obligatoire pour un psychologue : sans document, l'administrateur ne peut pas valider
-  // le compte, et la connexion reste bloquée jusqu'à l'approbation.
   String? _licenseDocumentPath;
   String? _licenseDocumentName;
   String? _licenseDocumentError;
@@ -204,19 +200,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Inscription ${widget.role.label.toLowerCase()}',
-        ),
-      ),
+      appBar: AppBar(),
       body: SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  _step == 0
+                      ? 'Créer un compte ${widget.role.label.toLowerCase()}'
+                      : _isPsychologist
+                          ? 'Votre profil de psychologue'
+                          : 'Quelques infos sur vous',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               _StepIndicator(currentStep: _step),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               if (auth.errorMessage != null) ...[
                 ErrorBanner(message: auth.errorMessage!),
                 const SizedBox(height: 16),
@@ -272,41 +282,36 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _dot(active: currentStep >= 0, label: '1. Compte'),
-        Expanded(
+    Widget bar(bool on) => Expanded(
           child: Container(
-            height: 2,
-            color: currentStep >= 1 ? AppColors.teal : AppColors.tealMid,
+            height: 6,
+            decoration: BoxDecoration(
+              color: on ? AppColors.teal : AppColors.border,
+              borderRadius: BorderRadius.circular(3),
+            ),
           ),
-        ),
-        _dot(active: currentStep >= 1, label: '2. Profil'),
-      ],
-    );
-  }
-
-  Widget _dot({required bool active, required String label}) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 14,
-          backgroundColor: active ? AppColors.teal : AppColors.tealMid,
-          child: Text(
-            label.substring(0, 1),
-            style: const TextStyle(color: Colors.white, fontSize: 12),
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              bar(true),
+              const SizedBox(width: 6),
+              bar(currentStep >= 1),
+            ],
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: active ? AppColors.teal : AppColors.muted,
-            fontWeight: FontWeight.w600,
+          const SizedBox(height: 8),
+          Text(
+            currentStep == 0
+                ? 'Étape 1 sur 2 · Votre compte'
+                : 'Étape 2 sur 2 · Votre profil',
+            style: const TextStyle(fontSize: 14, color: AppColors.muted),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -362,23 +367,21 @@ class _AccountStep extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextFormField(
             controller: pseudoController,
             decoration: const InputDecoration(
               labelText: 'Pseudo',
               helperText: 'Visible par les autres utilisateurs',
-              prefixIcon: Icon(Icons.person_outline),
             ),
             validator: _required,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextFormField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.mail_outline),
+              labelText: 'E-mail',
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -388,14 +391,13 @@ class _AccountStep extends StatelessWidget {
               return null;
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextFormField(
             controller: passwordController,
             obscureText: obscurePassword,
             decoration: InputDecoration(
               labelText: 'Mot de passe',
               helperText: 'Au moins 6 caractères',
-              prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 icon: Icon(obscurePassword
                     ? Icons.visibility_outlined
@@ -414,8 +416,11 @@ class _AccountStep extends StatelessWidget {
             },
           ),
           const SizedBox(height: 28),
-          ElevatedButton(
+          FilledButton(
             onPressed: isLoading ? null : onSubmit,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
             child: isLoading
                 ? const SizedBox(
                     height: 20,
@@ -486,17 +491,11 @@ class _ProfileStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Quelques infos sur vous',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
           TextFormField(
             controller: phoneController,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
               labelText: 'Téléphone',
-              prefixIcon: Icon(Icons.phone_outlined),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -505,21 +504,19 @@ class _ProfileStep extends StatelessWidget {
               return null;
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           TextFormField(
             controller: cityController,
             decoration: const InputDecoration(
               labelText: 'Ville (optionnel)',
-              prefixIcon: Icon(Icons.location_on_outlined),
             ),
           ),
           if (!isPsychologist) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: language,
               decoration: const InputDecoration(
                 labelText: 'Langue préférée',
-                prefixIcon: Icon(Icons.language_outlined),
               ),
               items: [
                 for (final lang in ProfileConstants.languages)
@@ -529,7 +526,7 @@ class _ProfileStep extends StatelessWidget {
                 if (value != null) onLanguageChanged(value);
               },
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             TextFormField(
               controller: needController,
               maxLines: 3,
@@ -545,22 +542,20 @@ class _ProfileStep extends StatelessWidget {
             ),
           ],
           if (isPsychologist) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             TextFormField(
               controller: addressController,
               decoration: const InputDecoration(
                 labelText: 'Adresse du cabinet (optionnel)',
                 hintText: 'Visible par les patients pour les séances en cabinet',
-                prefixIcon: Icon(Icons.map_outlined),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             TextFormField(
               controller: specialtyController,
               decoration: const InputDecoration(
                 labelText: 'Spécialité',
                 hintText: 'Ex : Psychologie clinique, TCC…',
-                prefixIcon: Icon(Icons.medical_information_outlined),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -569,7 +564,7 @@ class _ProfileStep extends StatelessWidget {
                 return null;
               },
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -577,7 +572,7 @@ class _ProfileStep extends StatelessWidget {
                     controller: yearsController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: "Années d'expérience",
+                      labelText: 'Expérience (ans)',
                     ),
                   ),
                 ),
@@ -587,56 +582,83 @@ class _ProfileStep extends StatelessWidget {
                     controller: priceController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'Prix consultation (FCFA)',
+                      labelText: 'Prix (F CFA)',
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             TextFormField(
               controller: licenseNumberController,
               decoration: const InputDecoration(
                 labelText: 'Numéro de licence (optionnel)',
                 hintText: "Numéro d'agrément / carte professionnelle",
-                prefixIcon: Icon(Icons.badge_outlined),
               ),
             ),
-            const SizedBox(height: 14),
-            Text(
-              'Justificatif (diplôme ou carte professionnelle) *',
-              style: Theme.of(context).textTheme.bodySmall,
+            const SizedBox(height: 12),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 12, 4, 4),
+              child: Text(
+                'Justificatif de diplôme',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              "Requis pour que l'administrateur puisse valider votre compte. "
-              "Sans approbation, votre profil n'est pas visible des "
-              'patients et vous ne pouvez recevoir aucun rendez-vous.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.muted),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'PDF ou photo. L\'équipe le vérifie avant d\'ouvrir votre '
+                'profil aux patients.',
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.45,
+                  color: AppColors.muted,
+                ),
+              ),
             ),
-            const SizedBox(height: 6),
-            OutlinedButton.icon(
-              onPressed: onPickLicenseDocument,
-              icon: const Icon(Icons.upload_file_outlined),
-              label: Text(
-                licenseDocumentName ?? 'Choisir un fichier (PDF, JPG, PNG)',
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                onPressed: onPickLicenseDocument,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.white,
+                  foregroundColor: AppColors.text,
+                ),
+                icon: Icon(
+                  licenseDocumentName == null
+                      ? Icons.add_rounded
+                      : Icons.check_rounded,
+                  size: 20,
+                ),
+                label: Text(
+                  licenseDocumentName ?? 'Ajouter le justificatif',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
             if (licenseDocumentError != null) ...[
               const SizedBox(height: 6),
-              Text(
-                licenseDocumentError!,
-                style: const TextStyle(color: AppColors.rose, fontSize: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  licenseDocumentError!,
+                  style:
+                      const TextStyle(color: AppColors.danger, fontSize: 14),
+                ),
               ),
             ],
           ],
           const SizedBox(height: 28),
-          ElevatedButton(
+          FilledButton(
             onPressed: isLoading ? null : onSubmit,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
             child: isLoading
                 ? const SizedBox(
                     height: 20,

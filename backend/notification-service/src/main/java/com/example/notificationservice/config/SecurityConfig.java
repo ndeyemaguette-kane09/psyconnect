@@ -36,10 +36,7 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        // POST /notifications est appelé par d'autres microservices
-                        // via Eureka (pas par le gateway), sans JWT utilisateur.
-                        // On l'ouvre sans auth — la route reste protégée côté gateway.
-                        .requestMatchers(HttpMethod.POST, "/notifications").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/notifications").hasRole("SERVICE")
                         .anyRequest().authenticated()
                 )
 

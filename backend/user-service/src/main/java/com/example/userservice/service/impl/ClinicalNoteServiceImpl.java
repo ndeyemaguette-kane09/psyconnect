@@ -16,11 +16,6 @@ import com.example.userservice.repository.PsychologistProfileRepository;
 import com.example.userservice.repository.PsyPatientLinkRepository;
 import com.example.userservice.service.ClinicalNoteService;
 
-// La vérification de suivi utilise maintenant PsyPatientLinkRepository (table locale)
-// au lieu d'AppointmentClient. Avantages :
-// - plus de dépendance réseau vers appointment-service pour chaque accès aux notes
-// - plus de faux "Vous ne suivez pas ce patient" si le circuit-breaker s'ouvre
-// - relation explicite : le psy doit avoir activement marqué le patient comme "suivi"
 @Service
 public class ClinicalNoteServiceImpl implements ClinicalNoteService {
 
@@ -112,9 +107,7 @@ public class ClinicalNoteServiceImpl implements ClinicalNoteService {
                 ));
     }
 
-    // vérifie que le psy a explicitement marqué ce patient comme "suivi".
-    // remplace l'ancien check appointmentClient.hasAppointmentBetween() qui
-    // dépendait de la disponibilité d'appointment-service.
+    // vérifie que le psy a explicitement marqué ce patient comme "suivi"
     private void ensureFollowsPatient(PsychologistProfile psychologistProfile, Long patientId) {
 
         if (!patientProfileRepository.existsById(patientId)) {

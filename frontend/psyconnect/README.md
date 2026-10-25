@@ -1,16 +1,24 @@
-# psyconnect
+# Application mobile PsyConnect
 
-A new Flutter project.
+Application Flutter de PsyConnect, avec trois interfaces selon le rôle de l'utilisateur : patient, psychologue et administrateur.
 
-## Getting Started
+## Lancer
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://<adresse-du-mac>:8080
+```
 
-A few resources to get you started if this is your first Flutter project:
+Sans `API_BASE_URL`, l'application utilise `localhost:8080` (simulateur iOS, web) ou `10.0.2.2:8080` (émulateur Android). Sur un téléphone physique, il faut indiquer l'adresse du Mac qui fait tourner le back-end.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Organisation
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- `lib/core` : thème, composants communs, client HTTP, adresses de l'API
+- `lib/features` : un dossier par domaine (auth, home, patient, psychologist, admin, payment, call, companion, journal, messaging)
+- `test` : tests des modèles et tests de widgets
+
+## Tests
+
+```bash
+flutter test
+```

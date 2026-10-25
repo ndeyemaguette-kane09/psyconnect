@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
-import '../../../core/widgets/loading_state.dart';
 import '../../auth/models/user_role.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../payment/screens/psy_wallet_screen.dart';
@@ -12,10 +10,13 @@ import '../../payment/screens/wallet_screen.dart';
 import '../../psychologist/screens/agenda_tab.dart';
 import '../../psychologist/screens/patients_tab.dart';
 import '../../psychologist/screens/psychologist_messages_tab.dart';
+import '../models/appointment_models.dart';
 import '../models/notification_models.dart';
+import '../services/appointment_service.dart';
 import '../services/notification_service.dart';
 import 'announcements_screen.dart';
 import 'appointments_tab.dart';
+import 'cancelled_appointment_screen.dart';
 import 'messages_tab.dart';
 import 'questionnaire_history_screen.dart';
 
@@ -30,6 +31,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _notificationService = NotificationService();
+  final _appointmentService = AppointmentService();
 
   bool _loading = true;
   String? _error;
@@ -132,9 +134,37 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<Widget?> _cancelledAppointmentFor(AppNotification n) async {
+    final appointmentId = n.appointmentId;
+    final role = _role;
+    if (appointmentId == null ||
+        (role != UserRole.patient && role != UserRole.psychologist)) {
+      return null;
+    }
+    try {
+      final appointment =
+          await _appointmentService.getAppointmentById(appointmentId);
+      if (appointment.status != AppointmentStatus.cancelled) return null;
+      return CancelledAppointmentScreen(
+        appointment: appointment,
+        viewedByPsychologist: role == UserRole.psychologist,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _openNotification(AppNotification n) async {
     await _markAsRead(n);
     if (!mounted) return;
+    final cancelled = await _cancelledAppointmentFor(n);
+    if (!mounted) return;
+    if (cancelled != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => cancelled),
+      );
+      return;
+    }
     final destination = _destinationFor(n);
     if (destination != null) {
       await Navigator.of(context).push(
@@ -148,12 +178,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _showDetailSheet(AppNotification n) {
     return showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.white,
+      backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       builder: (_) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxl),
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,8 +193,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 n.title,
                 style: const TextStyle(
                   color: AppColors.text,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 10),
@@ -171,8 +202,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 n.message,
                 style: const TextStyle(
                   color: AppColors.textSecondary,
-                  fontSize: 14,
-                  height: 1.5,
+                  fontSize: 16,
+                  height: 1.55,
                 ),
               ),
             ],
@@ -199,6 +230,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 type: existing.type,
                 createdAt: existing.createdAt,
                 isRead: true,
+                appointmentId: existing.appointmentId,
               )
             else
               existing,
@@ -247,143 +279,138 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   int get _unreadCount => _notifications.where((n) => !n.isRead).length;
 
+  Future<void> _markAllAsRead() async {
+    final unread = _notifications.where((n) => !n.isRead).toList();
+    for (final n in unread) {
+      await _markAsRead(n);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final presentTypes = {
+      for (final n in _notifications)
+        n.type == AppNotificationType.questionnaireResult
+            ? AppNotificationType.questionnaire
+            : n.type,
+    };
+
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        actions: [
+          if (!_loading && _unreadCount > 0)
+            TextButton(
+              onPressed: _markAllAsRead,
+              child: const Text(
+                'Tout marquer lu',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
           children: [
-            const Text(
-              'Notifications',
-              style: TextStyle(
-                  color: AppColors.text,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 17),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Notifications',
+                style: Theme.of(context)
+                    .textTheme
+                    .displayLarge
+                    ?.copyWith(fontSize: 30),
+              ),
             ),
             if (!_loading && _unreadCount > 0)
-              Text(
-                '$_unreadCount non lue${_unreadCount > 1 ? 's' : ''}',
-                style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                child: Text(
+                  '$_unreadCount non lue${_unreadCount > 1 ? 's' : ''}',
+                  style:
+                      const TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
               ),
-          ],
-        ),
-        iconTheme: const IconThemeData(color: AppColors.text),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (!_loading && _error == null && _notifications.isNotEmpty)
+            const SizedBox(height: 16),
+            if (!_loading &&
+                _error == null &&
+                _notifications.isNotEmpty &&
+                presentTypes.length > 1) ...[
               _FilterBar(
+                types: _FilterBar.ordered
+                    .where((t) => presentTypes.contains(t))
+                    .toList(),
                 selected: _filter,
                 onSelected: (t) => setState(() => _filter = t),
               ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _load,
-                color: AppColors.teal,
-                child: _buildBody(),
-              ),
-            ),
+              const SizedBox(height: 16),
+            ],
+            ..._buildBody(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBody() {
+  List<Widget> _buildBody() {
     if (_loading) {
-      return const AppListSkeleton(itemHeight: 84);
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 60),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
     }
 
     if (_error != null) {
-      return ListView(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 60),
-            child: AppErrorState(message: _error!, onRetry: _load),
-          ),
-        ],
-      );
+      return [AppErrorState(message: _error!, onRetry: _load)];
     }
 
-    if (_notifications.isEmpty) {
-      return ListView(
-        children: const [
-          Padding(
-            padding: EdgeInsets.only(top: 80),
-            child: AppEmptyState(
-              icon: Icons.notifications_none,
-              title: 'Rien de nouveau',
-              message: 'Vos notifications apparaîtront ici.',
-            ),
+    if (_notifications.isEmpty || _filtered.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            _notifications.isEmpty
+                ? 'Rien de nouveau pour l\'instant.'
+                : 'Rien dans cette catégorie pour le moment.',
+            style: const TextStyle(fontSize: 15.5, color: AppColors.muted),
           ),
-        ],
-      );
-    }
-
-    if (_filtered.isEmpty) {
-      return ListView(
-        children: const [
-          Padding(
-            padding: EdgeInsets.only(top: 80),
-            child: AppEmptyState(
-              icon: Icons.filter_list,
-              title: 'Aucune notification',
-              message: 'Rien dans cette catégorie pour le moment.',
-            ),
-          ),
-        ],
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: [
-        for (final group in _groups) ...[
-          _GroupHeader(label: group.key),
-          for (var i = 0; i < group.value.length; i++) ...[
-            _NotificationRow(
-              notification: group.value[i],
-              onTap: () => _openNotification(group.value[i]),
-            ),
-            if (i < group.value.length - 1)
-              const Divider(height: 1, indent: 68, endIndent: 16),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
-      child: Text(
-        label.toUpperCase(),
-        style: const TextStyle(
-          color: AppColors.muted,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
         ),
-      ),
-    );
+      ];
+    }
+
+    return [
+      for (final group in _groups) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+          child: Text(
+            group.key,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
+          ),
+        ),
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            children: [
+              for (final n in group.value)
+                _NotificationRow(
+                  notification: n,
+                  onTap: () => _openNotification(n),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+      ],
+    ];
   }
 }
 
@@ -421,6 +448,21 @@ class _NotificationRow extends StatelessWidget {
     }
   }
 
+  (Color, Color) get _tint {
+    switch (notification.type) {
+      case AppNotificationType.appointment:
+      case AppNotificationType.reminder:
+      case AppNotificationType.session:
+        return (AppColors.tealLight, AppColors.teal);
+      case AppNotificationType.payment:
+      case AppNotificationType.questionnaire:
+      case AppNotificationType.questionnaireResult:
+        return (AppColors.goldLight, AppColors.goldDark);
+      default:
+        return (AppColors.sand, AppColors.text);
+    }
+  }
+
   String get _shortDate {
     final diff = DateTime.now().difference(notification.createdAt);
     if (diff.inMinutes < 1) return 'maintenant';
@@ -428,104 +470,90 @@ class _NotificationRow extends StatelessWidget {
     if (diff.inHours < 24) return '${diff.inHours} h';
     if (diff.inDays < 7) return '${diff.inDays} j';
     final d = notification.createdAt;
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    const months = [
+      'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+    ];
+    return '${d.day} ${months[d.month - 1]}';
   }
 
   @override
   Widget build(BuildContext context) {
     final unread = !notification.isRead;
+    final (bg, ink) = _tint;
 
-    return Material(
-      color: unread ? AppColors.tealSoft : AppColors.white,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: unread ? AppColors.tealLight : AppColors.surfaceAlt,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _icon,
-                  size: 18,
-                  color: unread ? AppColors.tealDark : AppColors.muted,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            notification.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              height: 1.25,
-                              color: AppColors.text,
-                              fontWeight:
-                                  unread ? FontWeight.w700 : FontWeight.w500,
-                            ),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+              child: Icon(_icon, size: 19, color: ink),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notification.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            height: 1.3,
+                            color: AppColors.text,
+                            fontWeight:
+                                unread ? FontWeight.w800 : FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 1),
-                          child: Text(
-                            _shortDate,
-                            style: const TextStyle(
-                              color: AppColors.faint,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.message,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.4,
-                        color: unread
-                            ? AppColors.textSecondary
-                            : AppColors.muted,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 10, top: 6),
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: unread ? AppColors.teal : Colors.transparent,
+                      const SizedBox(width: 10),
+                      Text(
+                        _shortDate,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: unread ? AppColors.teal : AppColors.muted,
+                          fontWeight:
+                              unread ? FontWeight.w800 : FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    notification.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      height: 1.4,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (unread)
+              Container(
+                width: 9,
+                height: 9,
+                margin: const EdgeInsets.only(left: 10, top: 6),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.teal,
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(left: 4, top: 2),
-                child: Icon(Icons.chevron_right,
-                    size: 18, color: AppColors.faint),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -533,12 +561,17 @@ class _NotificationRow extends StatelessWidget {
 }
 
 class _FilterBar extends StatelessWidget {
-  const _FilterBar({required this.selected, required this.onSelected});
+  const _FilterBar({
+    required this.types,
+    required this.selected,
+    required this.onSelected,
+  });
 
+  final List<AppNotificationType> types;
   final AppNotificationType? selected;
   final ValueChanged<AppNotificationType?> onSelected;
 
-  static const _filters = [
+  static const ordered = [
     AppNotificationType.appointment,
     AppNotificationType.reminder,
     AppNotificationType.payment,
@@ -555,32 +588,25 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: SingleChildScrollView(
+    return SizedBox(
+      height: 40,
+      child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: Row(
-          children: [
+        children: [
+          _TypeChip(
+            label: 'Tout',
+            selected: selected == null,
+            onTap: () => onSelected(null),
+          ),
+          for (final type in types) ...[
+            const SizedBox(width: 8),
             _TypeChip(
-              label: 'Tous',
-              selected: selected == null,
-              onTap: () => onSelected(null),
+              label: type.label,
+              selected: _isSelected(type),
+              onTap: () => onSelected(type),
             ),
-            for (final type in _filters) ...[
-              const SizedBox(width: 8),
-              _TypeChip(
-                label: type.label,
-                selected: _isSelected(type),
-                onTap: () => onSelected(type),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
@@ -600,28 +626,21 @@ class _TypeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.teal : AppColors.white,
-      borderRadius: AppRadius.mdAll,
-      clipBehavior: Clip.antiAlias,
+      color: selected ? AppColors.teal : AppColors.sand,
+      shape: const StadiumBorder(),
       child: InkWell(
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppMotion.fast,
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.mdAll,
-            border: Border.all(
-              color: selected ? AppColors.teal : AppColors.border,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.textSecondary,
-              fontSize: 12.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.background : AppColors.text,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              ),
             ),
           ),
         ),

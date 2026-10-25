@@ -20,7 +20,7 @@ import 'patient_home_screen.dart';
 import 'profile_tab.dart';
 import 'psychologist_search_screen.dart';
 
-// conteneur du parcours patient — navigation style Lyynk :
+// conteneur du parcours patient, navigation style Lyynk :
 // BottomAppBar avec 4 items (2 gauche, 2 droite) + FAB central (Chercher)
 class PatientShell extends StatefulWidget {
   const PatientShell({super.key});
@@ -312,9 +312,6 @@ class _PatientShellState extends State<PatientShell>
                   icon: Icons.person_outline,
                   selectedIcon: Icons.person,
                   label: 'Moi',
-                  // Les questionnaires en attente vivent sous Profil > Mes
-                  // questionnaires : le badge est porté par cet onglet, pas par
-                  // l'accueil, sinon il désigne un écran où il n'y a rien à faire.
                   badge: _pendingQuestCount,
                   onTap: () => _selectTab(4),
                 ),

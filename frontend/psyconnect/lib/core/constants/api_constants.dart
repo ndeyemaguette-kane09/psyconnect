@@ -274,9 +274,6 @@ class ApiConstants {
 
   static const Duration timeout = Duration(seconds: 15);
 
-  // Mistral via Ollama peut etre lent (CPU/Metal, pas de GPU dedie) : le
-  // timeout global de 15s ci-dessus coupe systematiquement la reponse avant
-  // qu'elle n'arrive. Cet endpoint a son propre timeout, plus genereux.
   static const Duration companionChatTimeout = Duration(seconds: 90);
 
   // upload du justificatif psy (photo/PDF, jusqu'a 20MB) : peut prendre

@@ -12,15 +12,6 @@ public interface PatientProfileService {
             Long callerAuthUserId
     );
 
-    /**
-     * @param callerIsPsychologist true si l'appelant a le rôle PSYCHOLOGIST
-     *                             (autorise la lecture même sans être le
-     *                             propriétaire du profil ; déclenche le
-     *                             masquage du nom réel si mode anonyme).
-     * @param callerIsAdmin        true si l'appelant a le rôle ADMIN
-     *                             (autorise la lecture, jamais de masquage :
-     *                             l'admin garde toujours la vraie identité).
-     */
     PatientProfileResponse getPatientProfile(
             Long id,
             Long callerAuthUserId,
@@ -60,6 +51,8 @@ public interface PatientProfileService {
 
     // credite quand un RDV est remboursé
     WalletResponse creditWallet(Long patientId, Double amount, Long callerAuthUserId);
+
+    WalletResponse creditWalletAsService(Long patientId, Double amount);
 
     // relevé des mouvements, plus recent en premier, proprietaire uniquement
     java.util.List<WalletTransactionResponse> getWalletTransactions(

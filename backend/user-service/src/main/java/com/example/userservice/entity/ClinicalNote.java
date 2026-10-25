@@ -13,18 +13,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-// Note clinique privée rédigée par un psychologue sur un patient qu'il suit
-// (cf. CDC section 4.2 "Notes cliniques privées : espace personnel pour les
-// notes post-séance"). Contrairement à MedicalHistory (collaboratif
-// patient+psy), une note ici n'est JAMAIS visible par le patient, ni par
-// l'admin, ni par un autre psychologue même s'il suit le même patient
-// (CDC section 6 : "jamais visibles par des tiers non autorisés") —
-// le contrôle d'accès est fait dans ClinicalNoteServiceImpl, jamais exposé
-// via un endpoint public pour le patient
 @Entity
 @Getter
 @Setter
 @Table(name = "clinical_notes")
+// note privée : lisible uniquement par le psychologue qui l'a écrite
 public class ClinicalNote {
 
     @Id
@@ -34,14 +27,11 @@ public class ClinicalNote {
     @Column(nullable = false)
     private Long patientProfileId;
 
-    // Auteur de la note — seul ce psychologue pourra jamais la lire/modifier/
+    // Auteur de la note, seul ce psychologue pourra jamais la lire/modifier/
     // supprimer ; même un confrère ayant suivi ce patient ne la verra pas
     @Column(nullable = false)
     private Long psychologistProfileId;
 
-    // Rendez-vous concerné, optionnel : une note peut être prise "à froid"
-    // sans être rattachée à une séance précise (id appointment-service, pas
-    // de FK inter-service — simple référence comme ailleurs dans le projet)
     private Long appointmentId;
 
     @Column(nullable = false, columnDefinition = "TEXT")

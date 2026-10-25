@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../models/clinical_note_models.dart';
 import '../services/clinical_note_service.dart';
 
@@ -85,7 +86,8 @@ class _ClinicalNotesScreenState extends State<ClinicalNotesScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Supprimer', style: TextStyle(color: AppColors.rose)),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -108,64 +110,105 @@ class _ClinicalNotesScreenState extends State<ClinicalNotesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.patientName != null
-        ? 'Notes · ${widget.patientName}'
-        : 'Notes cliniques';
-
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        title: Text(title, style: const TextStyle(color: AppColors.text)),
-        iconTheme: const IconThemeData(color: AppColors.text),
+      appBar: AppBar(),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Notes cliniques',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+            if (widget.patientName != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                child: Text(
+                  widget.patientName!,
+                  style:
+                      const TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              ),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lock_outline, size: 18, color: AppColors.teal),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Visibles par vous seule. Ni le patient ni un autre '
+                      'psy n\'y a accès.',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        height: 1.4,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (_notes.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Aucune note pour le moment.',
+                  style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              )
+            else
+              for (final note in _notes)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _NoteCard(
+                    note: note,
+                    onTap: () => _openEditor(existing: note),
+                    onDelete: () => _delete(note),
+                  ),
+                ),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.teal,
-        onPressed: () => _openEditor(),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? _ErrorView(message: _error!, onRetry: _load)
-                  : _notes.isEmpty
-                      ? ListView(
-                          children: const [
-                            SizedBox(height: 120),
-                            Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 32),
-                                child: Text(
-                                  'Aucune note pour le moment.\n'
-                                  'Cet espace est strictement privé : ni le '
-                                  'patient, ni un autre psychologue ne peut '
-                                  'les consulter.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: AppColors.muted),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 90),
-                          itemCount: _notes.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (context, i) => _NoteCard(
-                            note: _notes[i],
-                            onTap: () => _openEditor(existing: _notes[i]),
-                            onDelete: () => _delete(_notes[i]),
-                          ),
-                        ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+          child: FilledButton(
+            onPressed: () => _openEditor(),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+            child: const Text('Nouvelle note'),
+          ),
         ),
       ),
     );
   }
 }
+
+const _kMonths = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
 
 class _NoteCard extends StatelessWidget {
   const _NoteCard({required this.note, required this.onTap, required this.onDelete});
@@ -177,62 +220,72 @@ class _NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = note.updatedAt;
-    final dateLabel = '${d.day.toString().padLeft(2, '0')}/'
-        '${d.month.toString().padLeft(2, '0')}/${d.year} à '
-        '${d.hour.toString().padLeft(2, '0')}h${d.minute.toString().padLeft(2, '0')}';
+    final time = d.minute == 0
+        ? '${d.hour} h'
+        : '${d.hour} h ${d.minute.toString().padLeft(2, '0')}';
+    final dateLabel = '${d.day} ${_kMonths[d.month - 1]} ${d.year} · $time';
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        dateLabel,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                        ),
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 4, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    InkWell(
-                      onTap: onDelete,
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(Icons.delete_outline,
-                            size: 18, color: AppColors.danger),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert,
+                        size: 20, color: AppColors.muted),
+                    onSelected: (v) {
+                      if (v == 'edit') onTap();
+                      if (v == 'delete') onDelete();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Supprimer',
+                            style: TextStyle(color: AppColors.danger)),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
+                    ],
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Text(
                   note.content,
-                  maxLines: 4,
+                  maxLines: 6,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, height: 1.5),
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    height: 1.55,
+                    color: AppColors.text,
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
-
 
 class _NoteEditorSheet extends StatefulWidget {
   const _NoteEditorSheet({
@@ -302,7 +355,8 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
         builder: (context, scrollController) {
           return Container(
             decoration: const BoxDecoration(
-              color: AppColors.white,
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
             ),
             child: ListView(
               controller: scrollController,
@@ -311,46 +365,42 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
                 Center(
                   child: Container(
                     width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
+                    height: 5,
+                    margin: const EdgeInsets.only(bottom: 18),
                     decoration: BoxDecoration(
-                      color: AppColors.tealMid,
+                      color: AppColors.borderStrong,
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),
                 Text(
                   widget.existing == null ? 'Nouvelle note' : 'Modifier la note',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 22, color: AppColors.text),
                 ),
                 const SizedBox(height: 4),
                 const Text(
                   'Visible uniquement par vous.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  style: TextStyle(color: AppColors.muted, fontSize: 14.5),
                 ),
                 const SizedBox(height: 14),
                 if (_error != null) ...[
-                  Text(_error!, style: const TextStyle(color: AppColors.rose)),
+                  Text(_error!, style: const TextStyle(color: AppColors.danger)),
                   const SizedBox(height: 10),
                 ],
                 TextField(
                   controller: _content,
                   maxLines: 8,
                   autofocus: widget.existing == null,
-                  decoration: InputDecoration(
-                    hintText: 'Observations post-séance...',
-                    filled: true,
-                    fillColor: AppColors.background,
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                    ),
+                  decoration: const InputDecoration(
+                    hintText: 'Observations post-séance…',
                   ),
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _saving ? null : _save,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.teal,
-                    minimumSize: const Size.fromHeight(48),
+                    minimumSize: const Size.fromHeight(52),
                   ),
                   child: _saving
                       ? const SizedBox(
@@ -364,32 +414,6 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.wifi_off, color: AppColors.muted, size: 36),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
-          ],
-        ),
       ),
     );
   }

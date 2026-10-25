@@ -19,6 +19,11 @@ class AppointmentService {
     return Appointment.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<Appointment> getAppointmentById(int appointmentId) async {
+    final json = await _api.get('${ApiConstants.appointments}/$appointmentId');
+    return Appointment.fromJson(json as Map<String, dynamic>);
+  }
+
   Future<List<Appointment>> getAppointmentsByPatientId(int patientId) async {
     final json =
         await _api.get(ApiConstants.appointmentsByPatient(patientId));

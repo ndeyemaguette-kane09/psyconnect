@@ -12,7 +12,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.example.paymentservice.security.SecurityUtils;
+import com.example.paymentservice.security.ServiceTokenProvider;
 
 import io.github.resilience4j.retry.annotation.Retry;
 
@@ -28,12 +28,16 @@ public class NotificationClient {
     private final RestTemplate restTemplate;
     private final String notificationServiceUrl;
 
+    private final ServiceTokenProvider serviceTokenProvider;
+
     public NotificationClient(
             RestTemplate restTemplate,
-            @Value("${services.notification.url}") String notificationServiceUrl
+            @Value("${services.notification.url}") String notificationServiceUrl,
+            ServiceTokenProvider serviceTokenProvider
     ) {
         this.restTemplate = restTemplate;
         this.notificationServiceUrl = notificationServiceUrl;
+        this.serviceTokenProvider = serviceTokenProvider;
     }
 
     @Retry(name = "notificationService", fallbackMethod = "fallbackSend")
@@ -47,13 +51,7 @@ public class NotificationClient {
         notification.put("userRole", userRole);
 
         HttpHeaders headers = new HttpHeaders();
-        try {
-            String authorization = SecurityUtils.currentAuthorizationHeader();
-            if (authorization != null) {
-                headers.set("Authorization", authorization);
-            }
-        } catch (IllegalStateException ignored) {
-        }
+        headers.set("Authorization", serviceTokenProvider.authorizationHeader());
 
         restTemplate.exchange(
                 notificationServiceUrl + "/notifications",

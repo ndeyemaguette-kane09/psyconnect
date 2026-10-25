@@ -13,10 +13,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-// Antécédents médicaux structurés, distincts du champ libre PatientProfile.medicalHistory
-// (conservé pour compatibilité mais plus utilisé par le nouvel écran). Modifiable par
-// le patient ET par un psychologue qui le suit (vérifié via PsyPatientLink),
-// jamais par l'admin
 @Entity
 @Getter
 @Setter

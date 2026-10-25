@@ -12,7 +12,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.example.sessionservice.security.SecurityUtils;
+import com.example.sessionservice.security.ServiceTokenProvider;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -25,12 +25,16 @@ public class NotificationClient {
     private final RestTemplate restTemplate;
     private final String notificationServiceUrl;
 
+    private final ServiceTokenProvider serviceTokenProvider;
+
     public NotificationClient(
             RestTemplate restTemplate,
-            @Value("${services.notification.url}") String notificationServiceUrl
+            @Value("${services.notification.url}") String notificationServiceUrl,
+            ServiceTokenProvider serviceTokenProvider
     ) {
         this.restTemplate = restTemplate;
         this.notificationServiceUrl = notificationServiceUrl;
+        this.serviceTokenProvider = serviceTokenProvider;
     }
 
     @CircuitBreaker(name = "notificationService")
@@ -44,8 +48,7 @@ public class NotificationClient {
         body.put("userRole", userRole);
 
         HttpHeaders headers = new HttpHeaders();
-        String auth = SecurityUtils.currentAuthorizationHeader();
-        if (auth != null) headers.set("Authorization", auth);
+        headers.set("Authorization", serviceTokenProvider.authorizationHeader());
 
         restTemplate.exchange(
                 notificationServiceUrl + "/notifications",

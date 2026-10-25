@@ -28,15 +28,6 @@ import com.example.appointmentservice.entity.QuestionnaireType;
 import com.example.appointmentservice.repository.QuestionnaireRepository;
 import com.example.appointmentservice.service.OwnershipResolver;
 
-/**
- * Tests unitaires pour le scoring PHQ-9 et GAD-7.
- *
- * PHQ-9 (dépression) : 9 questions × 0-3 -> score 0-27
- *   0-4 minimal | 5-9 léger | 10-14 modéré | 15-19 modérément sévère | 20-27 sévère
- *
- * GAD-7 (anxiété) : 7 questions × 0-3 -> score 0-21
- *   0-4 minimal | 5-9 léger | 10-14 modéré | 15-21 sévère
- */
 @ExtendWith(MockitoExtension.class)
 class QuestionnaireServiceImplTest {
 
@@ -64,9 +55,6 @@ class QuestionnaireServiceImplTest {
 
     // --- Helpers ---
 
-    /**
-     * Crée un questionnaire fictif à l'état SENT pour le patient.
-     */
     private Questionnaire buildQuestionnaire(QuestionnaireType type) {
         Questionnaire q = new Questionnaire();
         q.setId(1L);
@@ -77,9 +65,6 @@ class QuestionnaireServiceImplTest {
         return q;
     }
 
-    /**
-     * Appelle answerQuestionnaire() avec les réponses données et renvoie le DTO.
-     */
     private QuestionnaireResponseDto answer(QuestionnaireType type, List<Integer> answers) {
         Questionnaire q = buildQuestionnaire(type);
 

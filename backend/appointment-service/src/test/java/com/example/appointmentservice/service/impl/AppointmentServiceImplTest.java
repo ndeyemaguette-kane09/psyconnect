@@ -29,13 +29,6 @@ import com.example.appointmentservice.entity.ConsultationType;
 import com.example.appointmentservice.repository.AppointmentRepository;
 import com.example.appointmentservice.service.OwnershipResolver;
 
-/**
- * Tests unitaires pour les règles métier de prise de rendez-vous.
- *
- * On utilise Mockito pour isoler AppointmentServiceImpl de ses dépendances
- * (base de données, appels inter-services). Chaque test vérifie une règle
- * précise, indépendamment des autres.
- */
 @ExtendWith(MockitoExtension.class)
 class AppointmentServiceImplTest {
 
@@ -50,11 +43,6 @@ class AppointmentServiceImplTest {
     private static final Long PATIENT_ID      = 1L;
     private static final Long PSYCHOLOGIST_ID = 2L;
 
-    /**
-     * Simule une authentification PATIENT dans le SecurityContext Spring.
-     * SecurityUtils.hasRole() lit directement SecurityContextHolder,
-     * donc pas besoin de mock statique.
-     */
     @BeforeEach
     void authenticateAsPatient() {
         var auth = new UsernamePasswordAuthenticationToken(

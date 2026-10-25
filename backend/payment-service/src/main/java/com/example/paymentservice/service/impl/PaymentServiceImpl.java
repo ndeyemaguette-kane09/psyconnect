@@ -43,7 +43,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
-    // Même identifiant fixe que dans AdminController — une seule ligne de réglages
+    // Même identifiant fixe que dans AdminController, une seule ligne de réglages
     private static final Long SETTINGS_ID = 1L;
 
     private final PaymentRepository paymentRepository;
@@ -155,9 +155,7 @@ public class PaymentServiceImpl implements PaymentService {
 
             Payment savedPayment = paymentRepository.save(payment);
 
-            // Notification non bloquante : un échec ici ne doit PAS annuler le
-            // paiement ni déclencher la compensation walletClient.credit().
-            // On logge l'erreur et on continue.
+            // non bloquant : un échec de notification n'annule pas le paiement
             try {
                 sendPaymentNotification(appointment);
             } catch (Exception notifEx) {
@@ -207,7 +205,9 @@ public class PaymentServiceImpl implements PaymentService {
 
         AppointmentSummary appointment = appointmentClient.getAppointmentById(appointmentId);
 
-        checkParticipant(appointment);
+        if (!SecurityUtils.hasRole("SERVICE")) {
+            checkParticipant(appointment);
+        }
 
         return paymentRepository.findByAppointmentId(appointmentId)
                 .stream()
@@ -233,8 +233,6 @@ public class PaymentServiceImpl implements PaymentService {
             throw new ForbiddenOperationException("Accès réservé aux psychologues");
         }
 
-        // les anciens paiements (avant l'ajout de psychologistId) ont null -> exclus,
-        // ce qui est acceptable pour un environnement de développement
         List<Payment> completedPayments = paymentRepository
                 .findByPsychologistIdAndStatus(psychologistId, PaymentStatus.COMPLETED);
 
@@ -333,7 +331,14 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public BigDecimal refundCompletedPayments(Long appointmentId, Long patientId) {
         AppointmentSummary appointment = appointmentClient.getAppointmentById(appointmentId);
-        if (!SecurityUtils.hasRole("PATIENT")
+        boolean systemCancellation = SecurityUtils.hasRole("SERVICE");
+        if (systemCancellation) {
+            if (!appointment.getPatientId().equals(patientId)) {
+                throw new ForbiddenOperationException(
+                        "Le patient indiqué ne correspond pas à ce rendez-vous"
+                );
+            }
+        } else if (!SecurityUtils.hasRole("PATIENT")
                 || !appointment.getPatientId().equals(patientId)
                 || !ownershipResolver.resolveOwnPatientId().equals(appointment.getPatientId())) {
             throw new ForbiddenOperationException(
@@ -345,8 +350,8 @@ public class PaymentServiceImpl implements PaymentService {
                     "Seul un rendez-vous annulé peut être remboursé"
             );
         }
-        if (appointment.getStartTime() == null
-                || Duration.between(LocalDateTime.now(), appointment.getStartTime()).toHours() < 48) {
+        if (!systemCancellation && (appointment.getStartTime() == null
+                || Duration.between(LocalDateTime.now(), appointment.getStartTime()).toHours() < 48)) {
             throw new RuntimeException(
                     "Remboursement impossible : l'annulation doit intervenir au moins 48 heures avant le rendez-vous"
             );

@@ -117,9 +117,6 @@ public class BroadcastServiceImpl implements BroadcastService {
         broadcast.setRecipientCount(ids.size());
         broadcastRepository.save(broadcast);
 
-        // 2. notifications individuelles (fire-and-forget, echec silencieux)
-        // On sépare patients et psychologues pour passer le bon userRole,
-        // évitant la fuite inter-comptes quand les profileId numériques coïncident.
         int sent = 0;
         List<Long> patientIds = collectPatientIds(audience);
         List<Long> psychologistIds = collectPsychologistIds(audience);

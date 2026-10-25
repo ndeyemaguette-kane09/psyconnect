@@ -9,12 +9,6 @@ import '../services/psychologist_service.dart';
 import '../widgets/psychologist_card.dart';
 import 'psychologist_profile_screen.dart';
 
-// Onglet Chercher du patient, affiché par PatientShell.
-//
-// Le backend ne filtre pas côté serveur (GET /psychologists ne prend aucun
-// query param) : la recherche et les chips tournent côté client sur la liste
-// complète. Le compteur de résultats est donc gratuit — et il rassure
-// l'utilisateur sur le fait que ses filtres ont bien été pris en compte.
 class PsychologistSearchScreen extends StatefulWidget {
   const PsychologistSearchScreen({super.key});
 
@@ -27,9 +21,6 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
   final _service = PsychologistService();
   final _searchController = TextEditingController();
 
-  // Catégorie pour ceux qui ne savent pas quoi chercher : `specialty` est du
-  // texte libre côté backend (pas un enum), impossible de filtrer par « type
-  // de problème ». On affiche tout, avec un message rassurant.
   static const _unsureFilter = 'Je ne sais pas encore';
 
   static const _filters = [

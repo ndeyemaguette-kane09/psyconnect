@@ -27,13 +27,6 @@ const _greeting =
     "suis pas un professionnel de santé et je ne remplace pas un "
     "psychologue.";
 
-// Écran de discussion avec Xalaat, le compagnon IA de préparation.
-//
-// IMPORTANT (confidentialité) : contrairement à ChatScreen (messagerie
-// patient/psy), rien ici n'est persisté nulle part — pas de stockage local,
-// pas d'historique côté serveur. _messages et _history vivent uniquement en
-// mémoire et disparaissent à la fermeture de l'écran. Ne pas introduire de
-// SharedPreferences / DB locale / fichier pour cet écran.
 class XalaatScreen extends StatefulWidget {
   const XalaatScreen({super.key});
 

@@ -16,7 +16,7 @@ String formatAmount(num value) {
 
 // les 3 valeurs SIMULATED_* sont juste pour faire semblant, y'a pas
 // de vrai operateur derriere. ca sert a marquer un depot/retrait
-// sur le solde (cf WalletScreen) — payer un RDV ça passe que par le wallet
+// sur le solde (cf WalletScreen), payer un RDV ça passe que par le wallet
 enum PaymentMethod { orangeMoney, wave, card, wallet }
 
 extension PaymentMethodX on PaymentMethod {

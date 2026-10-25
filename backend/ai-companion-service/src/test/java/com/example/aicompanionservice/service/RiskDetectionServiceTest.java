@@ -26,7 +26,14 @@ class RiskDetectionServiceTest {
             "Je n'ai plus envie de vivre",
             "Ça ne vaut plus le coup de vivre",
             "Le monde irait mieux sans moi",
-            "Envie de disparaître"
+            "Envie de disparaître",
+            "Je n'en peux plus de vivre",
+            "je n’en peux plus de cette vie",
+            "J'en ai marre de la vie",
+            "Je suis fatiguée de vivre",
+            "J'ai envie d'en finir",
+            "Je voudrais ne plus me réveiller",
+            "Je\u00A0veux\u00A0mourir"
     })
     void intercepteLesFormulationsDeCrise(String message) {
         assertTrue(service.isRisky(message), message);
@@ -38,7 +45,9 @@ class RiskDetectionServiceTest {
             "J'ai envie de vivre pleinement",
             "Comment se passe une première consultation ?",
             "je ne veux pas mourir",
-            "Je suis stressé par mes examens"
+            "Je suis stressé par mes examens",
+            "Je n'en peux plus de ce travail",
+            "Je suis fatigué de mes cours"
     })
     void laissePasserLesMessagesOrdinaires(String message) {
         assertFalse(service.isRisky(message), message);

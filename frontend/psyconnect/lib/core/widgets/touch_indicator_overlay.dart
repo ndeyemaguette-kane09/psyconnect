@@ -1,14 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Overlay de touche — à retirer avant la mise en production
-// Affiche un cercle animé à chaque endroit où l'utilisateur pose le doigt.
-// Utile pour les démos et les captures vidéo.
-//
-// Utilisation dans app.dart :
-//   child: kShowTouchIndicators
-//       ? TouchIndicatorOverlay(child: MaterialApp(...))
-//       : MaterialApp(...)
-
 class TouchIndicatorOverlay extends StatefulWidget {
   const TouchIndicatorOverlay({super.key, required this.child});
 

@@ -15,22 +15,7 @@ import com.example.sessionservice.entity.Session;
 import com.example.sessionservice.entity.SessionStatus;
 import com.example.sessionservice.repository.SessionRepository;
 
-/**
- * Clôture automatiquement les sessions d'appel restées IN_PROGRESS au-delà de
- * la fenêtre de leur rendez-vous (heure de fin + 30 min de marge — la même
- * marge que celle utilisée pour autoriser la reconnexion côté
- * SessionServiceImpl.startSession et côté Flutter).
- *
- * Complément indispensable au choix produit "la séance reste active tant que
- * l'horaire du RDV n'est pas dépassé" : depuis que CallScreen ne ferme plus
- * la session au raccroché (voir _onConferenceTerminated), plus rien côté
- * client ne clôture jamais une session — sans ce job, elle resterait
- * IN_PROGRESS indéfiniment.
- *
- * Ne concerne pas les sessions d'urgence (appointmentId == null) : elles
- * n'ont pas de créneau de référence, leur clôture reste manuelle via
- * PUT /sessions/{id}/end.
- */
+// toutes les 5 min : clôt les sessions encore ouvertes 30 min après la fin du créneau
 @Component
 public class SessionExpiryScheduler {
 
@@ -54,7 +39,7 @@ public class SessionExpiryScheduler {
         this.notificationClient = notificationClient;
     }
 
-    // toutes les 5 minutes — même cadence que AppointmentReminderScheduler
+    // toutes les 5 minutes, même cadence que AppointmentReminderScheduler
     // (appointment-service), pour rester cohérent avec le reste du projet
     @Scheduled(fixedRate = 5 * 60 * 1000)
     public void closeExpiredSessions() {

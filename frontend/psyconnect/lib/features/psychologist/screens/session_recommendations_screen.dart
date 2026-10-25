@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
 import '../models/recommendation_models.dart';
 import '../services/recommendation_service.dart';
 
@@ -99,8 +100,8 @@ class _SessionRecommendationsScreenState
               child: const Text('Annuler')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child:
-                const Text('Supprimer', style: TextStyle(color: AppColors.rose)),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -128,101 +129,97 @@ class _SessionRecommendationsScreenState
         : 'Patient';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        titleSpacing: 0,
-        iconTheme: const IconThemeData(color: AppColors.text),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+          child: FilledButton(
+            onPressed: _showAddSheet,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+            child: const Text('Ajouter une recommandation'),
+          ),
+        ),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.teal,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           children: [
-            const Text('Recommandations post-séance',
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Après la séance',
                 style: TextStyle(
-                    color: AppColors.text,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15)),
-            Text(name,
-                style:
-                    const TextStyle(color: AppColors.muted, fontSize: 12,
-                    fontWeight: FontWeight.w400)),
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+              child: Text(
+                name,
+                style: const TextStyle(fontSize: 15.5, color: AppColors.muted),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 14, 4, 16),
+              child: Text(
+                'Ce que le patient peut faire d\'ici la prochaine séance.',
+                style: TextStyle(
+                  fontSize: 15.5,
+                  height: 1.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              AppErrorState(message: _error!, onRetry: _load)
+            else if (_recommendations.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Aucune recommandation pour l\'instant.',
+                  style: TextStyle(fontSize: 15.5, color: AppColors.muted),
+                ),
+              )
+            else
+              AppCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  children: [
+                    for (final r in _recommendations)
+                      _RecoRow(
+                        recommendation: r,
+                        onDelete: () => _delete(r),
+                      ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddSheet,
-        backgroundColor: AppColors.teal,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.muted)),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                            onPressed: _load, child: const Text('Réessayer')),
-                      ],
-                    ),
-                  ),
-                )
-              : _recommendations.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.assignment_outlined,
-                                  size: 32, color: AppColors.teal),
-                            const SizedBox(height: 16),
-                            const Text('Aucune recommandation',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 15)),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Ajoutez des tâches ou conseils que vous souhaitez '
-                              'que le patient réalise avant la prochaine séance.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: AppColors.muted, fontSize: 13,
-                                  height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.separated(
-                        padding:
-                            const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                        itemCount: _recommendations.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) {
-                          final r = _recommendations[i];
-                          return _RecoCard(
-                            recommendation: r,
-                            onDelete: () => _delete(r),
-                          );
-                        },
-                      ),
-                    ),
     );
   }
 }
 
-class _RecoCard extends StatelessWidget {
-  const _RecoCard({required this.recommendation, required this.onDelete});
+const _kMonths = [
+  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+];
+
+class _RecoRow extends StatelessWidget {
+  const _RecoRow({required this.recommendation, required this.onDelete});
 
   final SessionRecommendation recommendation;
   final VoidCallback onDelete;
@@ -230,30 +227,27 @@ class _RecoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = recommendation.createdAt;
-    final date =
-        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final done = recommendation.completed;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(
-          color: recommendation.completed
-              ? AppColors.tealMid
-              : AppColors.tealMid,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            recommendation.completed
-                ? Icons.check_circle_outline
-                : Icons.radio_button_unchecked,
-            color: recommendation.completed ? AppColors.teal : AppColors.muted,
-            size: 20,
+          Container(
+            width: 26,
+            height: 26,
+            margin: const EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              color: done ? AppColors.teal : AppColors.sand,
+              shape: BoxShape.circle,
+            ),
+            child: done
+                ? const Icon(Icons.check_rounded,
+                    size: 17, color: AppColors.background)
+                : null,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,45 +255,37 @@ class _RecoCard extends StatelessWidget {
                 Text(
                   recommendation.content,
                   style: TextStyle(
-                    fontSize: 14,
-                    color: recommendation.completed
-                        ? AppColors.muted
-                        : AppColors.text,
-                    decoration: recommendation.completed
-                        ? TextDecoration.lineThrough
-                        : null,
+                    fontSize: 15.5,
+                    height: 1.45,
+                    color: done ? AppColors.muted : AppColors.text,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      date,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 11),
-                    ),
-                    if (recommendation.completed) ...[
-                      const SizedBox(width: 8),
-                      const Text(
-                        '· Accomplie ✓',
-                        style: TextStyle(
-                            color: AppColors.teal,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  done
+                      ? 'Faite par le patient'
+                      : 'Ajoutée le ${d.day} ${_kMonths[d.month - 1]}',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: done ? AppColors.teal : AppColors.muted,
+                    fontWeight: done ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline,
-                color: AppColors.rose, size: 20),
-            onPressed: onDelete,
-            tooltip: 'Supprimer',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20, color: AppColors.muted),
+            onSelected: (v) {
+              if (v == 'delete') onDelete();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'delete',
+                child: Text('Supprimer',
+                    style: TextStyle(color: AppColors.danger)),
+              ),
+            ],
           ),
         ],
       ),
@@ -321,9 +307,10 @@ class _AddRecommendationSheet extends StatelessWidget {
       ),
       child: Container(
         decoration: const BoxDecoration(
-          color: AppColors.white,
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,47 +318,43 @@ class _AddRecommendationSheet extends StatelessWidget {
             Center(
               child: Container(
                 width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 18),
                 decoration: BoxDecoration(
-                    color: AppColors.tealMid),
+                  color: AppColors.borderStrong,
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
             ),
             const Text(
               'Nouvelle recommandation',
-              style:
-                  TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: 4),
             const Text(
-              'Tâche ou conseil à réaliser par le patient avant la prochaine séance.',
-              style: TextStyle(color: AppColors.muted, fontSize: 12),
+              'Une tâche ou un conseil pour le patient avant la prochaine séance.',
+              style: TextStyle(color: AppColors.muted, fontSize: 14.5),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             TextField(
               controller: controller,
               maxLines: 4,
               autofocus: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Ex : Tenir le journal 10 minutes chaque soir…',
-                hintStyle: const TextStyle(color: AppColors.muted),
-                border: OutlineInputBorder(
-                  borderSide: const BorderSide(color: AppColors.tealMid),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: AppColors.teal),
-                ),
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.teal),
-                child: const Text('Enregistrer'),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
               ),
+              child: const Text('Enregistrer'),
             ),
           ],
         ),

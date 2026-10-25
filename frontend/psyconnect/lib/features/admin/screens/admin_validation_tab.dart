@@ -88,9 +88,6 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     }
   }
 
-  // Distinct de _setVerified : "refuser" déplace le profil de "En attente"
-  // vers "Refusés". Passer verified=false n'a aucun effet sur un profil en attente
-  // (il est déjà à false), d'où l'usage de l'endpoint rejected dédié.
   Future<void> _setRejected(PsychologistProfile psy, bool rejected) async {
     setState(() => _busyId = '${psy.id}');
     try {

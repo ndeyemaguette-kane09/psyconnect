@@ -19,7 +19,7 @@ import 'psychologist_home_tab.dart';
 import 'psychologist_messages_tab.dart';
 import 'psychologist_stats_tab.dart';
 
-// conteneur principal du parcours psy — navigation style Lyynk :
+// conteneur principal du parcours psy, navigation style Lyynk :
 // BottomAppBar avec 4 items (2 gauche, 2 droite) + FAB central (Patients)
 //
 // Layout : Accueil · Agenda   [FAB Patients]   Messages · Stats
