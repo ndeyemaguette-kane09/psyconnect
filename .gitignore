@@ -82,9 +82,12 @@ tmp/
 **/.venv/
 
 ### Documents de travail (gardés en local, hors dépôt) ###
-docs/*
-!docs/screenshots/
-!docs/diagrammes/
+docs/
+postman/
+site/
+website/
+redaction/
+output/
 admin/
 patient/
 psy/
@@ -92,3 +95,5 @@ finish/
 video/
 logo/
 diplomes_factices/
+_sauvegarde_git/
+**/uploads/

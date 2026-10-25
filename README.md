@@ -6,8 +6,6 @@ Le patient peut trouver un psychologue vérifié, réserver une consultation (vi
 
 Le compagnon Xalaat (« pensée » en wolof) aide le patient à préparer sa première consultation. Il repose sur un modèle de langage qui tourne en local avec Ollama, et un filtre placé avant le modèle oriente vers les numéros d'urgence dès qu'un message exprime une détresse.
 
-![Accueil patient](docs/screenshots/screenshot_accueil_patient_recommandations_et_prochain_rdv.png)
-
 ## Architecture
 
 Le back-end est découpé en microservices Spring Boot, avec un service Python pour la recommandation. L'application mobile passe toujours par la passerelle.
@@ -27,8 +25,6 @@ Le back-end est découpé en microservices Spring Boot, avec un service Python p
 
 Chaque service qui stocke des données a sa propre base PostgreSQL. Chaque service vérifie lui-même le jeton JWT. Les appels entre services sont protégés par Resilience4j (retry et circuit breaker) et tracés avec Zipkin.
 
-Les diagrammes UML et les schémas d'architecture sont dans [`docs/diagrammes`](docs/diagrammes).
-
 ## Technologies
 
 - Back-end : Java 17, Spring Boot 3.5, Spring Cloud Gateway, Eureka, Spring Data JPA, Spring Security, Resilience4j, Micrometer Tracing, Zipkin
@@ -37,7 +33,7 @@ Les diagrammes UML et les schémas d'architecture sont dans [`docs/diagrammes`](
 - Mobile : Flutter (Dart), Provider, Jitsi Meet SDK
 - Données : PostgreSQL 16
 - Déploiement : Docker, Docker Compose
-- Tests : JUnit 5, tests Flutter, collection Postman
+- Tests : JUnit 5, tests Flutter
 
 ## Lancer le projet
 
@@ -79,17 +75,15 @@ Interfaces utiles une fois lancé : Eureka sur http://localhost:8761, Zipkin sur
 
 - Back-end : `./gradlew test` dans chaque service.
 - Mobile : `flutter test` dans `frontend/psyconnect`.
-- Parcours complet : la collection `postman/PsyConnect_Parcours_Complet.postman_collection.json` rejoue l'inscription, la validation, la réservation, le paiement et l'annulation, avec ses vérifications.
 
 ## Organisation du dépôt
 
 ```
-backend/            microservices (un dossier par service)
-frontend/psyconnect application Flutter
-docker/             script de création des bases
-postman/            collections de tests d'API
-site/website        site vitrine statique
-docs/               captures d'écran et diagrammes
+backend/              microservices (un dossier par service)
+frontend/psyconnect/  application Flutter
+docker/               script de création des bases
+docker-compose.yml    lancement de l'ensemble
+start-dev.sh          lancement des services en mode développement (hors Docker)
 ```
 
 ## Limites connues
