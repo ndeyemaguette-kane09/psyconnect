@@ -88,9 +88,9 @@ site/
 website/
 redaction/
 output/
-admin/
-patient/
-psy/
+/admin/
+/patient/
+/psy/
 finish/
 video/
 logo/

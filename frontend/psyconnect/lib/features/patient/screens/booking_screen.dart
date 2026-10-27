@@ -67,10 +67,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   _Slots _slotsFor(DateTime date) {
     final weekday = date.weekday; // 1 = lundi … 7 = dimanche
-    final now = DateTime.now();
-    final isToday = date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    final limit = DateTime.now().add(const Duration(hours: 2));
 
     final matching =
         widget.availabilities.where((a) => a.dayOfWeek == weekday).toList();
@@ -97,14 +94,11 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     }
 
-    // Aujourd'hui : on retire les créneaux déjà passés.
-    if (isToday) {
-      rawSlots = rawSlots
-          .where((s) =>
-              s.hour > now.hour ||
-              (s.hour == now.hour && s.minute > now.minute))
-          .toList();
-    }
+    // réservation au moins 2 h à l'avance
+    rawSlots = rawSlots
+        .where((s) => !DateTime(date.year, date.month, date.day, s.hour, s.minute)
+            .isBefore(limit))
+        .toList();
 
     return _Slots(rawSlots, duration);
   }
