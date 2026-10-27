@@ -26,9 +26,9 @@ public class AppointmentDeadlineScheduler {
     private static final DateTimeFormatter TIME =
             DateTimeFormatter.ofPattern("HH:mm");
 
-    private static final long CONFIRMATION_DEADLINE_HOURS = 2;
-    private static final long PAYMENT_REMINDER_HOURS = 3;
-    private static final long PAYMENT_DEADLINE_HOURS = 1;
+    private static final long CONFIRMATION_DEADLINE_HOURS = 1;
+    private static final long PAYMENT_REMINDER_HOURS = 1;
+    private static final long PAYMENT_DEADLINE_MINUTES = 30;
 
     private final AppointmentRepository appointmentRepository;
     private final NotificationClient notificationClient;
@@ -107,7 +107,7 @@ public class AppointmentDeadlineScheduler {
                 appointment.getPsychologistId(),
                 "Rendez-vous annulé",
                 "La demande de rendez-vous du " + when + " a été annulée automatiquement, "
-                        + "faute de réponse de votre part au moins 2 heures avant la séance.",
+                        + "faute de réponse de votre part au moins 1 heure avant la séance.",
                 "APPOINTMENT",
                 "PSYCHOLOGIST",
                 appointment.getId()
@@ -121,7 +121,7 @@ public class AppointmentDeadlineScheduler {
         }
 
         LocalDateTime paymentDeadline =
-                appointment.getStartTime().minusHours(PAYMENT_DEADLINE_HOURS);
+                appointment.getStartTime().minusMinutes(PAYMENT_DEADLINE_MINUTES);
 
         if (!now.isBefore(paymentDeadline)) {
             appointment.setStatus(AppointmentStatus.CANCELLED);
@@ -139,7 +139,7 @@ public class AppointmentDeadlineScheduler {
                     appointment.getPatientId(),
                     "Rendez-vous annulé",
                     "Votre rendez-vous du " + when + " a été annulé : "
-                            + "il n'a pas été payé au moins 1 heure avant la séance.",
+                            + "il n'a pas été payé au moins 30 minutes avant la séance.",
                     "APPOINTMENT",
                     "PATIENT",
                     appointment.getId()

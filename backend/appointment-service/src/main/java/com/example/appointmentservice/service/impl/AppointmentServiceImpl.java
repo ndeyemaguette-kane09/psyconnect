@@ -326,9 +326,9 @@ public class AppointmentServiceImpl
                         "Seul un rendez-vous en attente peut être confirmé"
                 );
             }
-            if (!appointment.getStartTime().isAfter(LocalDateTime.now().plusHours(2))) {
+            if (!appointment.getStartTime().isAfter(LocalDateTime.now().plusHours(1))) {
                 throw new ForbiddenOperationException(
-                        "Le délai est dépassé : un rendez-vous doit être confirmé au moins 2 heures avant son début"
+                        "Le délai est dépassé : un rendez-vous doit être confirmé au moins 1 heure avant son début"
                 );
             }
         }
