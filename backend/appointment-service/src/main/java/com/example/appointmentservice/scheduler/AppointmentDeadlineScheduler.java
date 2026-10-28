@@ -28,7 +28,6 @@ public class AppointmentDeadlineScheduler {
 
     private static final long CONFIRMATION_DEADLINE_HOURS = 1;
     private static final long PAYMENT_REMINDER_HOURS = 1;
-    private static final long PAYMENT_DEADLINE_MINUTES = 30;
 
     private final AppointmentRepository appointmentRepository;
     private final NotificationClient notificationClient;
@@ -120,8 +119,7 @@ public class AppointmentDeadlineScheduler {
             return;
         }
 
-        LocalDateTime paymentDeadline =
-                appointment.getStartTime().minusMinutes(PAYMENT_DEADLINE_MINUTES);
+        LocalDateTime paymentDeadline = appointment.getEndTime();
 
         if (!now.isBefore(paymentDeadline)) {
             appointment.setStatus(AppointmentStatus.CANCELLED);
@@ -129,7 +127,7 @@ public class AppointmentDeadlineScheduler {
             appointment.setCancelledAt(now);
             appointmentRepository.save(appointment);
 
-            if (appointment.getStartTime().isBefore(now)) {
+            if (now.isAfter(paymentDeadline.plusHours(1))) {
                 return;
             }
 
@@ -139,7 +137,7 @@ public class AppointmentDeadlineScheduler {
                     appointment.getPatientId(),
                     "Rendez-vous annulé",
                     "Votre rendez-vous du " + when + " a été annulé : "
-                            + "il n'a pas été payé au moins 30 minutes avant la séance.",
+                            + "il n'a pas été payé avant la fin du créneau prévu.",
                     "APPOINTMENT",
                     "PATIENT",
                     appointment.getId()
@@ -149,7 +147,7 @@ public class AppointmentDeadlineScheduler {
                     appointment.getPsychologistId(),
                     "Rendez-vous annulé",
                     "Le rendez-vous du " + when + " a été annulé automatiquement : "
-                            + "le patient ne l'a pas payé à temps. Le créneau est libéré.",
+                            + "le patient ne l'a pas payé avant la fin du créneau prévu.",
                     "APPOINTMENT",
                     "PSYCHOLOGIST",
                     appointment.getId()
@@ -162,11 +160,21 @@ public class AppointmentDeadlineScheduler {
                     appointment.getPatientId(),
                     "Paiement en attente",
                     "Votre rendez-vous du " + appointment.getStartTime().format(DATE_TIME)
-                            + " n'est pas encore payé. Réglez-le avant "
-                            + paymentDeadline.format(TIME)
-                            + ", sinon il sera annulé et le créneau libéré.",
+                            + " n'est pas encore payé. Réglez-le pour pouvoir rejoindre la consultation. "
+                            + "Sans paiement à " + paymentDeadline.format(TIME)
+                            + ", il sera annulé.",
                     "PAYMENT",
                     "PATIENT",
+                    appointment.getId()
+            );
+            notificationClient.sendAboutAppointment(
+                    appointment.getPsychologistId(),
+                    "Paiement en attente",
+                    "Le rendez-vous du " + appointment.getStartTime().format(DATE_TIME)
+                            + " n'est pas encore payé par votre patient. "
+                            + "La consultation sera accessible dès le paiement.",
+                    "PAYMENT",
+                    "PSYCHOLOGIST",
                     appointment.getId()
             );
             appointment.setPaymentReminderSent(true);

@@ -277,9 +277,8 @@ class _CancelledAppointmentScreenState
             '1 heure avant la séance. Elle a donc été annulée automatiquement. '
             'Vous pouvez réserver un autre créneau.';
       case CancellationReason.unpaid:
-        return 'Le rendez-vous n\'a pas été payé au moins 30 minutes avant '
-            'la séance. Il a donc été annulé automatiquement et le créneau '
-            'a été libéré.';
+        return 'Le rendez-vous n\'a pas été payé avant la fin du créneau '
+            'prévu. Il a donc été annulé automatiquement.';
       case null:
         return 'Ce rendez-vous a été annulé.';
     }
