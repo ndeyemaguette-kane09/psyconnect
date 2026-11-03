@@ -5,10 +5,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/error_banner.dart';
 import 'reset_password_screen.dart';
 
-// etape 1 du flux "mot de passe oublie" : juste l'email. le message renvoye
-// est toujours le meme (compte existant ou pas), donc on avance vers l'ecran
-// suivant dans tous les cas -- pas de "email introuvable" qui reveleraient
-// les comptes existants.
+// même réponse que le compte existe ou non, pour ne pas révéler les emails inscrits
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 

@@ -20,8 +20,7 @@ import 'patient_home_screen.dart';
 import 'profile_tab.dart';
 import 'psychologist_search_screen.dart';
 
-// conteneur du parcours patient, navigation style Lyynk :
-// BottomAppBar avec 4 items (2 gauche, 2 droite) + FAB central (Chercher)
+// parcours patient : BottomAppBar 4 items + FAB central (Chercher)
 class PatientShell extends StatefulWidget {
   const PatientShell({super.key});
 
@@ -323,8 +322,6 @@ class _PatientShellState extends State<PatientShell>
     );
   }
 }
-
-// Widget item de navigation
 
 class _NavItem extends StatelessWidget {
   final int index;

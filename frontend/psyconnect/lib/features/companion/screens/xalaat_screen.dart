@@ -5,8 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../models/companion_models.dart';
 import '../services/companion_service.dart';
 
-// Message affiché à l'écran. "flagged" ne sert qu'à l'affichage (mise en
-// avant visuelle), ça ne change rien à l'appel API suivant.
+// flagged sert seulement à l'affichage
 class _DisplayMessage {
   _DisplayMessage({
     required this.role,
@@ -69,8 +68,7 @@ class _XalaatScreenState extends State<XalaatScreen> {
     final content = _textController.text.trim();
     if (content.isEmpty || _sending) return;
 
-    // l'historique envoyé est celui d'AVANT ce message (le backend reçoit
-    // "message" séparément et le rajoute lui-même côté prompt)
+    // historique d'avant ce message, le backend ajoute message lui-même
     final historyBeforeSend = List<CompanionTurn>.from(_history);
 
     setState(() {
@@ -300,9 +298,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-// réponse du garde-fou de sécurité (RiskDetectionService côté backend) :
-// mise en avant visuellement, bien distincte d'une réponse normale du
-// modèle, pour que les numéros d'urgence sautent aux yeux.
+// réponse du garde-fou, mise en avant pour que les numéros d'urgence se voient
 class _FlaggedBubble extends StatelessWidget {
   const _FlaggedBubble({required this.content});
 

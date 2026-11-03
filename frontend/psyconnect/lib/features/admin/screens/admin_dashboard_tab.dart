@@ -10,9 +10,7 @@ import '../../patient/models/report_models.dart';
 import '../../patient/models/support_message_models.dart';
 import 'admin_config_tab.dart';
 
-// Onglet tableau de bord administrateur : KPIs, validations en attente et
-// répartition des séances par type. Ces données sont calculées côté client
-// depuis la liste des RDV, aucun endpoint dédié n'existe pour l'instant.
+// tableau de bord admin, calculé côté client depuis la liste des RDV
 class AdminDashboardTab extends StatefulWidget {
   const AdminDashboardTab({super.key, required this.onSeeAllValidations});
 

@@ -13,9 +13,7 @@ class Wallet {
       );
 }
 
-// corps pour /wallet/deposit et /wallet/withdraw. method = un des 3 moyens
-// simulés (Wave/Orange Money/Carte), jamais wallet vu que c'est
-// justement ça qu'on est en train de faire
+// corps de /wallet/deposit et /wallet/withdraw, method = Wave, Orange Money ou Carte
 class WalletAmountRequest {
   final double amount;
   final PaymentMethod method;

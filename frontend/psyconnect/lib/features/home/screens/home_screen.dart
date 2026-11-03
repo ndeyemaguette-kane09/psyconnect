@@ -10,10 +10,7 @@ import '../../patient/screens/patient_shell.dart';
 import '../../psychologist/screens/psychologist_shell.dart';
 
 // écran après connexion, envoie vers l'accueil du bon rôle :
-// patient -> PatientShell (Accueil/Chercher/RDV/Messages/Profil)
-// psy -> PsychologistShell (Accueil/Agenda/Patients/Messages/Stats)
-// admin -> AdminShell (Dashboard/Utilisateurs/Validation/Stats/Config)
-// suit la maquette v2 quand elle existe pour l'écran
+// patient -> PatientShell, psy -> PsychologistShell, admin -> AdminShell
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 

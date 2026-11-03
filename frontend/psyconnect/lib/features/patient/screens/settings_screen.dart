@@ -11,12 +11,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
 import 'contact_admin_screen.dart';
 
-// ecran Parametres, pas dans la maquette
-// regroupe mode anonyme (sauvegarde backend) et notifications (local)
-//
-// la langue a demenage dans "Modifier le profil"
-//
-// design libre : icones en pastille coloree + header degrade
+// paramètres : mode anonyme (enregistré côté backend) et notifications (local)
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,

@@ -6,9 +6,8 @@ import '../../../core/widgets/app_ui.dart';
 import '../models/clinical_note_models.dart';
 import '../services/clinical_note_service.dart';
 
-// espace personnel du psychologue pour ses notes post-seance sur un patient
-// (cf CDC section 4.2). Strictement prive : jamais visible par le patient,
-// l'admin, ou un autre psychologue - pas dans la maquette, design libre
+// notes privées du psy sur un patient, jamais visibles par le patient,
+// l'admin ou un autre psy
 class ClinicalNotesScreen extends StatefulWidget {
   const ClinicalNotesScreen({
     super.key,

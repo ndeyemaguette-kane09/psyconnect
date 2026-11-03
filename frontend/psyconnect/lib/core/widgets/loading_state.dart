@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// État de chargement commun : explicite, accessible et aligné sur la charte.
 class AppLoadingState extends StatelessWidget {
   const AppLoadingState({
     super.key,
@@ -48,7 +47,6 @@ class AppLoadingState extends StatelessWidget {
   }
 }
 
-/// Aperçu de liste pendant le chargement, afin d'éviter un écran visuellement vide.
 class AppListSkeleton extends StatefulWidget {
   const AppListSkeleton({
     super.key,

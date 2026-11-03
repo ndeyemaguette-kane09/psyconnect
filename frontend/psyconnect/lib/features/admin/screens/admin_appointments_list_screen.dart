@@ -10,12 +10,8 @@ import '../../patient/services/psychologist_service.dart';
 import '../services/admin_service.dart';
 import '../widgets/page_controls.dart';
 
-// ecran ouvert depuis l'onglet Stats (clic sur une ligne de
-// "Repartition des rendez-vous"), pas dans la maquette v2. liste complete
-// des RDV, le filtre est gere par le backend (GET /admin/appointments?status=).
-//
-// initialStatus pre-selectionne le filtre selon la ligne cliquee, mais on
-// peut le changer depuis l'ecran
+// liste des RDV ouverte depuis Stats, filtrée par le backend (GET /admin/appointments?status=)
+// initialStatus présélectionne le filtre de la ligne cliquée
 class AdminAppointmentsListScreen extends StatefulWidget {
   const AdminAppointmentsListScreen({super.key, this.initialStatus});
 

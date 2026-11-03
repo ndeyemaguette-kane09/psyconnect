@@ -24,8 +24,7 @@ class AuthProvider extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
   Map<String, String> fieldErrors = {};
-  // true quand la dernière erreur de connexion vient d'un compte banni (ACCOUNT_BANNED).
-  // Utilisé par LoginScreen pour afficher une carte dédiée avec les coordonnées admin.
+  // compte banni (ACCOUNT_BANNED) : LoginScreen affiche le contact admin
   bool isBannedAccount = false;
   bool licenseUploadWarning = false;
 
@@ -90,7 +89,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Étape 1 : crée le compte sans ouvrir de session automatiquement.
+  // crée le compte sans ouvrir de session
   Future<bool> register({
     required UserRole role,
     required RegisterAccountRequest account,
@@ -224,10 +223,7 @@ class AuthProvider extends ChangeNotifier {
     String? licenseNumber,
     // chemin local du justificatif (file_picker), envoye apres creation du profil
     String? licenseDocumentPath,
-    // nom ORIGINAL du fichier choisi (picked.name) : indispensable pour que
-    // le bon Content-Type soit envoye (cf. ApiClient._guessMediaType),
-    // licenseDocumentPath seul peut etre un chemin temporaire iOS sans
-    // extension fiable
+    // nom d'origine du fichier, le chemin temporaire iOS peut perdre l'extension
     String? licenseDocumentName,
   }) async {
     clearError();

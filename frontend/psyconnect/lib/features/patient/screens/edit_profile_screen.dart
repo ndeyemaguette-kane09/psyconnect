@@ -8,10 +8,8 @@ import '../../auth/models/profile_models.dart';
 import '../../auth/services/profile_service.dart';
 import 'medical_history_screen.dart';
 
-// edition du profil patient : infos civiles, langue, contact urgence
-// langue deplacee ici depuis Parametres
-// les deux endpoints veulent tout le profil, donc on repart de l'existant
-// pas dans la maquette, design libre
+// édition du profil patient : infos civiles, langue, contact d'urgence
+// les deux endpoints veulent tout le profil, on repart de l'existant
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
     super.key,

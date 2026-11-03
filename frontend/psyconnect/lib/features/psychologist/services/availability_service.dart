@@ -19,9 +19,8 @@ class AvailabilityService {
         .toList();
   }
 
-  // PUT proprietaire : remplace tout le planning hebdomadaire
-  // ApiClient.put() encode en { ... } donc on wrappe dans { "availabilities": [...] }
-  // (le backend attend ReplaceAvailabilitiesRequest avec ce champ)
+  // PUT propriétaire : remplace tout le planning,
+  // le backend attend { "availabilities": [...] }
   Future<List<PsychologistAvailability>> saveAvailabilities(
     int psychologistId,
     List<AvailabilityRequest> requests,

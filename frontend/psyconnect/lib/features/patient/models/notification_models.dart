@@ -65,9 +65,8 @@ extension AppNotificationTypeX on AppNotificationType {
   }
 }
 
-// correspond a la notif renvoyee par notification-service
-// et PUT /notifications/{id}/read. nomme AppNotification (pas juste
-// Notification) pour eviter une collision avec flutter/material.dart un jour
+// notif de notification-service, nommée AppNotification pour éviter
+// le conflit avec Notification de Flutter
 class AppNotification {
   final int id;
   final int userId;

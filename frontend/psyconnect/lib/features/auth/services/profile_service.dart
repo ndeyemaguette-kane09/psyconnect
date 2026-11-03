@@ -47,11 +47,8 @@ class ProfileService {
   Future<void> uploadPsychologistLicenseDocument(
     int psychologistProfileId,
     String filePath, {
-    // nom ORIGINAL du fichier (avant file_picker ne le copie dans un
-    // chemin temporaire potentiellement sans extension sur iOS) : sert a
-    // deviner le bon Content-Type cote ApiClient. Sans lui, un fichier
-    // PNG/JPEG peut etre envoye en "application/octet-stream" et rejete
-    // par user-service ("Format non supporté").
+    // nom d'origine du fichier : sur iOS le chemin temporaire peut perdre
+    // l'extension, et le Content-Type serait faux
     String? fileName,
   }) async {
     await _api.postMultipart(
@@ -59,9 +56,7 @@ class ProfileService {
       fieldName: 'file',
       filePath: filePath,
       fileNameOverride: fileName,
-      // photo/PDF de diplome jusqu'a 20MB (cf. backend) : le timeout par
-      // defaut de 15s est trop court sur un reseau lent, d'ou ce timeout
-      // dedie (meme principe que companionChatTimeout)
+      // justificatif jusqu'à 20 Mo, 15 s ne suffisent pas sur un réseau lent
       timeout: ApiConstants.licenseUploadTimeout,
     );
   }
@@ -157,10 +152,7 @@ class ProfileService {
     return PatientProfile.fromJson(json as Map<String, dynamic>);
   }
 
-  // met a jour PsychologistProfile. reutilise CreatePsychologistProfileRequest
-  // cote backend (pas de DTO d'update dedie) : faut renvoyer toutes les
-  // infos connues, pas juste le champ change. seul le proprietaire du
-  // profil peut le faire (verifie cote backend via authUserId)
+  // le backend réutilise CreatePsychologistProfileRequest : on renvoie tout le profil
   Future<PsychologistProfile> updatePsychologistProfile(
     int id,
     CreatePsychologistProfileRequest request,

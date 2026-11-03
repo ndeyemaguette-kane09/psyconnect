@@ -2,12 +2,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../models/payment_models.dart';
 
-// endpoints paiement du backend : POST /payments,
-// GET /payments/appointment/{id}.
-//
-// paiement simulé, pas de vraie connexion Orange Money/Wave/banque, ça débite
-// juste le solde PsyConnect du patient. ça confirme pas le RDV (faut déjà être
-// confirmé par le psy avant), et le backend empêche de payer deux fois le même RDV.
+// paiement simulé : débite le solde PsyConnect, pas de vrai opérateur derrière
+// le RDV doit déjà être confirmé, et le backend refuse un double paiement
 class PaymentService {
   PaymentService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 

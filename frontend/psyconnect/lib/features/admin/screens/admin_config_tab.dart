@@ -46,8 +46,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
     super.dispose();
   }
 
-  // commission
-
   Future<void> _loadRate() async {
     setState(() => _loadingRate = true);
     try {
@@ -167,8 +165,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
       (route) => false,
     );
   }
-
-  // build
 
   @override
   Widget build(BuildContext context) {

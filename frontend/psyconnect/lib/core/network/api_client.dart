@@ -18,8 +18,7 @@ class DownloadedFile {
   final String contentType;
 }
 
-// Client HTTP centralisé : construit les URL, injecte le token d'authentification,
-// décode le JSON et convertit les erreurs réseau ou backend en ApiException.
+// client HTTP commun : URL, token, JSON, erreurs converties en ApiException
 class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 

@@ -84,9 +84,7 @@ class PsychologistProfile {
       );
 }
 
-// avis anonyme sur un psychologue (note + commentaire facultatif).
-// rating == null veut dire "pas d'avis" (cas du GET /review/me sans avis
-// existant) : on differencie ce cas plutot que de mettre 0 par defaut
+// avis anonyme (note + commentaire facultatif), rating == null : pas encore d'avis
 class PsychologistReview {
   final int? rating;
   final String? comment;

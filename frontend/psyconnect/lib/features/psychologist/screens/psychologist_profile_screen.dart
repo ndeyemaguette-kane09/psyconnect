@@ -14,9 +14,7 @@ import '../../payment/screens/psy_wallet_screen.dart';
 import 'edit_psychologist_profile_screen.dart';
 import 'psy_availability_screen.dart';
 
-// ecran "Profil" cote psy, absent de la maquette
-// pour voir ses infos et se deconnecter sans passer par la seule icone logout
-// accessible via un bouton dans Stats, pas un 6e onglet
+// profil du psy, ouvert depuis Stats
 class PsychologistProfileScreen extends StatefulWidget {
   const PsychologistProfileScreen({super.key});
 

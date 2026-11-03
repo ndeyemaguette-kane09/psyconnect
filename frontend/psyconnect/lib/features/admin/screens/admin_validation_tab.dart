@@ -30,8 +30,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
   List<PsychologistProfile> _psychologists = [];
   String? _busyId;
 
-  // Pagination indépendante par section pour éviter qu'un changement de page
-  // dans "En attente" ne déplace aussi "Refusés" ou "Vérifiés".
+  // une pagination par section
   int _pendingPage = 0;
   int _rejectedPage = 0;
   int _verifiedPage = 0;

@@ -126,9 +126,7 @@ class _CallScreenState extends State<CallScreen> {
         context.read<AuthProvider>().session?.pseudo ?? 'Utilisateur';
 
     final options = JitsiMeetConferenceOptions(
-      // meet.jit.si impose un lobby obligatoire pour les utilisateurs anonymes
-      // (politique côté serveur, non modifiable côté client).
-      // meet.ffmuc.net est un serveur Jitsi public sans cette contrainte.
+      // meet.jit.si impose un lobby aux anonymes, meet.ffmuc.net non
       serverURL: 'https://meet.ffmuc.net',
       room: roomName,
       configOverrides: {
@@ -139,8 +137,7 @@ class _CallScreenState extends State<CallScreen> {
         'disableInviteFunctions': true,
         'disableReactions': true,
         'prejoinPageEnabled': false,
-        // désactiver la salle d'attente (lobby) : sans ça, Jitsi bloque
-        // les participants jusqu'à ce qu'un "hôte" les admette
+        // pas de salle d'attente
         'lobby.enabled': false,
         'enableLobbyChat': false,
         'disableLobbyPassword': true,
@@ -182,13 +179,8 @@ class _CallScreenState extends State<CallScreen> {
     await _jitsi.join(options, listener);
   }
 
-  // appele par Jitsi quand l'utilisateur raccroche (bouton rouge natif) OU
-  // en cas de coupure reseau. Volontairement NE FERME PLUS la session cote
-  // backend : la seance reste active jusqu'a la fin du creneau du rendez-vous
-  // (cloturee automatiquement cote serveur), justement pour qu'une sortie
-  // accidentelle d'un des deux participants ne compromette pas la seance de
-  // l'autre. On revient simplement a l'ecran pre-appel, d'ou il est possible
-  // de rejoindre a nouveau le meme salon a tout moment.
+  // raccrochage ou coupure : la session reste ouverte jusqu'à la fin du créneau,
+  // on revient à l'écran pré-appel pour pouvoir rejoindre à nouveau
   Future<void> _onConferenceTerminated() async {
     if (!mounted || _phase == _CallPhase.ended) return;
     setState(() {

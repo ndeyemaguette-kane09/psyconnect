@@ -28,7 +28,6 @@ class _TouchIndicatorOverlayState extends State<TouchIndicatorOverlay> {
       child: Stack(
         children: [
           widget.child,
-          // On dessine un cercle par doigt actif
           ..._pointers.values.map(
             (pos) => Positioned(
               left: pos.dx - 22,

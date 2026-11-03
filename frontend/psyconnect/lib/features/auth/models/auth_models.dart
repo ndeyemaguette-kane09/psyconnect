@@ -26,9 +26,8 @@ class RegisterAccountRequest {
       };
 }
 
-// correspond a AuthResponse (reponse /auth/login). userProfileId et profileId
-// viennent jamais du login, remplis apres coup par AuthProvider (onboarding
-// ou resolution par authUserId). profileId = patientId/psychologistId selon le role
+// correspond a AuthResponse (/auth/login). userProfileId et profileId
+// sont remplis ensuite par AuthProvider
 class AuthSession {
   final String token;
   final UserRole role;

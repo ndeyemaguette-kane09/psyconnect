@@ -9,9 +9,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
 import '../../patient/models/psychologist_models.dart';
 
-// edition du profil psychologue : jusqu'ici aucun ecran d'edition n'existait,
-// city/address/etc n'etaient saisissables qu'a l'inscription (register_screen)
-// pas dans la maquette, design libre, repris du style de EditProfileScreen (patient)
+// édition du profil psy
 class EditPsychologistProfileScreen extends StatefulWidget {
   const EditPsychologistProfileScreen({
     super.key,
@@ -50,10 +48,8 @@ class _EditPsychologistProfileScreenState
   bool _saving = false;
   String? _error;
 
-  // renvoi du justificatif : separe du formulaire principal (endpoint
-  // multipart dedie cote backend, deja utilise a l'inscription). utile
-  // pour un psy refuse qui doit resoumettre, ou si l'envoi avait echoue
-  // au moment de l'inscription
+  // renvoi du justificatif (endpoint multipart à part), pour un psy refusé
+  // ou un envoi raté à l'inscription
   bool _uploadingLicense = false;
   String? _newLicenseName;
   String? _licenseUploadMessage;

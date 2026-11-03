@@ -28,10 +28,8 @@ class TokenStorage {
     ]);
   }
 
-  // persiste l'id du UserProfile et l'id du profil metier (PatientProfile.id
-  // ou PsychologistProfile.id selon le role). ce dernier est necessaire
-  // partout ou on a besoin du "patientId"/"psychologistId" (ex POST
-  // /appointments), distinct de l'authUserId du JWT.
+  // id du UserProfile et du profil métier (PatientProfile ou PsychologistProfile),
+  // c'est lui le patientId/psychologistId attendu par l'API, pas l'authUserId
   static Future<void> saveProfileIds({
     int? userProfileId,
     int? profileId,
@@ -71,9 +69,7 @@ class TokenStorage {
 
   static const _keyNotificationsEnabled = 'settings_notifications_enabled';
 
-  // preference locale (rien cote backend) : afficher ou non le badge
-  // de notifs non lues. stockee avec la session pour pas ajouter
-  // une dependance juste pour un booleen.
+  // préférence locale : afficher ou non le badge des notifs
   static Future<void> saveNotificationsEnabled(bool enabled) =>
       _storage.write(key: _keyNotificationsEnabled, value: enabled.toString());
 

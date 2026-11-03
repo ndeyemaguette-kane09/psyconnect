@@ -95,8 +95,7 @@ class PsychologistService {
     return PsychologistReview.fromJson(json as Map<String, dynamic>);
   }
 
-  // disponibilites hebdomadaires du psy : utilisees par le patient pour
-  // ne voir que les vrais creneaux au lieu de la liste hardcodee
+  // dispos hebdo du psy, pour ne proposer que ses vrais créneaux
   Future<List<PsyAvailabilitySlot>> getAvailabilities(
       int psychologistId) async {
     final json = await _api

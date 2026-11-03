@@ -11,9 +11,7 @@ List<T> paginate<T>(List<T> items, int page, int pageSize) {
   return items.skip(start).take(pageSize).toList();
 }
 
-// nombre de pages pour totalItems a pageSize par page, toujours au moins 1
-// page meme si la liste est vide ("Page 1 / 1"), plus simple que de gerer
-// un cas vide a part
+// toujours au moins 1 page, même si la liste est vide
 int pageCountFor(int totalItems, int pageSize) {
   if (totalItems == 0) return 1;
   return ((totalItems - 1) ~/ pageSize) + 1;

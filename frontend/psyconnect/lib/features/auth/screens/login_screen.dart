@@ -220,11 +220,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// Carte affichée quand le compte est suspendu par l'administrateur
-// Remplace le bandeau d'erreur générique. Affiche les coordonnées admin
-// pour que l'utilisateur sache qui contacter.
+// carte affichée quand le compte est suspendu, avec le contact admin
 
-// Mettez à jour les coordonnées admin avant la mise en production.
+// coordonnées admin à remplacer avant la prod
 const _adminEmail = 'admin@psyconnect.sn';
 const _adminPhone = '+221 78 000 00 00';
 

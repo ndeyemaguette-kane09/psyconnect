@@ -1,11 +1,5 @@
-// erreur unique pour tous les appels API.
-//
-// le backend renvoie deux types d'erreur :
-// - 400 avec { champ: message } pour les erreurs de formulaire
-// - 400 avec { "message": "..." } pour les erreurs metier
-//
-// fieldErrors est rempli dans le premier cas (pour afficher l'erreur sous
-// chaque champ du formulaire), message dans les deux cas.
+// erreur unique pour tous les appels API
+// fieldErrors : erreurs de formulaire { champ: message }, message : erreur métier
 class ApiException implements Exception {
   final int? statusCode;
   final String message;

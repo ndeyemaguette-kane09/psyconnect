@@ -411,8 +411,7 @@ class _Fact extends StatelessWidget {
   }
 }
 
-/// Tuile affichant un avis anonyme : note et commentaire uniquement, sans
-/// aucune donnée d'identité du patient (cf. ReviewResponse côté backend).
+// avis anonyme : note et commentaire seulement
 class _ReviewTile extends StatelessWidget {
   const _ReviewTile({required this.review});
 

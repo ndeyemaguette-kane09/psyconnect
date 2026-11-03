@@ -181,8 +181,7 @@ class ApiConstants {
   static const String adminStatsAccounts = '/admin/stats/accounts';
   static const String adminStatsProfiles = '/admin/stats/profiles';
   static const String adminStatsAppointments = '/admin/stats/appointments';
-  // paiement/commission, maintenant cote payment-service (route a part depuis
-  // l'extraction du paiement en microservice dedie)
+  // paiement/commission, côté payment-service
   static const String adminStatsPayments = '/admin/stats/payments';
 
   static String adminSetUserEnabled(int userId, bool enabled) =>
@@ -266,10 +265,8 @@ class ApiConstants {
   // (routé via /users/** existant, filtré par rôle côté backend)
   static const String broadcasts = '/users/broadcasts';
 
-  // --- compagnon IA "Xalaat" (ai-companion-service, routé via /companion/**) ---
-  // Conversation jamais stockée côté serveur (cf. README ai-companion-service) :
-  // CompanionService côté Flutter garde l'historique en mémoire uniquement et
-  // le renvoie à chaque appel.
+  // --- compagnon Xalaat (ai-companion-service, routé via /companion/**) ---
+  // rien n'est stocké côté serveur, l'historique reste en mémoire dans l'app
   static const String companionChat = '/companion/chat';
 
   static const Duration timeout = Duration(seconds: 15);

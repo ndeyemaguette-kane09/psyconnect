@@ -5,11 +5,8 @@ import '../../../core/theme/app_colors.dart';
 import '../models/medical_history_models.dart';
 import '../services/medical_history_service.dart';
 
-// antecedents medicaux structures : ouvert depuis le profil patient (le
-// patient consulte/edite les siens) ou depuis la fiche patient cote psy
-// (le psy consulte/edite ceux du patient qu'il suit). Meme ecran des deux
-// cotes, l'acces est verifie cote backend (psy doit avoir un RDV avec ce
-// patient, admin jamais autorise). pas dans la maquette, design libre
+// antécédents médicaux, même écran côté patient et côté psy qui le suit,
+// l'accès est vérifié par le backend
 class MedicalHistoryScreen extends StatefulWidget {
   const MedicalHistoryScreen({
     super.key,

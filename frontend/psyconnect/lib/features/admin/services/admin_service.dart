@@ -113,11 +113,8 @@ class AdminService {
         .toList();
   }
 
-  // les stats RDV (appointment-service) et paiement/commission (payment-service)
-  // sont sur deux endpoints distincts depuis l'extraction du paiement en
-  // microservice a part ; on les recupere en parallele et on fusionne les
-  // deux JSON pour que le reste de l'app (AdminAppointmentStats) n'ait rien
-  // a changer
+  // stats RDV (appointment-service) et paiement (payment-service),
+  // chargées en parallèle puis fusionnées
   Future<AdminAppointmentStats> getAppointmentStats() async {
     final results = await Future.wait([
       _api.get(ApiConstants.adminStatsAppointments),
@@ -193,9 +190,7 @@ class AdminService {
     return SupportMessageModel.fromJson(json as Map<String, dynamic>);
   }
 
-  // envoie une vraie réponse à l'expéditeur : elle est stockée sur le ticket
-  // ET déclenche une notification (via NotificationClient côté user-service)
-  // à destination du patient/psychologue concerné. Passe le ticket en RESOLVED.
+  // réponse gardée sur le ticket + notif à l'expéditeur, le ticket passe en RESOLVED
   Future<SupportMessageModel> replyToSupportMessage(
     int messageId, {
     required String reply,

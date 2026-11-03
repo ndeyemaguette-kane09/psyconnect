@@ -87,7 +87,6 @@ class _QuestionnaireFillScreenState extends State<QuestionnaireFillScreen> {
     final atRisk = result.signalsImmediateRisk ||
         (widget.questionnaire.type == QuestionnaireType.PHQ9 &&
             _answers[kPhq9RiskItemIndex] >= kRiskThreshold);
-    // remplacer cet ecran par l'ecran de resultats
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => atRisk
