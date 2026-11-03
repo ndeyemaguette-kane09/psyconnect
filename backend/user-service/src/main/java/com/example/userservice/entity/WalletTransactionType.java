@@ -2,15 +2,15 @@ package com.example.userservice.entity;
 
 public enum WalletTransactionType {
 
-    /** Recharge simulée (Wave/Orange Money/Carte) initiée par le patient. */
+    // recharge simulée (Wave, Orange Money, carte)
     DEPOSIT,
 
-    /** Retrait simulé vers Wave/Orange Money, initié par le patient. */
+    // retrait simulé vers Wave ou Orange Money
     WITHDRAWAL,
 
-    /** Paiement d'un rendez-vous, débité par appointment-service. */
+    // paiement d'un RDV
     DEBIT,
 
-    /** Remboursement d'un rendez-vous annulé, crédité par appointment-service. */
+    // remboursement d'un RDV annulé
     CREDIT
 }

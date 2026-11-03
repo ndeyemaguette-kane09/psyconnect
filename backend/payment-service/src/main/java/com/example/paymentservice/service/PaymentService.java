@@ -32,8 +32,6 @@ public interface PaymentService {
     // le patient du rendez-vous, pas besoin d'aller le rechercher)
     BigDecimal refundCompletedPayments(Long appointmentId, Long patientId);
 
-    // historique détaillé des paiements reçus par un psy : 1 ligne = 1 RDV
-    // completed ou refunded, trié par date desc. le pseudo patient est résolu
-    // côté Flutter pour ne pas coupler payment-service -> user-service
+    // paiements reçus par un psy, du plus récent au plus ancien
     List<PaymentTransactionDto> getTransactionsByPsychologistId(Long psychologistId);
 }

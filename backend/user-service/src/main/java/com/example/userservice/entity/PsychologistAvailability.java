@@ -4,14 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-// disponibilite hebdomadaire d'un psychologue :
-//   - dayOfWeek : 1 = Lundi ... 7 = Dimanche (même convention que DayOfWeek
-//     Java et DateTime.weekday Flutter, pour eviter toute conversion)
-//   - startHour / endHour : heures entieres (ex: 9 et 17)
-//   - slotDurationMinutes : duree de chaque creneau (30/45/60/90/120 min)
-//
-// un psy peut avoir plusieurs lignes par jour (ex: 9-12 et 14-18)
-// mais le cas le plus courant est une seule plage par jour de travail
+// disponibilité hebdo d'un psy, dayOfWeek 1 = lundi ... 7 = dimanche
+// (comme DateTime.weekday côté Flutter), plusieurs plages possibles par jour
 @Entity
 @Getter
 @Setter

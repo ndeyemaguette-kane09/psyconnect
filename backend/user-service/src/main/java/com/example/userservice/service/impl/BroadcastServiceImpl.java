@@ -100,16 +100,14 @@ public class BroadcastServiceImpl implements BroadcastService {
         return collectTargetIds(audience).size();
     }
 
-    // persiste l'annonce en base AVANT l'envoi, puis envoie en @Async.
-    // Ainsi le broadcast est lisible via GET /broadcasts même si
-    // notification-service est temporairement indisponible.
+    // l'annonce est enregistrée avant l'envoi des notifs,
+    // elle reste lisible si notification-service est down
     @Override
     @Async
     public void sendAsync(BroadcastRequest request) {
         String audience = resolveAudience(request);
         List<Long> ids = collectTargetIds(audience);
 
-        // 1. persistance : l'annonce sera visible dès maintenant dans l'app
         Broadcast broadcast = new Broadcast();
         broadcast.setTitle(request.getTitle());
         broadcast.setMessage(request.getMessage());

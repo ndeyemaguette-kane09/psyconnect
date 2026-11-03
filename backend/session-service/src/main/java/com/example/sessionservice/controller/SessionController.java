@@ -48,7 +48,6 @@ public class SessionController {
         return ResponseEntity.ok(sessionService.endSession(id));
     }
 
-    /** Récupère une session par son ID. */
     @GetMapping("/{id}")
     public ResponseEntity<SessionResponse> getSessionById(@PathVariable Long id) {
         return ResponseEntity.ok(sessionService.getSessionById(id));

@@ -7,10 +7,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Getter;
 import lombok.Setter;
 
-// une ligne de l'historique détaillé des paiements reçus par un psy :
-// 1 RDV = 1 entrée, avec montant brut/net et identifiant du patient.
-// le pseudo du patient est résolu côté Flutter (GET /patients/{id})
-// pour éviter un appel supplémentaire user-service depuis payment-service.
+// une ligne de l'historique des paiements reçus par un psy (1 RDV = 1 ligne)
+// le pseudo du patient est résolu côté Flutter
 @Getter
 @Setter
 public class PaymentTransactionDto {

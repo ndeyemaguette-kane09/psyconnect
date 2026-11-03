@@ -37,10 +37,8 @@ getAppointmentsByPatientId(Long patientId);
 // Admin uniquement : tous les rendez-vous sans vérification de propriété
 List<AppointmentResponse> getAllAppointmentsForAdmin(String status);
 
-// appel inter-service (user-service -> appointment-service) : verifie qu'un psy
-// a au moins un rendez-vous avec un patient donné. Pas de vérification d'ownership :
-// le contrôle de rôle est fait côté user-service avant d'appeler cet endpoint.
-// requireCompleted=false -> n'importe quel statut ; true -> seulement COMPLETED
+// appelé par user-service, qui contrôle déjà le rôle avant
+// requireCompleted=true : seulement les RDV COMPLETED
 boolean hasAnyAppointmentBetween(Long psychologistId, Long patientId, boolean requireCompleted, boolean requireAccepted);
 
 // suppression definitive d'un RDV annulé/refusé. patient proprietaire only,

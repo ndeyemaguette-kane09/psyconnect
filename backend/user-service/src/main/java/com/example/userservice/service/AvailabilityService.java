@@ -10,9 +10,7 @@ public interface AvailabilityService {
     // GET public : n'importe qui peut voir les dispos d'un psy
     List<AvailabilityResponse> getAvailabilities(Long psychologistProfileId);
 
-    // PUT proprietaire : remplace atomiquement toutes les dispos du psy
-    // (delete-all + insert en transaction). callerAuthUserId permet de verifier
-    // que l'appelant est bien le proprietaire du profil psy.
+    // PUT propriétaire : remplace toutes les dispos du psy en une transaction
     List<AvailabilityResponse> replaceAvailabilities(
             Long psychologistProfileId,
             List<AvailabilityRequest> requests,

@@ -12,10 +12,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-// annonce admin envoyée en broadcast à une audience.
-// persistee en base pour être relue par les utilisateurs via GET /broadcasts,
-// indépendamment du notification-service (les notifications individuelles
-// restent envoyées via NotificationClient en parallèle).
+// annonce admin gardée en base pour GET /broadcasts,
+// lisible même si notification-service est down
 @Entity
 @Getter
 @Setter

@@ -3,12 +3,8 @@ package com.example.userservice.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-// lien explicite "ce psychologue suit ce patient".
-// créé par le psy depuis la fiche du patient (bouton "Marquer comme suivi").
-// remplace le contrôle appointment-service dans les notes cliniques :
-// plus de dépendance réseau inter-service pour vérifier la relation.
-//
-// unicité (psyId, patientId) garantie par la contrainte DB.
+// lien "ce psy suit ce patient", créé depuis la fiche patient
+// (bouton "Marquer comme suivi"), unique par (psyId, patientId)
 @Entity
 @Table(
     name = "psy_patient_links",

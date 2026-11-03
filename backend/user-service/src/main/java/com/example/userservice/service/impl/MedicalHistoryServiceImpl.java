@@ -78,11 +78,8 @@ public class MedicalHistoryServiceImpl implements MedicalHistoryService {
         return mapToResponse(medicalHistoryRepository.save(medicalHistory));
     }
 
-    // Renvoie true si l'appelant est le patient propriétaire (utilisé pour
-    // tracer qui a fait la dernière modification). Lance ForbiddenOperationException
-    // si ni propriétaire, ni psychologue ayant EXPLICITEMENT marqué ce patient comme
-    // suivi (PsyPatientLink). Un psychologue avec un RDV passé mais sans lien de suivi
-    // actif n'a pas accès aux antécédents.
+    // true si c'est le patient lui-même, false pour un psy qui le suit (PsyPatientLink),
+    // Forbidden sinon
     private boolean checkAccess(
             PatientProfile patientProfile, Long callerAuthUserId, boolean callerIsPsychologist
     ) {

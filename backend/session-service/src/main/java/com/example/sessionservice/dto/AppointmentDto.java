@@ -5,10 +5,7 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Sous-ensemble des champs d'Appointment retournés par appointment-service.
- * Utilisé par AppointmentClient pour valider le RDV avant de créer/terminer une session.
- */
+// champs d'Appointment utiles pour valider le RDV avant/après une session
 @Getter
 @Setter
 public class AppointmentDto {

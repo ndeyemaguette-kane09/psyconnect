@@ -6,9 +6,7 @@ import com.example.appointmentservice.entity.QuestionnaireType;
 import java.time.LocalDateTime;
 import java.util.List;
 
-// DTO de réponse pour un questionnaire (renommé QuestionnaireResponseDto
-// pour eviter la collision avec QuestionnaireResponse qui est une classe
-// standard de Spring)
+// suffixe Dto : QuestionnaireResponse existe déjà dans Spring
 public class QuestionnaireResponseDto {
 
     private Long id;

@@ -5,9 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
-// wrapper pour PUT /psychologists/{id}/availabilities
-// ApiClient Flutter encode toujours un objet JSON (Map), pas un tableau nu.
-// On enveloppe donc la liste dans { "availabilities": [...] }.
+// ApiClient Flutter n'envoie que des objets JSON, d'où { "availabilities": [...] }
 public class ReplaceAvailabilitiesRequest {
 
     @NotNull

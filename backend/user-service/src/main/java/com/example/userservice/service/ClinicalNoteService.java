@@ -5,9 +5,7 @@ import java.util.List;
 import com.example.userservice.dto.ClinicalNoteResponse;
 import com.example.userservice.dto.CreateOrUpdateClinicalNoteRequest;
 
-// Notes cliniques privées : un seul lecteur/auteur possible, le psychologue
-// qui les a rédigées. Jamais le patient, jamais l'admin, jamais un confrère —
-// même s'il suit aussi ce patient (cf. CDC section 6)
+// notes privées : seul le psy auteur y a accès, ni le patient, ni l'admin, ni un confrère
 public interface ClinicalNoteService {
 
     List<ClinicalNoteResponse> getMyNotesForPatient(Long patientId, Long callerAuthUserId);

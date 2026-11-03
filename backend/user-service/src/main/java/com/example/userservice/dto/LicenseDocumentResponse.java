@@ -1,9 +1,6 @@
 package com.example.userservice.dto;
 
-/**
- * Contenu binaire du justificatif d'un psychologue + son content-type
- * d'origine, renvoyé par GET /psychologists/{id}/license-document.
- */
+// octets du justificatif et son content-type d'origine
 public class LicenseDocumentResponse {
 
     private final byte[] data;

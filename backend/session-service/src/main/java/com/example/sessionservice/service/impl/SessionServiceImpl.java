@@ -156,10 +156,9 @@ public class SessionServiceImpl implements SessionService {
 
         Session updated = sessionRepository.save(session);
 
-        // marquer le RDV COMPLETED dans appointment-service (best-effort)
+        // best-effort
         appointmentClient.updateAppointmentStatus(appt.getId(), "COMPLETED");
 
-        // notifier le patient
         notificationClient.send(
                 appt.getPatientId(),
                 "Session terminée",

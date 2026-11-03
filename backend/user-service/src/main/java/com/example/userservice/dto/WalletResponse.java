@@ -3,7 +3,7 @@ package com.example.userservice.dto;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Solde PsyConnect courant d'un patient (cf. PatientProfile.walletBalance). */
+// solde courant du patient
 @Getter
 @Setter
 public class WalletResponse {

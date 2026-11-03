@@ -16,9 +16,8 @@ import com.example.paymentservice.security.ServiceTokenProvider;
 
 import io.github.resilience4j.retry.annotation.Retry;
 
-// envoi de notif (paiement effectué, remboursement, etc) ; ne doit jamais
-// faire echouer le paiement donc le fallback avale juste l'erreur
-// @CircuitBreaker retiré : état OPEN persistant bloquait toutes les notifs définitivement
+// une notif ne doit jamais faire échouer le paiement, le fallback avale l'erreur
+// pas de circuit breaker : resté ouvert, il bloquait toutes les notifs
 @Component
 public class NotificationClient {
 

@@ -147,8 +147,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setTransactionReference(
                     "SIM-" + UUID.randomUUID()
             );
-            // dupliqués depuis AppointmentSummary pour éviter les appels
-            // cross-service lors du calcul du revenu/wallet/transactions psy
+            // copiés depuis le RDV pour ne pas rappeler appointment-service ensuite
             payment.setPsychologistId(appointment.getPsychologistId());
             payment.setPatientId(appointment.getPatientId());
             payment.setAppointmentStartTime(appointment.getStartTime());
@@ -215,9 +214,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .collect(Collectors.toList());
     }
 
-    // revenu brut + net d'un psy, total et du mois en cours.
-    // Requête directe sur la table payments (psychologistId dupliqué depuis l'appointment)
-    // -> aucun appel cross-service, donc pas de boucle d'ownership inter-service.
+    // revenu brut et net d'un psy, total et du mois en cours
     @Override
     public PsychologistRevenueResponse getPsychologistRevenue(Long psychologistId) {
 
@@ -394,9 +391,7 @@ public class PaymentServiceImpl implements PaymentService {
                 });
     }
 
-    // notifie le patient ET le psy : avant, seul le patient recevait la
-    // notif (le psy n'était jamais informé qu'un paiement venait de tomber
-    // pour l'un de ses rendez-vous)
+    // notifie le patient et le psy
     private void sendPaymentNotification(AppointmentSummary appointment) {
 
         notificationClient.send(
@@ -418,10 +413,7 @@ public class PaymentServiceImpl implements PaymentService {
         );
     }
 
-    // historique détaillé des paiements reçus par un psy, du plus récent au plus ancien.
-    // completed = paiement encaissé ; refunded = RDV annulé, argent rendu au patient.
-    // Requête directe sur payments (psychologistId/patientId/startTime dupliqués
-    // depuis l'appointment à la création) -> aucun appel cross-service.
+    // paiements reçus par un psy, du plus récent au plus ancien (completed + refunded)
     @Override
     public List<PaymentTransactionDto> getTransactionsByPsychologistId(Long psychologistId) {
 
@@ -437,7 +429,6 @@ public class PaymentServiceImpl implements PaymentService {
             throw new ForbiddenOperationException("Accès réservé aux psychologues");
         }
 
-        // completed + refunded pour traçabilité complète
         List<Payment> payments = paymentRepository.findByPsychologistId(psychologistId)
                 .stream()
                 .filter(p -> p.getStatus() == PaymentStatus.COMPLETED

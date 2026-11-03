@@ -34,10 +34,7 @@ public class SecurityConfig {
                         )
                 )
 
-                // Le compagnon est accessible a tout utilisateur authentifie
-                // (patient en priorite, mais pas de raison de l'interdire a
-                // un psychologue qui voudrait le tester). Pas de role
-                // specifique requis, juste un JWT valide.
+                // tout utilisateur connecté, pas de rôle requis
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().authenticated()
                 )

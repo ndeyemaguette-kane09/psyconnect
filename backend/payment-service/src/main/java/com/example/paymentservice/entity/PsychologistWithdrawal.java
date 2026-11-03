@@ -7,11 +7,8 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// retrait simulé du revenu net d'un psychologue. en mode simulation
-// le statut est toujours COMPLETED : on enregistre le mouvement sans
-// déclencher de vrai virement. La somme disponible = totalNetRevenue
-// (calculé dynamiquement depuis les paiements) - totalWithdrawn (somme
-// des retraits de cette table).
+// retrait simulé, toujours COMPLETED (pas de vrai virement)
+// solde dispo = revenu net total - somme des retraits
 @Entity
 @Table(name = "psychologist_withdrawals")
 @Getter

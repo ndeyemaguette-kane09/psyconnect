@@ -39,8 +39,6 @@ public class SessionExpiryScheduler {
         this.notificationClient = notificationClient;
     }
 
-    // toutes les 5 minutes, même cadence que AppointmentReminderScheduler
-    // (appointment-service), pour rester cohérent avec le reste du projet
     @Scheduled(fixedRate = 5 * 60 * 1000)
     public void closeExpiredSessions() {
         List<Session> candidates =

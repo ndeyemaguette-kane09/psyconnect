@@ -4,10 +4,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
-// Un créneau de disponibilité hebdomadaire : le psychologue envoie une liste de ces
-// objets via PUT /psychologists/{id}/availabilities pour remplacer l'intégralité
-// de son planning. Les valeurs sont validées ici ; la cohérence (endHour>startHour)
-// est vérifiée dans AvailabilityServiceImpl.
+// une plage hebdo, envoyée en liste dans PUT /psychologists/{id}/availabilities
+// endHour > startHour est vérifié dans AvailabilityServiceImpl
 public class AvailabilityRequest {
 
     @NotNull

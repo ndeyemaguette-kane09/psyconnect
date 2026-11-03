@@ -28,10 +28,8 @@ public class CompanionService {
 
     public ChatResponse respond(ChatRequest request) {
 
-        // Garde-fou en premier : si le dernier message de l'utilisateur (ou
-        // l'historique recent qu'il vient d'envoyer) contient un signal de
-        // detresse, on ne contacte JAMAIS le modele. On renvoie directement
-        // le message fixe, deterministe, avec les numeros d'urgence.
+        // garde-fou d'abord : en cas de détresse on renvoie le message fixe
+        // avec les numéros d'urgence, sans appeler le modèle
         if (riskDetectionService.isRisky(request.message())) {
             return new ChatResponse(CompanionPrompts.SAFETY_FALLBACK_MESSAGE, true);
         }

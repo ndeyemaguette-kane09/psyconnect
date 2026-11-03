@@ -20,6 +20,6 @@ public class CreatePaymentRequest {
     @DecimalMin(value = "0.0", inclusive = false, message = "Le montant doit être supérieur à zéro")
     private BigDecimal amount;
 
-    // ignoré, tout paiement passe par le wallet maintenant
+    // ignoré, tout paiement passe par le wallet
     private PaymentMethod method;
 }

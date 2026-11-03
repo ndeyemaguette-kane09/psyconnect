@@ -4,9 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-// distinct de ResetPasswordRequest (qui sert au reset force par un ADMIN sur
-// /admin/users/{id}/password) : ici c'est le flux self-service "mot de passe
-// oublie", verifie par un code recu (cf PasswordResetCode), pas par un JWT admin
+// mot de passe oublié avec le code reçu par email (pas le reset admin)
 public class ResetPasswordWithCodeRequest {
 
     @NotBlank(message = "L'email est requis")
