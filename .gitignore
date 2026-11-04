@@ -6,8 +6,8 @@
 ### IDE ###
 .idea/
 *.iml
-.vscode/*
-!.vscode/extensions.json
+**/.vscode/*
+!**/.vscode/extensions.json
 
 ### Java / Gradle (backend) ###
 **/build/

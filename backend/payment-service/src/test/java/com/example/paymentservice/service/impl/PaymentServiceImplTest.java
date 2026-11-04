@@ -41,10 +41,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-// migre depuis appointment-service apres l'extraction du paiement en
-// microservice a part : AppointmentRepository -> AppointmentClient (l'acces
-// au RDV passe maintenant par un appel HTTP a appointment-service, retourne
-// sous forme allegee AppointmentSummary avec status en String)
+// le RDV arrive via AppointmentClient (AppointmentSummary, status en String)
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceImplTest {
 
