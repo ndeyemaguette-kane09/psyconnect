@@ -118,7 +118,12 @@ class _AdminPaymentsListScreenState extends State<AdminPaymentsListScreen> {
                           child: ChoiceChip(
                             label: const Text('Tous'),
                             selected: _filter == null,
-                            selectedColor: AppColors.tealLight,
+                            selectedColor: AppColors.teal,
+                            showCheckmark: false,
+                            labelStyle: TextStyle(
+                              color: _filter == null ? Colors.white : AppColors.text,
+                              fontWeight: FontWeight.w700,
+                            ),
                             onSelected: (_) => setState(() {
                               _filter = null;
                               _page = 0;
@@ -131,7 +136,12 @@ class _AdminPaymentsListScreenState extends State<AdminPaymentsListScreen> {
                             child: ChoiceChip(
                               label: Text(s.label),
                               selected: _filter == s,
-                              selectedColor: AppColors.tealLight,
+                              selectedColor: AppColors.teal,
+                              showCheckmark: false,
+                              labelStyle: TextStyle(
+                                color: _filter == s ? Colors.white : AppColors.text,
+                                fontWeight: FontWeight.w700,
+                              ),
                               onSelected: (_) => setState(() {
                                 _filter = s;
                                 _page = 0;

@@ -57,8 +57,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Indiquez votre email, vous recevrez un code à 6 chiffres '
-                  'pour choisir un nouveau mot de passe.',
+                  'Recevez un code par email pour changer de mot de passe.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 28),

@@ -420,7 +420,7 @@ class _SupportMessageDetailSheetState
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.tealLight,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(

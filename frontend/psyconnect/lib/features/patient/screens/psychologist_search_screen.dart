@@ -189,9 +189,7 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
                 icon: Icons.lightbulb_outline_rounded,
                 title: 'Pas de souci',
                 message:
-                    'Un premier rendez-vous avec n\'importe quel psychologue '
-                    'permet de faire le point. C\'est lui qui vous orientera '
-                    'ensuite vers un spécialiste si besoin.',
+                    'Un premier rendez-vous permet de faire le point.',
               ),
             ),
           ],
@@ -214,8 +212,7 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
       return AppEmptyState(
         icon: Icons.person_search_outlined,
         title: 'Aucun résultat',
-        message: 'Aucun psychologue ne correspond à votre recherche. '
-            'Essayez un autre mot-clé ou élargissez les filtres.',
+        message: 'Aucun résultat. Essayez un autre mot.',
         actionLabel: 'Réinitialiser',
         onAction: _resetFilters,
       );

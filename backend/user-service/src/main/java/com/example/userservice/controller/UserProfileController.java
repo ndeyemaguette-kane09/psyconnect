@@ -42,11 +42,16 @@ public class UserProfileController {
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileResponse>
     getProfile(
+            HttpServletRequest httpRequest,
             @PathVariable Long id
     ) {
 
         UserProfileResponse response =
-                userProfileService.getProfile(id);
+                userProfileService.getProfile(
+                        id,
+                        currentAuthUserId(httpRequest),
+                        httpRequest.isUserInRole("ADMIN")
+                );
 
         return ResponseEntity.ok(response);
     }

@@ -91,18 +91,29 @@ class _PatientQuestionnairesScreenState
                 child: Column(
                   children: [
                     _TypeOption(
-                      type: QuestionnaireType.PHQ9,
                       title: 'PHQ-9 · Dépression',
                       subtitle: '9 questions, environ 3 minutes',
                       onTap: () =>
                           Navigator.of(ctx).pop(QuestionnaireType.PHQ9),
                     ),
                     _TypeOption(
-                      type: QuestionnaireType.GAD7,
                       title: 'GAD-7 · Anxiété',
                       subtitle: '7 questions, environ 2 minutes',
                       onTap: () =>
                           Navigator.of(ctx).pop(QuestionnaireType.GAD7),
+                    ),
+                    _TypeOption(
+                      title: 'PSS-10 · Stress perçu',
+                      subtitle: '10 questions, environ 3 minutes',
+                      onTap: () =>
+                          Navigator.of(ctx).pop(QuestionnaireType.PSS10),
+                    ),
+                    _TypeOption(
+                      title: 'EPDS · Dépression post-natale',
+                      subtitle: '10 questions, pendant la grossesse ou après '
+                          'l\'accouchement',
+                      onTap: () =>
+                          Navigator.of(ctx).pop(QuestionnaireType.EPDS),
                     ),
                   ],
                 ),
@@ -124,7 +135,7 @@ class _PatientQuestionnairesScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              '${type == QuestionnaireType.PHQ9 ? 'PHQ-9' : 'GAD-7'} envoyé.'),
+              '${type.label} envoyé.'),
         ),
       );
       _load();
@@ -196,6 +207,8 @@ class _PatientQuestionnairesScreenState
     final risky = _questionnaires.where((q) => q.signalsImmediateRisk).toList()
       ..sort((a, b) =>
           (b.completedAt ?? b.sentAt).compareTo(a.completedAt ?? a.sentAt));
+    final riskDateEndsWithDot = risky.isNotEmpty &&
+        _shortDate(risky.first.completedAt ?? risky.first.sentAt).endsWith('.');
     final trends = [
       for (final type in QuestionnaireType.values)
         if (_completedOfType(type).length >= 2) _completedOfType(type),
@@ -253,8 +266,7 @@ class _PatientQuestionnairesScreenState
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  'Aucun questionnaire pour l\'instant. Envoyez un PHQ-9 ou '
-                  'un GAD-7 pour suivre l\'évolution de votre patient.',
+                  'Aucun questionnaire envoyé.',
                   style: TextStyle(
                     fontSize: 15.5,
                     height: 1.5,
@@ -265,32 +277,13 @@ class _PatientQuestionnairesScreenState
             else ...[
               // Item 9 du PHQ-9 : signalé quel que soit le score total.
               if (risky.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Question 9 : idées suicidaires signalées',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.danger,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${risky.first.typeName} du '
-                        '${_shortDate(risky.first.completedAt ?? risky.first.sentAt)}. '
-                        'À aborder en priorité lors de la prochaine séance.',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          height: 1.45,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                AlertBlock(
+                  'Question ${risky.first.riskItemNumber} : '
+                  '${risky.first.riskLabel} signalées dans le questionnaire '
+                  '${risky.first.typeName} du '
+                  '${_shortDate(risky.first.completedAt ?? risky.first.sentAt)}'
+                  '${riskDateEndsWithDot ? '' : '.'} '
+                  'À aborder en priorité.',
                 ),
                 const SizedBox(height: 22),
               ],
@@ -363,14 +356,6 @@ const _kShortMonths = [
 
 String _shortDate(DateTime d) => '${d.day} ${_kShortMonths[d.month - 1]}';
 
-Color _levelColor(Questionnaire q) {
-  final score = q.score ?? 0;
-  final ratio = q.maxScore <= 0 ? 0.0 : score / q.maxScore;
-  if (ratio < 0.35) return AppColors.teal;
-  if (ratio < 0.6) return AppColors.goldDark;
-  return AppColors.danger;
-}
-
 class _Heading extends StatelessWidget {
   const _Heading(this.title);
 
@@ -392,43 +377,13 @@ class _Heading extends StatelessWidget {
   }
 }
 
-class _TypeBadge extends StatelessWidget {
-  const _TypeBadge({required this.type});
-
-  final QuestionnaireType type;
-
-  @override
-  Widget build(BuildContext context) {
-    final phq = type == QuestionnaireType.PHQ9;
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: phq ? AppColors.goldLight : AppColors.tealLight,
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        phq ? 'PHQ' : 'GAD',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          color: phq ? AppColors.goldDark : AppColors.teal,
-        ),
-      ),
-    );
-  }
-}
-
 class _TypeOption extends StatelessWidget {
   const _TypeOption({
-    required this.type,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
-  final QuestionnaireType type;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -441,8 +396,6 @@ class _TypeOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 13),
         child: Row(
           children: [
-            _TypeBadge(type: type),
-            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -678,8 +631,6 @@ class _QuestionnaireRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 13),
         child: Row(
           children: [
-            _TypeBadge(type: q.type),
-            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -732,7 +683,7 @@ class _QuestionnaireRow extends StatelessWidget {
                     band!.label == 'Modérément sévère'
                         ? 'Mod. sévère'
                         : band.label,
-                    _levelColor(q),
+                    band.textColor,
                   ),
                 ],
               ),

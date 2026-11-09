@@ -11,7 +11,9 @@ public interface UserProfileService {
     );
 
     UserProfileResponse getProfile(
-            Long id
+            Long id,
+            Long callerAuthUserId,
+            boolean callerIsAdmin
     );
 
     UserProfileResponse getProfileByAuthUserId(

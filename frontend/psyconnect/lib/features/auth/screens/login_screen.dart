@@ -198,8 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Padding(
                         padding: EdgeInsets.fromLTRB(12, 16, 12, 0),
                         child: Text(
-                          'Vos échanges restent confidentiels. Les '
-                          'psychologues sont vérifiés par l\'équipe PsyConnect.',
+                          'Échanges confidentiels, psychologues vérifiés.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 14,

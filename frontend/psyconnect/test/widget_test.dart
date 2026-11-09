@@ -13,17 +13,17 @@ void main() {
     await tester.pumpWidget(const PsyConnectApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Je suis un patient'), findsOneWidget);
-    expect(find.text('Je suis un psychologue'), findsOneWidget);
+    expect(find.text('Je cherche\nun psychologue'), findsOneWidget);
+    expect(find.text("J'exerce et\nj'accompagne"), findsOneWidget);
   });
 
   testWidgets('Le bouton "patient" ouvre l\'inscription', (tester) async {
     await tester.pumpWidget(const PsyConnectApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Je suis un patient'));
+    await tester.tap(find.text('Je cherche\nun psychologue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('1. Compte'), findsOneWidget);
+    expect(find.text('Étape 1 sur 2 · Votre compte'), findsOneWidget);
   });
 }

@@ -115,7 +115,7 @@ class _PsychologistProfileScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: ready ? AppColors.tealLight : AppColors.background,
+        backgroundColor: AppColors.background,
         foregroundColor: AppColors.text,
         elevation: 0,
         actions: [
@@ -162,66 +162,56 @@ class _PsychologistProfileScreenState
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 26),
-          decoration: const BoxDecoration(
-            color: AppColors.tealLight,
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-          ),
-          child: Center(child: AppAvatar(name: p.fullName, size: 124)),
-        ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                p.fullName,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.displayMedium,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: AppColors.muted),
-              ),
-              if (p.profileVerified) ...[
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.check_rounded,
-                        size: 18, color: AppColors.teal),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        p.hasLicenseDocument
-                            ? 'Diplôme vérifié par l\'équipe PsyConnect'
-                            : 'Profil vérifié par l\'équipe PsyConnect',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.teal,
+              Row(
+                children: [
+                  AppAvatar(name: p.fullName, size: 72),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p.fullName, style: theme.textTheme.displayMedium),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: AppColors.muted,
+                          ),
                         ),
-                      ),
+                        if (p.profileVerified || p.availableForEmergency) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 14,
+                            runSpacing: 4,
+                            children: [
+                              if (p.profileVerified)
+                                _Mark(
+                                  icon: Icons.check_rounded,
+                                  label: p.hasLicenseDocument
+                                      ? 'Diplôme vérifié'
+                                      : 'Profil vérifié',
+                                  color: AppColors.teal,
+                                ),
+                              if (p.availableForEmergency)
+                                const _Mark(
+                                  icon: Icons.phone_outlined,
+                                  label: 'Urgences',
+                                  color: AppColors.danger,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
-              ],
-              if (p.availableForEmergency) ...[
-                const SizedBox(height: 4),
-                const Text(
-                  'Répond aussi aux urgences',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.danger,
                   ),
-                ),
-              ],
+                ],
+              ),
               const SizedBox(height: 24),
               _Fact(label: 'Avis des patients', value: reviewsLabel),
               if (p.yearsOfExperience != null)
@@ -233,14 +223,23 @@ class _PsychologistProfileScreenState
                 _Fact(label: 'Langues', value: p.languages!),
               if (p.offersFreeSessions) ...[
                 const SizedBox(height: 16),
-                const AppNoticeCard(
-                  icon: Icons.favorite_border_rounded,
-                  title: 'Consultations solidaires',
-                  message: 'Ce psychologue propose des séances gratuites aux '
-                      'patients qui ne peuvent pas payer. Indiquez-le au '
-                      'moment de votre demande de rendez-vous.',
-                  accent: AppColors.success,
-                  background: AppColors.successBg,
+                const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.favorite_border_rounded,
+                        color: AppColors.teal, size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Séances gratuites possibles, précisez-le dans votre demande.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.45,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
               if (p.bio != null && p.bio!.isNotEmpty) ...[
@@ -260,16 +259,8 @@ class _PsychologistProfileScreenState
                 const SizedBox(height: 22),
                 Row(
                   children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: const BoxDecoration(
-                        color: AppColors.goldLight,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.location_on_outlined,
-                          color: AppColors.goldDark, size: 21),
-                    ),
+                    const Icon(Icons.location_on_outlined,
+                        color: AppColors.goldDark, size: 22),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -304,7 +295,7 @@ class _PsychologistProfileScreenState
                 ),
                 const SizedBox(height: 12),
                 ..._reviews.map((r) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
+                      padding: EdgeInsets.zero,
                       child: _ReviewTile(review: r),
                     )),
               ],
@@ -420,8 +411,8 @@ class _ReviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rating = review.rating ?? 0;
-    return AppCard(
-      padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -444,6 +435,33 @@ class _ReviewTile extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _Mark extends StatelessWidget {
+  const _Mark({required this.icon, required this.label, required this.color});
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

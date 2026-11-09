@@ -299,8 +299,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           title: const Text('Rendez-vous reporté'),
           content: Text(
             appointment.status == AppointmentStatus.confirmed
-                ? 'Le nouveau créneau a été envoyé au psychologue, qui doit '
-                    'le reconfirmer.'
+                ? 'Nouveau créneau envoyé au psychologue.'
                 : 'Le nouveau créneau a bien été enregistré.',
           ),
           actions: [
@@ -331,11 +330,8 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         title: const Text('Annuler ce rendez-vous ?'),
         content: Text(
           eligibleForRefund
-              ? "Vous annulez à plus de 48h du rendez-vous : si un paiement "
-                  "a été effectué, il sera automatiquement remboursé."
-              : "Vous annulez à moins de 48h du rendez-vous : aucun "
-                  "remboursement ne sera appliqué, même si un paiement a "
-                  "été effectué.",
+              ? 'Plus de 48 h avant : vous serez remboursé.'
+              : 'Moins de 48 h avant : pas de remboursement.',
         ),
         actions: [
           TextButton(
@@ -371,8 +367,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
       builder: (_) => AlertDialog(
         title: const Text('Supprimer ce rendez-vous ?'),
         content: const Text(
-          'Cette action est définitive et ne supprime que cet élément de '
-          'votre agenda — elle ne touche à aucun paiement déjà effectué.',
+          'Retiré de votre agenda. Aucun paiement n\'est modifié.',
         ),
         actions: [
           TextButton(
@@ -1058,20 +1053,6 @@ Color _statusSolid(AppointmentStatus status) {
   }
 }
 
-Color _statusSoft(AppointmentStatus status) {
-  switch (status) {
-    case AppointmentStatus.pending:
-      return AppColors.goldLight;
-    case AppointmentStatus.confirmed:
-      return AppColors.tealLight;
-    case AppointmentStatus.completed:
-      return AppColors.surfaceAlt;
-    case AppointmentStatus.cancelled:
-    case AppointmentStatus.rejected:
-      return AppColors.dangerBg;
-  }
-}
-
 String _hourLabel(DateTime d) => d.minute == 0
     ? '${d.hour} h'
     : '${d.hour} h ${d.minute.toString().padLeft(2, '0')}';
@@ -1122,7 +1103,6 @@ class _AppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final start = appointment.startTime;
-    final soft = _statusSoft(appointment.status);
     final ink = appointment.status == AppointmentStatus.confirmed
         ? AppColors.teal
         : _statusSolid(appointment.status);
@@ -1141,7 +1121,7 @@ class _AppointmentCard extends StatelessWidget {
                 width: 50,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: soft,
+                  color: AppColors.background,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(25),
                     bottom: Radius.circular(8),
@@ -1200,8 +1180,7 @@ class _AppointmentCard extends StatelessWidget {
           if (appointment.status == AppointmentStatus.pending) ...[
             const SizedBox(height: 10),
             const Text(
-              'En attente de confirmation du psychologue. Vous pourrez '
-              'payer une fois le rendez-vous confirmé.',
+              'En attente du psychologue.',
               style: TextStyle(color: AppColors.muted, fontSize: 13.5),
             ),
           ],

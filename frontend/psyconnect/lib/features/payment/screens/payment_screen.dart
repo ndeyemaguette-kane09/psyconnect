@@ -270,9 +270,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       const SizedBox(width: 7),
                       Expanded(
                         child: Text(
-                          'Le montant est débité de votre solde PsyConnect. '
-                          'En cas d\'annulation au moins 48 h avant la séance, '
-                          'il vous est intégralement recrédité.',
+                          'Débité de votre solde. Remboursé si vous annulez 48 h avant.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -395,7 +393,6 @@ class _TopUpNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      color: AppColors.warningBg,
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,9 +405,7 @@ class _TopUpNotice extends StatelessWidget {
               const SizedBox(width: 11),
               Expanded(
                 child: Text(
-                  'Il vous manque ${formatAmount(missing)} F CFA pour régler '
-                  'cette séance. Rechargez votre solde avec Wave, Orange Money '
-                  'ou une carte bancaire.',
+                  'Il manque ${formatAmount(missing)} F CFA. Rechargez votre solde.',
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
@@ -426,7 +421,7 @@ class _TopUpNotice extends StatelessWidget {
               onPressed: onTopUp,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(0, 46),
-                backgroundColor: AppColors.warning,
+                backgroundColor: AppColors.text,
               ),
               child: const Text('Recharger mon solde'),
             ),
@@ -445,7 +440,6 @@ class _ErrorNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      color: AppColors.dangerBg,
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,8 +527,7 @@ class _PaymentSuccessDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${formatAmount(amount)} F CFA ont été débités de votre solde. '
-              'Votre rendez-vous avec $otherDisplayName est confirmé.',
+              '${formatAmount(amount)} F CFA débités. Rendez-vous confirmé.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

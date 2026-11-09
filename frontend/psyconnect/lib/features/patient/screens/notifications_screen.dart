@@ -448,18 +448,18 @@ class _NotificationRow extends StatelessWidget {
     }
   }
 
-  (Color, Color) get _tint {
+  Color get _ink {
     switch (notification.type) {
       case AppNotificationType.appointment:
       case AppNotificationType.reminder:
       case AppNotificationType.session:
-        return (AppColors.tealLight, AppColors.teal);
+        return AppColors.teal;
       case AppNotificationType.payment:
       case AppNotificationType.questionnaire:
       case AppNotificationType.questionnaireResult:
-        return (AppColors.goldLight, AppColors.goldDark);
+        return AppColors.goldDark;
       default:
-        return (AppColors.sand, AppColors.text);
+        return AppColors.text;
     }
   }
 
@@ -480,7 +480,7 @@ class _NotificationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unread = !notification.isRead;
-    final (bg, ink) = _tint;
+    final ink = _ink;
 
     return InkWell(
       onTap: onTap,
@@ -489,12 +489,7 @@ class _NotificationRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-              child: Icon(_icon, size: 19, color: ink),
-            ),
+            Icon(_icon, size: 21, color: ink),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

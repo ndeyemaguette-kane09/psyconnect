@@ -313,15 +313,13 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
             onOpenNotifications:
                 profileId == null ? null : () => _openNotifications(profileId),
           ),
+          if (_me != null && !_me!.profileVerified)
+            _ApprovalStatusBanner(rejected: _me!.rejected),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_me != null && !_me!.profileVerified) ...[
-                  _ApprovalStatusBanner(rejected: _me!.rejected),
-                  const SizedBox(height: 14),
-                ],
                 _EmergencyRow(
                   isAvailable: _me?.availableForEmergency ?? false,
                   offersFreeSessions: _me?.offersFreeSessions ?? false,
@@ -379,8 +377,7 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 4),
                       child: Text(
-                        'Journée libre. Profitez-en pour mettre à jour vos '
-                        'disponibilités.',
+                        'Journée libre.',
                         style: TextStyle(
                           fontSize: 15.5,
                           height: 1.5,
@@ -626,13 +623,11 @@ class _EmergencyRow extends StatelessWidget {
   final bool isSaving;
   final VoidCallback? onToggle;
 
-  static const _ink = Color(0xFF7E3519);
-
   @override
   Widget build(BuildContext context) {
     final active = isAvailable;
     return Material(
-      color: active ? AppColors.dangerBg : AppColors.white,
+      color: AppColors.white,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -641,29 +636,42 @@ class _EmergencyRow extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
           child: Row(
             children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: active ? AppColors.emergency : AppColors.borderStrong,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      active
-                          ? 'Disponible pour les urgences'
-                          : 'Urgences : non disponible',
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        color: active ? _ink : AppColors.text,
-                      ),
+                    Row(
+                      children: [
+                        const Text(
+                          'Urgences',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        if (active) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.alert,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Actif',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                    const SizedBox(height: 4),
                     Text(
                       isSaving
                           ? 'Mise à jour…'
@@ -672,9 +680,9 @@ class _EmergencyRow extends StatelessWidget {
                                   ? 'Visible dans l\'aide immédiate, séance gratuite'
                                   : 'Vous apparaissez dans l\'aide immédiate')
                               : 'Activez pour apparaître dans l\'aide immédiate',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        color: active ? _ink : AppColors.muted,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.muted,
                       ),
                     ),
                   ],
@@ -682,7 +690,7 @@ class _EmergencyRow extends StatelessWidget {
               ),
               Switch(
                 value: active,
-                activeTrackColor: AppColors.emergency,
+                activeTrackColor: AppColors.alert,
                 onChanged: (onToggle == null || isSaving)
                     ? null
                     : (_) => onToggle!(),
@@ -705,50 +713,54 @@ class _ApprovalStatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = rejected ? Colors.white : AppColors.text;
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: rejected ? AppColors.dangerBg : AppColors.goldLight,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
+      width: double.infinity,
+      color: rejected ? AppColors.alert : AppColors.gold,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            rejected
-                ? 'Profil refusé par l\'équipe PsyConnect'
-                : 'Profil en cours de validation',
-            style: TextStyle(
-              color: rejected ? AppColors.danger : AppColors.text,
-              fontWeight: FontWeight.w800,
-              fontSize: 15.5,
+          Icon(
+            rejected ? Icons.block_rounded : Icons.hourglass_top_rounded,
+            color: ink,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rejected ? 'Profil refusé' : 'Profil en cours de validation',
+                  style: TextStyle(
+                    color: ink,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  rejected
+                      ? 'Une erreur ? Écrivez à l\'équipe PsyConnect :'
+                      : 'Les patients ne vous voient pas encore. L\'équipe '
+                          'vérifie votre diplôme et votre licence.',
+                  style: TextStyle(color: ink, fontSize: 14.5, height: 1.4),
+                ),
+                if (rejected) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                    '$_adminEmail · $_adminPhone',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            rejected
-                ? 'Votre profil n\'est pas visible des patients et vous ne '
-                    'pouvez recevoir aucun rendez-vous. Écrivez-nous si vous '
-                    'pensez qu\'il s\'agit d\'une erreur :'
-                : 'Vous n\'êtes pas encore visible des patients. Vous serez '
-                    'notifié dès que l\'équipe aura validé votre profil.',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-              height: 1.45,
-            ),
-          ),
-          if (rejected) ...[
-            const SizedBox(height: 6),
-            const Text(
-              '$_adminEmail · $_adminPhone',
-              style: TextStyle(
-                color: AppColors.danger,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
         ],
       ),
     );

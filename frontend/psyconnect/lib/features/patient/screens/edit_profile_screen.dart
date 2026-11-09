@@ -162,12 +162,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 24),
               if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.errorBg,
+                Text(
+                  _error!,
+                  style: const TextStyle(
+                    color: AppColors.danger,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: Text(_error!, style: const TextStyle(color: AppColors.rose)),
                 ),
                 const SizedBox(height: 16),
               ],

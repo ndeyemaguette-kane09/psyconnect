@@ -318,7 +318,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                         _HomeEntry(
                           icon: Icons.chat_bubble_outline_rounded,
                           iconColor: AppColors.goldDark,
-                          iconBackground: AppColors.goldLight,
                           title: 'Parler à Xalaat',
                           subtitle: 'Confidentiel et éphémère, à toute heure',
                           onTap: () => Navigator.of(context).push(
@@ -500,16 +499,6 @@ class _HomeHero extends StatelessWidget {
                           .displayLarge
                           ?.copyWith(fontSize: 32),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Prenez le temps qu'il vous faut. On est là quand vous "
-                      'en avez besoin.',
-                      style: TextStyle(
-                        fontSize: 16,
-                        height: 1.45,
-                        color: AppColors.muted,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -577,7 +566,6 @@ class _HomeEntry extends StatelessWidget {
   const _HomeEntry({
     required this.icon,
     required this.iconColor,
-    required this.iconBackground,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -585,7 +573,6 @@ class _HomeEntry extends StatelessWidget {
 
   final IconData icon;
   final Color iconColor;
-  final Color iconBackground;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -597,15 +584,7 @@ class _HomeEntry extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: iconBackground,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 23),
-          ),
+          Icon(icon, color: iconColor, size: 24),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -662,15 +641,7 @@ class _HomeRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: AppColors.tealLight,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: AppColors.teal, size: 20),
-            ),
+            Icon(icon, color: AppColors.teal, size: 21),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -714,52 +685,40 @@ class _SosButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.dangerBg,
+      color: AppColors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              Container(
-                width: 38,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: AppColors.emergency,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(19),
-                    bottom: Radius.circular(6),
-                  ),
-                ),
-                child: const Icon(Icons.phone_outlined,
-                    color: Colors.white, size: 19),
-              ),
-              const SizedBox(width: 13),
-              const Expanded(
+              Icon(Icons.phone_outlined, color: AppColors.danger, size: 24),
+              SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "J'ai besoin d'aide maintenant",
                       style: TextStyle(
-                        color: Color(0xFF7E3519),
+                        color: AppColors.danger,
                         fontWeight: FontWeight.w800,
-                        fontSize: 15.5,
+                        fontSize: 16,
                         height: 1.25,
                       ),
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Un psychologue disponible immédiatement',
-                      style: TextStyle(color: Color(0xFF7E3519), fontSize: 13.5),
+                      'Un psychologue disponible tout de suite',
+                      style: TextStyle(color: AppColors.muted, fontSize: 14),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: Color(0xFF7E3519), size: 22),
+              Icon(Icons.chevron_right_rounded,
+                  color: AppColors.danger, size: 22),
             ],
           ),
         ),
@@ -936,7 +895,7 @@ class _ProfileReminder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.goldLight,
+      color: AppColors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -946,17 +905,6 @@ class _ProfileReminder extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 6, right: 12),
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: AppColors.gold,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

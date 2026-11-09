@@ -151,6 +151,10 @@ public class SessionServiceImpl implements SessionService {
             return mapToResponse(updated);
         }
 
+        if (!SecurityUtils.hasRole("PSYCHOLOGIST")) {
+            throw new ForbiddenOperationException("Seul le psychologue peut terminer la séance");
+        }
+
         AppointmentDto appt = appointmentClient.getAppointment(session.getAppointmentId());
         checkParticipant(appt);
 

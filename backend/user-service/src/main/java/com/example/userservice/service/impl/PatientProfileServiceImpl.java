@@ -1,5 +1,6 @@
 package com.example.userservice.service.impl;
 
+import com.example.userservice.client.AppointmentClient;
 import com.example.userservice.client.AuthServiceClient;
 import com.example.userservice.client.NotificationClient;
 import com.example.userservice.dto.CreatePatientProfileRequest;
@@ -14,6 +15,7 @@ import com.example.userservice.exception.ForbiddenOperationException;
 import com.example.userservice.exception.InsufficientBalanceException;
 import com.example.userservice.exception.ResourceNotFoundException;
 import com.example.userservice.repository.PatientProfileRepository;
+import com.example.userservice.repository.PsychologistProfileRepository;
 import com.example.userservice.repository.UserProfileRepository;
 import com.example.userservice.repository.WalletTransactionRepository;
 import com.example.userservice.service.PatientProfileService;
@@ -36,12 +38,18 @@ public class PatientProfileServiceImpl
 
     private final WalletTransactionRepository walletTransactionRepository;
 
+    private final PsychologistProfileRepository psychologistProfileRepository;
+
+    private final AppointmentClient appointmentClient;
+
     public PatientProfileServiceImpl(
             PatientProfileRepository patientProfileRepository,
             UserProfileRepository userProfileRepository,
             AuthServiceClient authServiceClient,
             NotificationClient notificationClient,
-            WalletTransactionRepository walletTransactionRepository
+            WalletTransactionRepository walletTransactionRepository,
+            PsychologistProfileRepository psychologistProfileRepository,
+            AppointmentClient appointmentClient
     ) {
 
         this.patientProfileRepository =
@@ -55,6 +63,10 @@ public class PatientProfileServiceImpl
         this.notificationClient = notificationClient;
 
         this.walletTransactionRepository = walletTransactionRepository;
+
+        this.psychologistProfileRepository = psychologistProfileRepository;
+
+        this.appointmentClient = appointmentClient;
     }
 
     @Override
@@ -139,6 +151,20 @@ public class PatientProfileServiceImpl
             throw new ForbiddenOperationException(
                     "Ce profil patient ne vous appartient pas"
             );
+        }
+
+        if (!isOwner && !callerIsAdmin && callerIsPsychologist) {
+            Long callerPsyId = psychologistProfileRepository
+                    .findByAuthUserId(callerAuthUserId)
+                    .map(psy -> psy.getId())
+                    .orElse(null);
+
+            if (callerPsyId == null
+                    || !appointmentClient.hasAppointmentBetween(callerPsyId, id)) {
+                throw new ForbiddenOperationException(
+                        "Ce patient n'a aucun rendez-vous avec vous"
+                );
+            }
         }
 
         PatientProfileResponse response = mapToResponse(patientProfile);

@@ -160,7 +160,6 @@ class _CancelledAppointmentScreenState
         message: 'Nous n\'avons pas pu récupérer le paiement de ce rendez-vous. '
             'Touchez ici pour réessayer.',
         accent: AppColors.info,
-        background: AppColors.infoBg,
         onTap: _load,
       );
     }
@@ -182,12 +181,10 @@ class _CancelledAppointmentScreenState
           title: 'Remboursé au patient : ${formatAmount(amount)} F CFA',
           message: appointment.cancellationReason == null ||
                   appointment.cancellationReason == CancellationReason.patient
-              ? 'Le patient a annulé plus de 48 heures avant la séance : '
-                  'il a été remboursé. Ce montant n\'entre pas dans vos revenus.'
+              ? 'Annulé plus de 48 h avant : patient remboursé.'
               : 'L\'annulation ne venait pas du patient : il a été remboursé '
                   'en totalité. Ce montant n\'entre pas dans vos revenus.',
           accent: AppColors.info,
-          background: AppColors.infoBg,
         );
       }
       return AppNoticeCard(
@@ -195,14 +192,9 @@ class _CancelledAppointmentScreenState
         title: 'Remboursé : ${formatAmount(amount)} F CFA',
         message: appointment.cancellationReason == null ||
                 appointment.cancellationReason == CancellationReason.patient
-            ? 'Le montant a été recrédité sur votre solde PsyConnect$when. '
-                'Vous avez annulé plus de 48 heures avant la séance : '
-                'c\'est la condition pour être remboursé.'
-            : 'Le montant a été recrédité en totalité sur votre solde '
-                'PsyConnect$when. L\'annulation ne venait pas de vous : '
-                'le paiement vous est donc entièrement rendu.',
+            ? 'Remboursé sur votre solde$when.'
+            : 'Remboursé en totalité sur votre solde$when.',
         accent: AppColors.success,
-        background: AppColors.successBg,
       );
     }
 
@@ -212,21 +204,15 @@ class _CancelledAppointmentScreenState
         return AppNoticeCard(
           icon: Icons.check_circle_outline,
           title: 'Paiement conservé : ${formatAmount(amount)} F CFA',
-          message: 'Le patient a annulé moins de 48 heures avant la séance : '
-              'le paiement reste acquis et compte dans vos revenus.',
+          message: 'Annulé moins de 48 h avant : paiement conservé.',
           accent: AppColors.success,
-          background: AppColors.successBg,
         );
       }
       return AppNoticeCard(
         icon: Icons.info_outline,
         title: 'Pas de remboursement (${formatAmount(amount)} F CFA)',
-        message: 'L\'annulation a eu lieu moins de 48 heures avant la séance. '
-            'Passé ce délai, le paiement reste acquis : le psychologue avait '
-            'réservé ce créneau pour vous et ne pouvait plus le proposer '
-            'à quelqu\'un d\'autre.',
+        message: 'Annulé moins de 48 h avant : pas de remboursement.',
         accent: AppColors.warning,
-        background: AppColors.warningBg,
       );
     }
 
@@ -236,16 +222,13 @@ class _CancelledAppointmentScreenState
         title: 'Aucun paiement',
         message: 'Ce rendez-vous n\'avait pas été payé par le patient.',
         accent: AppColors.tealDark,
-        background: AppColors.tealSoft,
       );
     }
     return const AppNoticeCard(
       icon: Icons.account_balance_wallet_outlined,
       title: 'Aucun montant débité',
-      message: 'Ce rendez-vous n\'avait pas été payé : '
-          'rien n\'a été prélevé sur votre solde.',
+      message: 'Non payé : rien n\'a été prélevé.',
       accent: AppColors.tealDark,
-      background: AppColors.tealSoft,
     );
   }
 
@@ -257,12 +240,9 @@ class _CancelledAppointmentScreenState
               ? 'Le patient a annulé ce rendez-vous le ${_formatDate(appointment.cancelledAt!)}.'
               : 'Le patient a annulé ce rendez-vous.';
         case CancellationReason.psychologistNoResponse:
-          return 'Vous n\'avez pas confirmé cette demande au moins 2 heures '
-              'avant la séance : elle a été annulée automatiquement.';
+          return 'Non confirmée 1 h avant la séance : demande annulée.';
         case CancellationReason.unpaid:
-          return 'Le patient n\'a pas payé ce rendez-vous au moins 1 heure '
-              'avant la séance : il a été annulé automatiquement et le '
-              'créneau a été libéré.';
+          return 'Non payé avant la fin du créneau : rendez-vous annulé.';
         case null:
           return 'Ce rendez-vous a été annulé.';
       }
@@ -273,9 +253,7 @@ class _CancelledAppointmentScreenState
             ? 'Vous avez annulé ce rendez-vous le ${_formatDate(appointment.cancelledAt!)}.'
             : 'Vous avez annulé ce rendez-vous.';
       case CancellationReason.psychologistNoResponse:
-        return 'Le psychologue n\'a pas confirmé votre demande au moins '
-            '1 heure avant la séance. Elle a donc été annulée automatiquement. '
-            'Vous pouvez réserver un autre créneau.';
+        return 'Le psychologue n\'a pas répondu à temps : demande annulée.';
       case CancellationReason.unpaid:
         return 'Le rendez-vous n\'a pas été payé avant la fin du créneau '
             'prévu. Il a donc été annulé automatiquement.';

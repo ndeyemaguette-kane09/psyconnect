@@ -33,7 +33,16 @@ class RiskDetectionServiceTest {
             "Je suis fatiguée de vivre",
             "J'ai envie d'en finir",
             "Je voudrais ne plus me réveiller",
-            "Je\u00A0veux\u00A0mourir"
+            "Je\u00A0veux\u00A0mourir",
+            "J'ai des envies de suicide",
+            "Je veux juste mourir",
+            "je veux vraiment mourir",
+            "J'ai des pensées suicidaires",
+            "Je suis suicidaire",
+            "Je ne veux plus vivre",
+            "Je pense à mettre fin à mes jours",
+            "J'ai des idées noires",
+            "Ce serait plus simple d'être morte"
     })
     void intercepteLesFormulationsDeCrise(String message) {
         assertTrue(service.isRisky(message), message);

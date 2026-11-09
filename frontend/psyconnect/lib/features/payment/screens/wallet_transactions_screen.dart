@@ -103,8 +103,7 @@ class _WalletTransactionsScreenState extends State<WalletTransactionsScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  'Aucun mouvement pour l\'instant. Vos recharges, retraits et '
-                  'paiements de rendez-vous apparaîtront ici.',
+                  'Aucun mouvement pour l\'instant.',
                   style: TextStyle(
                     fontSize: 15.5,
                     height: 1.5,

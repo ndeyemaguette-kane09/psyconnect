@@ -111,6 +111,7 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Future<void> _logout() async {
+    if (!await confirmLogout(context) || !mounted) return;
     final authProvider = context.read<AuthProvider>();
     await authProvider.logout();
     if (!mounted) return;
@@ -191,6 +192,8 @@ class _ProfileTabState extends State<ProfileTab> {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    LogoutTile(onTap: _logout),
                   ],
                 ),
               ),
@@ -217,7 +220,6 @@ class _ProfileTabState extends State<ProfileTab> {
                       icon: Icons.assignment_outlined,
                       label: 'Questionnaires',
                       iconColor: AppColors.goldDark,
-                      iconBackground: AppColors.goldLight,
                       badge: _pendingQuestionnaireCount > 0
                           ? _pendingQuestionnaireCount
                           : null,
@@ -234,7 +236,6 @@ class _ProfileTabState extends State<ProfileTab> {
                       icon: Icons.medical_information_outlined,
                       label: 'Antécédents médicaux',
                       iconColor: AppColors.text,
-                      iconBackground: AppColors.sand,
                       onTap: patientId == null
                           ? null
                           : () => Navigator.of(context).push(
@@ -341,11 +342,6 @@ class _ProfileTabState extends State<ProfileTab> {
                         )
                         .then((_) => _load()),
               ),
-              _TextLink(
-                label: 'Se déconnecter',
-                color: AppColors.danger,
-                onTap: _logout,
-              ),
             ],
           ],
         ),
@@ -361,7 +357,6 @@ class _NavRow extends StatelessWidget {
     required this.onTap,
     this.badge,
     this.iconColor = AppColors.teal,
-    this.iconBackground = AppColors.tealLight,
   });
 
   final IconData icon;
@@ -369,7 +364,6 @@ class _NavRow extends StatelessWidget {
   final VoidCallback? onTap;
   final int? badge;
   final Color iconColor;
-  final Color iconBackground;
 
   @override
   Widget build(BuildContext context) {
@@ -379,15 +373,7 @@ class _NavRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 11),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconBackground,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
+            Icon(icon, color: iconColor, size: 21),
             const SizedBox(width: 14),
             Expanded(
               child: Text(

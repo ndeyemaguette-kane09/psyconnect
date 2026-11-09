@@ -220,6 +220,8 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  LogoutTile(onTap: _logout),
                 ],
               ),
             ),
@@ -301,7 +303,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
                 children: [
                   _MenuRow(
                     icon: Icons.flag_outlined,
-                    tint: AppColors.goldLight,
                     ink: AppColors.goldDark,
                     title: 'Signalements',
                     subtitle: 'Plaintes de patients contre un psy',
@@ -310,7 +311,6 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
                   ),
                   _MenuRow(
                     icon: Icons.chat_bubble_outline,
-                    tint: AppColors.sand,
                     ink: AppColors.text,
                     title: 'Messages des utilisateurs',
                     subtitle: 'Écrits depuis « Écrire à l\'équipe »',
@@ -328,29 +328,10 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: _MenuRow(
                 icon: Icons.campaign_outlined,
-                tint: AppColors.tealLight,
                 ink: AppColors.teal,
                 title: 'Envoyer une annonce',
                 subtitle: 'À tout le monde, aux patients ou aux psys',
                 onTap: () => _open(const _BroadcastPage()),
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            // déconnexion
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: _logout,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.danger,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                ),
-                child: const Text(
-                  'Se déconnecter',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
               ),
             ),
           ],
@@ -592,7 +573,6 @@ class _Heading extends StatelessWidget {
 class _MenuRow extends StatelessWidget {
   const _MenuRow({
     required this.icon,
-    required this.tint,
     required this.ink,
     required this.title,
     required this.subtitle,
@@ -601,7 +581,6 @@ class _MenuRow extends StatelessWidget {
   });
 
   final IconData icon;
-  final Color tint;
   final Color ink;
   final String title;
   final String subtitle;
@@ -616,12 +595,7 @@ class _MenuRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 13),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-              child: Icon(icon, size: 19, color: ink),
-            ),
+            Icon(icon, size: 21, color: ink),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

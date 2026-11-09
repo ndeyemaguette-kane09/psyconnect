@@ -215,4 +215,95 @@ class QuestionnaireServiceImplTest {
                 () -> service.answerQuestionnaire(1L, req)
         );
     }
+
+    // PSS-10
+
+    @Test
+    @DisplayName("PSS-10 tout à 0 -> score 16, les items 4, 5, 7 et 8 sont inversés")
+    void pss10_allZero_countsReversedItems() {
+        QuestionnaireResponseDto resp = answer(QuestionnaireType.PSS10, Collections.nCopies(10, 0));
+
+        assertEquals(16, resp.getScore());
+        assertEquals("Stress perçu modéré", resp.getSeverity());
+    }
+
+    @Test
+    @DisplayName("PSS-10 score maximal 40 -> Stress perçu élevé")
+    void pss10_maxScore_isHighStress() {
+        List<Integer> answers = List.of(4, 4, 4, 0, 0, 4, 0, 0, 4, 4);
+        QuestionnaireResponseDto resp = answer(QuestionnaireType.PSS10, answers);
+
+        assertEquals(40, resp.getScore());
+        assertEquals("Stress perçu élevé", resp.getSeverity());
+    }
+
+    @Test
+    @DisplayName("PSS-10 score minimal 0 -> Stress perçu faible")
+    void pss10_minScore_isLowStress() {
+        List<Integer> answers = List.of(0, 0, 0, 4, 4, 0, 4, 4, 0, 0);
+        QuestionnaireResponseDto resp = answer(QuestionnaireType.PSS10, answers);
+
+        assertEquals(0, resp.getScore());
+        assertEquals("Stress perçu faible", resp.getSeverity());
+    }
+
+    @Test
+    @DisplayName("PSS-10 avec une réponse = 5 (hors plage 0-4) -> IllegalArgumentException")
+    void pss10_invalidAnswerValue_throwsException() {
+        Questionnaire q = buildQuestionnaire(QuestionnaireType.PSS10);
+        when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
+        when(questionnaireRepository.findByIdAndPatientId(1L, PATIENT_ID))
+                .thenReturn(Optional.of(q));
+
+        AnswerQuestionnaireRequest req = new AnswerQuestionnaireRequest();
+        req.setAnswers(List.of(1, 2, 5, 0, 1, 2, 1, 0, 1, 3));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.answerQuestionnaire(1L, req));
+    }
+
+    // EPDS
+
+    @Test
+    @DisplayName("EPDS première option partout -> score 21 (7 items inversés × 3)")
+    void epds_firstOptionEverywhere_isHighRisk() {
+        QuestionnaireResponseDto resp = answer(QuestionnaireType.EPDS, Collections.nCopies(10, 0));
+
+        assertEquals(21, resp.getScore());
+        assertEquals("Risque de dépression post-natale élevé", resp.getSeverity());
+    }
+
+    @Test
+    @DisplayName("EPDS dernière option partout -> score 9 (items 1, 2 et 4 à 3)")
+    void epds_lastOptionEverywhere_isLowRisk() {
+        QuestionnaireResponseDto resp = answer(QuestionnaireType.EPDS, Collections.nCopies(10, 3));
+
+        assertEquals(9, resp.getScore());
+        assertEquals("Risque de dépression post-natale faible", resp.getSeverity());
+    }
+
+    @Test
+    @DisplayName("EPDS score 11 -> à surveiller")
+    void epds_score11_isToWatch() {
+        List<Integer> answers = List.of(1, 1, 1, 1, 1, 2, 2, 2, 2, 3);
+        QuestionnaireResponseDto resp = answer(QuestionnaireType.EPDS, answers);
+
+        assertEquals(11, resp.getScore());
+        assertEquals("Risque de dépression post-natale à surveiller", resp.getSeverity());
+    }
+
+    @Test
+    @DisplayName("EPDS avec 9 réponses au lieu de 10 -> IllegalArgumentException")
+    void epds_wrongAnswerCount_throwsException() {
+        Questionnaire q = buildQuestionnaire(QuestionnaireType.EPDS);
+        when(ownershipResolver.resolveOwnPatientId()).thenReturn(PATIENT_ID);
+        when(questionnaireRepository.findByIdAndPatientId(1L, PATIENT_ID))
+                .thenReturn(Optional.of(q));
+
+        AnswerQuestionnaireRequest req = new AnswerQuestionnaireRequest();
+        req.setAnswers(Collections.nCopies(9, 1));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.answerQuestionnaire(1L, req));
+    }
 }

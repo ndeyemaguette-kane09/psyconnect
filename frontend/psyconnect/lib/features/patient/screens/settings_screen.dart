@@ -126,19 +126,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: Colors.white24,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.tune, color: Colors.white),
-                  ),
+                  const Icon(Icons.tune, color: Colors.white),
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Text(
-                      'Adaptez PsyConnect à vos préférences de confidentialité et de communication.',
+                      'Confidentialité et notifications.',
                       style: TextStyle(color: Colors.white, fontSize: 13, height: 1.3),
                     ),
                   ),
@@ -272,11 +264,7 @@ class _SettingsRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.tealLight,
-              child: Icon(icon, size: 18, color: AppColors.teal),
-            ),
+            Icon(icon, size: 21, color: AppColors.teal),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

@@ -85,7 +85,7 @@ class _AppListSkeletonState extends State<AppListSkeleton>
         animation: _controller,
         builder: (context, _) {
           final shade = Color.lerp(
-            AppColors.tealLight,
+            AppColors.sand,
             AppColors.white,
             _controller.value,
           )!;

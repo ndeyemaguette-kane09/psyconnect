@@ -3,6 +3,8 @@ import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../call/models/session_models.dart';
 import '../../call/services/session_service.dart';
@@ -93,18 +95,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF5F5),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.emergency,
-        foregroundColor: Colors.white,
-        title: const Row(
-          children: [
-            Icon(Icons.emergency_outlined, size: 20),
-            SizedBox(width: 8),
-            Text('Aide immédiate',
-                style: TextStyle(fontWeight: FontWeight.w700)),
-          ],
-        ),
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.text,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -113,175 +108,112 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.emergency,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
           children: [
-            // en-tête rassurant
-            Container(
-              color: AppColors.emergency,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Vous n\'êtes pas seul(e).',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Ces psychologues sont disponibles maintenant pour vous écouter, '
-                    'sans rendez-vous et sans attente.',
-                    style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
-                  ),
-                  const SizedBox(height: 12),
-                  // rappel numéro national (si disponible au Sénégal)
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.phone_in_talk, color: Colors.white, size: 18),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'En cas de danger immédiat, composez le 1515 (SAMU), '
-                            'le 17 (Police) ou le 18 (Pompiers).',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                height: 1.4),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // liste des psys disponibles
-            Expanded(
-              child: _loading
-                  ? const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(
-                              color: AppColors.emergency),
-                          SizedBox(height: 12),
-                          Text('Recherche de psychologues disponibles…',
-                              style: TextStyle(color: AppColors.muted)),
-                        ],
-                      ),
-                    )
-                  : _error != null
-                      ? _buildError()
-                      : _available.isEmpty
-                          ? _buildEmpty()
-                          : RefreshIndicator(
-                              onRefresh: _load,
-                              color: AppColors.emergency,
-                              child: ListView.separated(
-                                padding:
-                                    const EdgeInsets.symmetric(
-                                        vertical: 16, horizontal: 16),
-                                itemCount: _available.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 10),
-                                itemBuilder: (_, i) => _PsychologistSosCard(
-                                  psychologist: _available[i],
-                                  isCalling: _callingPsyId == _available[i].id,
-                                  onCall: () =>
-                                      _callPsychologist(_available[i]),
-                                ),
-                              ),
-                            ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.wifi_off, color: AppColors.muted, size: 48),
-            const SizedBox(height: 12),
-            Text(_error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.muted)),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: _load,
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.emergency,
-                  minimumSize: const Size(200, 46)),
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Réessayer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.person_search,
-                  color: AppColors.emergency, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'Aucun psychologue disponible pour l\'instant',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: Color(0xFF4E342E)),
+            Text(
+              'Aide immédiate',
+              style: Theme.of(context).textTheme.displayMedium,
             ),
             const SizedBox(height: 8),
             const Text(
-              'Nos psychologues activent leur disponibilité manuellement. '
-              'Revenez dans quelques minutes ou prenez rendez-vous.',
-              textAlign: TextAlign.center,
+              'Vous n\'êtes pas seul(e). Ces psychologues peuvent vous '
+              'écouter maintenant, sans rendez-vous.',
               style: TextStyle(
-                  color: AppColors.muted, fontSize: 13, height: 1.4),
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed: _load,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Actualiser'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.emergency,
-                side: const BorderSide(color: AppColors.emergency),
+                fontSize: 16,
+                height: 1.5,
+                color: AppColors.muted,
               ),
             ),
+            const SizedBox(height: 20),
+            const Text(
+              'En cas de danger immédiat',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.danger,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Column(
+                children: [
+                  _EmergencyNumber(number: '1515', label: 'SAMU'),
+                  Divider(height: 1, color: AppColors.sand),
+                  _EmergencyNumber(number: '17', label: 'Police'),
+                  Divider(height: 1, color: AppColors.sand),
+                  _EmergencyNumber(number: '18', label: 'Pompiers'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 26),
+            const Text(
+              'Disponibles maintenant',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildList(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 30),
+        child: AppLoadingState(label: 'Recherche de psychologues disponibles…'),
+      );
+    }
+    if (_error != null) {
+      return AppErrorState(message: _error!, onRetry: _load);
+    }
+    if (_available.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.person_search_outlined,
+        title: 'Aucun psychologue disponible pour l\'instant',
+        message: 'Nos psychologues activent leur disponibilité manuellement. '
+            'Revenez dans quelques minutes ou prenez rendez-vous.',
+        accent: AppColors.emergency,
+        actionLabel: 'Actualiser',
+        onAction: _load,
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          for (final psy in _available)
+            _PsychologistSosRow(
+              psychologist: psy,
+              isCalling: _callingPsyId == psy.id,
+              onCall: () => _callPsychologist(psy),
+            ),
+        ],
       ),
     );
   }
 }
 
-// carte d'un psy disponible pour urgence
-class _PsychologistSosCard extends StatelessWidget {
-  const _PsychologistSosCard({
+class _PsychologistSosRow extends StatelessWidget {
+  const _PsychologistSosRow({
     required this.psychologist,
     required this.isCalling,
     required this.onCall,
@@ -293,32 +225,11 @@ class _PsychologistSosCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.emergency.withValues(alpha: 0.28), width: 1.5),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: AppColors.dangerBg,
-            backgroundImage: psychologist.profilePicture != null
-                ? NetworkImage(psychologist.profilePicture!)
-                : null,
-            child: psychologist.profilePicture == null
-                ? Text(
-                    psychologist.firstName.isNotEmpty
-                        ? psychologist.firstName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                        color: AppColors.emergency,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20),
-                  )
-                : null,
-          ),
+          AppAvatar(name: psychologist.fullName, size: 48),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -326,44 +237,44 @@ class _PsychologistSosCard extends StatelessWidget {
               children: [
                 Text(
                   psychologist.fullName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 14),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   psychologist.specialty,
-                  style: const TextStyle(
-                      color: AppColors.muted, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, color: AppColors.muted),
                 ),
                 if (psychologist.offersFreeSessions) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.tealLight,
-                    ),
-                    child: const Text(
-                      'Consultation solidaire — gratuite',
-                      style: TextStyle(
-                          color: AppColors.teal,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'Consultation solidaire, gratuite',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.teal,
                     ),
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           FilledButton.icon(
             onPressed: isCalling ? null : onCall,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.emergency,
-              minimumSize: const Size(0, 42),
+              minimumSize: const Size(0, 44),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             icon: isCalling
                 ? const SizedBox(
@@ -374,7 +285,7 @@ class _PsychologistSosCard extends StatelessWidget {
                   )
                 : const Icon(Icons.call, size: 16),
             label: Text(isCalling ? '...' : 'Appeler',
-                style: const TextStyle(fontSize: 13)),
+                style: const TextStyle(fontSize: 14)),
           ),
         ],
       ),
@@ -557,6 +468,39 @@ class _EmergencyJitsiLauncherState extends State<_EmergencyJitsiLauncher> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _EmergencyNumber extends StatelessWidget {
+  const _EmergencyNumber({required this.number, required this.label});
+
+  final String number;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(
+              number,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: AppColors.danger,
+              ),
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 15.5, color: AppColors.text),
+          ),
+        ],
       ),
     );
   }

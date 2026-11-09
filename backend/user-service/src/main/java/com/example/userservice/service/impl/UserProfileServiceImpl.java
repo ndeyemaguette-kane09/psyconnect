@@ -77,7 +77,11 @@ public class UserProfileServiceImpl
     }
 
     @Override
-    public UserProfileResponse getProfile(Long id) {
+    public UserProfileResponse getProfile(
+            Long id,
+            Long callerAuthUserId,
+            boolean callerIsAdmin
+    ) {
 
         UserProfile userProfile =
                 userProfileRepository.findById(id)
@@ -87,6 +91,15 @@ public class UserProfileServiceImpl
                                 "User profile not found"
                         )
                 );
+
+        boolean isOwner = userProfile.getAuthUserId() != null
+                && userProfile.getAuthUserId().equals(callerAuthUserId);
+
+        if (!isOwner && !callerIsAdmin) {
+            throw new ForbiddenOperationException(
+                    "Ce profil ne vous appartient pas"
+            );
+        }
 
         return mapToResponse(userProfile);
     }

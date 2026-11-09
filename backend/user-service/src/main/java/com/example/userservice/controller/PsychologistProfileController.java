@@ -82,12 +82,16 @@ public class PsychologistProfileController {
             List<PsychologistProfileResponse>
             >
     getAllPsychologists(
+            HttpServletRequest httpRequest,
             @RequestParam(required = false) Boolean verifiedOnly
     ) {
 
+        boolean onlyVerified = !httpRequest.isUserInRole("ADMIN")
+                || Boolean.TRUE.equals(verifiedOnly);
+
         return ResponseEntity.ok(
                 psychologistProfileService
-                        .getAllPsychologists(verifiedOnly)
+                        .getAllPsychologists(onlyVerified)
         );
     }
 

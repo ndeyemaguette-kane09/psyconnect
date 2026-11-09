@@ -118,12 +118,8 @@ class _XalaatScreenState extends State<XalaatScreen> {
         titleSpacing: 0,
         title: const Row(
           children: [
-            CircleAvatar(
-              radius: 21,
-              backgroundColor: AppColors.tealLight,
-              child: Icon(Icons.chat_bubble_outline_rounded,
-                  color: AppColors.teal, size: 20),
-            ),
+            Icon(Icons.chat_bubble_outline_rounded,
+                color: AppColors.teal, size: 24),
             SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,7 +169,7 @@ class _XalaatScreenState extends State<XalaatScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: AppColors.errorBg,
+      color: AppColors.background,
       child: Row(
         children: [
           const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
@@ -277,7 +273,7 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 18, left: 40),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: const BoxDecoration(
-          color: AppColors.tealLight,
+          color: AppColors.teal,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
@@ -290,7 +286,7 @@ class _MessageBubble extends StatelessWidget {
           style: const TextStyle(
             fontSize: 16,
             height: 1.4,
-            color: AppColors.tealDeep,
+            color: AppColors.white,
           ),
         ),
       ),

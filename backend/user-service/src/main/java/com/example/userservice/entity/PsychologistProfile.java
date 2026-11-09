@@ -17,6 +17,7 @@ public class PsychologistProfile {
 
     private Long authUserId;
 
+    @Column(columnDefinition = "TEXT")
     private String bio;
 
     private String languages;

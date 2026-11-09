@@ -43,7 +43,7 @@ class QuestionnaireService {
     final json = await _api.post(
       ApiConstants.questionnaires,
       body: {
-        'type': type == QuestionnaireType.PHQ9 ? 'PHQ9' : 'GAD7',
+        'type': type.name,
         'patientId': patientId,
         if (appointmentId != null) 'appointmentId': appointmentId,
       },

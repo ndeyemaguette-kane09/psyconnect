@@ -69,8 +69,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Un code à 6 chiffres vient d\'être envoyé à ${widget.email}. '
-                  'Il est valable 15 minutes. Pensez à vérifier vos spams.',
+                  'Code envoyé à ${widget.email}, valable 15 min. Pensez aux spams.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 28),

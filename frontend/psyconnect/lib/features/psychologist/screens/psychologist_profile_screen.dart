@@ -261,7 +261,6 @@ class _PsychologistProfileScreenState
                   children: [
                     _MenuRow(
                       icon: Icons.calendar_today_outlined,
-                      tint: AppColors.tealLight,
                       ink: AppColors.teal,
                       title: 'Mes disponibilités',
                       subtitle: 'Les créneaux que vos patients peuvent réserver',
@@ -270,7 +269,6 @@ class _PsychologistProfileScreenState
                     ),
                     _MenuRow(
                       icon: Icons.account_balance_wallet_outlined,
-                      tint: AppColors.goldLight,
                       ink: AppColors.goldDark,
                       title: 'Mon portefeuille',
                       subtitle: 'Revenus et retraits',
@@ -279,7 +277,6 @@ class _PsychologistProfileScreenState
                     ),
                     _MenuRow(
                       icon: Icons.chat_bubble_outline,
-                      tint: AppColors.sand,
                       ink: AppColors.text,
                       title: 'Écrire à l\'équipe',
                       onTap: () => _push((id) => ContactAdminScreen(
@@ -296,7 +293,7 @@ class _PsychologistProfileScreenState
                 child: TextButton(
                   onPressed: _logout,
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.danger,
+                    foregroundColor: AppColors.text,
                     padding:
                         const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   ),
@@ -356,7 +353,6 @@ class _Fact extends StatelessWidget {
 class _MenuRow extends StatelessWidget {
   const _MenuRow({
     required this.icon,
-    required this.tint,
     required this.ink,
     required this.title,
     this.subtitle,
@@ -364,7 +360,6 @@ class _MenuRow extends StatelessWidget {
   });
 
   final IconData icon;
-  final Color tint;
   final Color ink;
   final String title;
   final String? subtitle;
@@ -378,12 +373,7 @@ class _MenuRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-              child: Icon(icon, size: 19, color: ink),
-            ),
+            Icon(icon, size: 21, color: ink),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

@@ -188,8 +188,7 @@ class _MessagesTabState extends State<MessagesTab> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Vous pourrez échanger avec votre psychologue dès '
-                          'votre premier rendez-vous confirmé.',
+                          'La messagerie s\'ouvre après votre premier rendez-vous.',
                           textAlign: TextAlign.center,
                           style:
                               TextStyle(color: AppColors.muted, fontSize: 12),

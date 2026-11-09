@@ -193,8 +193,6 @@ class _QuestionnaireCard extends StatelessWidget {
     'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
   ];
 
-  bool get _isPhq => questionnaire.type == QuestionnaireType.PHQ9;
-
   @override
   Widget build(BuildContext context) {
     final q = questionnaire;
@@ -203,8 +201,6 @@ class _QuestionnaireCard extends StatelessWidget {
     final dateLabel = date != null
         ? '${date.day} ${_months[date.month - 1]} ${date.year}'
         : '';
-    final ink = _isPhq ? AppColors.goldDark : AppColors.teal;
-    final soft = _isPhq ? AppColors.goldLight : AppColors.tealLight;
 
     return InkWell(
       onTap: onTap,
@@ -212,25 +208,6 @@ class _QuestionnaireCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 13),
         child: Row(
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: soft,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                q.typeName,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: ink,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

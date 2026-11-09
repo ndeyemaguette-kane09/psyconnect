@@ -175,8 +175,7 @@ class _PatientsTabState extends State<PatientsTab> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 child: Text(
-                  'Aucun patient pour le moment. Ils apparaîtront ici après '
-                  'leur première demande de rendez-vous.',
+                  'Aucun patient pour le moment.',
                   style: TextStyle(
                     fontSize: 15.5,
                     height: 1.5,
@@ -505,7 +504,6 @@ class _PatientPageState extends State<_PatientPage> {
               children: [
                 _LinkRow(
                   icon: Icons.edit_note_outlined,
-                  tint: AppColors.tealLight,
                   ink: AppColors.teal,
                   title: 'Mes notes cliniques',
                   subtitle: 'Visibles par vous seule',
@@ -516,10 +514,9 @@ class _PatientPageState extends State<_PatientPage> {
                 ),
                 _LinkRow(
                   icon: Icons.assignment_outlined,
-                  tint: AppColors.goldLight,
                   ink: AppColors.goldDark,
                   title: 'Questionnaires',
-                  subtitle: 'Historique des scores PHQ-9 et GAD-7',
+                  subtitle: 'Historique des scores',
                   onTap: () => _push(PatientQuestionnairesScreen(
                     patientId: entry.patientId,
                     patientName: name,
@@ -527,7 +524,6 @@ class _PatientPageState extends State<_PatientPage> {
                 ),
                 _LinkRow(
                   icon: Icons.medical_information_outlined,
-                  tint: AppColors.sand,
                   ink: AppColors.text,
                   title: 'Antécédents médicaux',
                   onTap: () => _push(MedicalHistoryScreen(
@@ -635,7 +631,6 @@ class _Heading extends StatelessWidget {
 class _LinkRow extends StatelessWidget {
   const _LinkRow({
     required this.icon,
-    required this.tint,
     required this.ink,
     required this.title,
     this.subtitle,
@@ -643,7 +638,6 @@ class _LinkRow extends StatelessWidget {
   });
 
   final IconData icon;
-  final Color tint;
   final Color ink;
   final String title;
   final String? subtitle;
@@ -657,12 +651,7 @@ class _LinkRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-              child: Icon(icon, size: 20, color: ink),
-            ),
+            Icon(icon, size: 21, color: ink),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -715,7 +704,7 @@ class _VisitRow extends StatelessWidget {
             width: 46,
             height: 54,
             decoration: BoxDecoration(
-              color: past ? AppColors.surfaceAlt : AppColors.tealLight,
+              color: AppColors.background,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(23),
                 bottom: Radius.circular(7),

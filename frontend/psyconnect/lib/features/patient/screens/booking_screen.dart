@@ -307,8 +307,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       icon: Icons.event_busy_outlined,
                       title: 'Aucun créneau ce jour',
                       message:
-                          'Ce psychologue ne consulte pas à cette date. '
-                          'Choisissez un autre jour dans le calendrier.',
+                          'Pas de consultation ce jour-là.',
                     )
                   else
                     Wrap(
@@ -329,7 +328,6 @@ class _BookingScreenState extends State<BookingScreen> {
                   if (_bookingError != null) ...[
                     const SizedBox(height: 20),
                     AppCard(
-                      color: AppColors.dangerBg,
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,9 +356,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       const SizedBox(width: 7),
                       Expanded(
                         child: Text(
-                          'Votre demande est envoyée au psychologue. Le '
-                          'paiement n\'intervient qu\'une fois qu\'il l\'a '
-                          'confirmée.',
+                          'Vous paierez après sa confirmation.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -579,9 +575,7 @@ class _BookingSentDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Votre demande pour le $date à $time avec $psychologistName est '
-              'partie. Vous serez notifié dès que le psychologue aura répondu, '
-              'et vous pourrez alors procéder au paiement.',
+              'Demande envoyée à $psychologistName pour le $date à $time. Vous paierez après sa réponse.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

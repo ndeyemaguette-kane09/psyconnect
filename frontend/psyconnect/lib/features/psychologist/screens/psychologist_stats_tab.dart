@@ -238,33 +238,7 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Material(
-                  color: AppColors.dangerBg,
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: _logout,
-                    child: const Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      child: Column(
-                        children: [
-                          Icon(Icons.logout_rounded,
-                              color: AppColors.danger, size: 22),
-                          SizedBox(height: 2),
-                          Text(
-                            'Déconnexion',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.danger,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                LogoutTile(onTap: _logout),
               ],
             ),
             const SizedBox(height: 26),
@@ -307,9 +281,7 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${_formatXof(_revenue!.totalNetRevenue)} F depuis le début · '
-                  'après commission de '
-                  '${_revenue!.commissionRatePercent.toStringAsFixed(0)} %',
+                  '${_formatXof(_revenue!.totalNetRevenue)} F depuis le début',
                   style: const TextStyle(fontSize: 15, color: AppColors.muted),
                 ),
                 Align(

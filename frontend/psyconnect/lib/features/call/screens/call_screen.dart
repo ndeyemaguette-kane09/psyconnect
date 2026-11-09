@@ -5,9 +5,12 @@ import 'package:provider/provider.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../auth/models/user_role.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../psychologist/screens/session_recommendations_screen.dart';
 import '../models/session_models.dart';
 import '../services/session_service.dart';
+import 'finish_session_dialog.dart';
 
 // etats internes de l'ecran d'appel
 enum _CallPhase { loading, preCall, joining, ended }
@@ -41,9 +44,42 @@ class _CallScreenState extends State<CallScreen> {
   // coupure, tant que la seance reste rejoignable (cf. _onConferenceTerminated)
   String? _info;
 
+  bool _finishing = false;
+
+  bool _isPsychologist = false;
+
+  Future<void> _finishSession() async {
+    final session = _session;
+    if (session == null) return;
+    if (!await confirmFinishSession(context) || !mounted) return;
+    setState(() {
+      _finishing = true;
+      _error = null;
+    });
+    try {
+      final ended = await _sessionService.endSession(session.id);
+      if (!mounted) return;
+      setState(() {
+        _session = ended;
+        _finishing = false;
+        _phase = _CallPhase.ended;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _finishing = false;
+        _error = e is ApiException
+            ? e.message
+            : 'Impossible de terminer la séance.';
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _isPsychologist =
+        context.read<AuthProvider>().session?.role == UserRole.psychologist;
     _init();
   }
 
@@ -185,8 +221,7 @@ class _CallScreenState extends State<CallScreen> {
     if (!mounted || _phase == _CallPhase.ended) return;
     setState(() {
       _phase = _CallPhase.preCall;
-      _info = 'Vous avez quitté l\'appel. Vous pouvez le rejoindre à '
-          'nouveau tant que le rendez-vous est en cours.';
+      _info = 'Appel quitté. Vous pouvez revenir jusqu\'à la fin de la séance.';
     });
   }
 
@@ -207,17 +242,12 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  Widget _reassurance(IconData icon, Color tint, Color ink, String text) {
+  Widget _reassurance(IconData icon, Color ink, String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-            child: Icon(icon, size: 19, color: ink),
-          ),
+          Icon(icon, size: 21, color: ink),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -274,7 +304,6 @@ class _CallScreenState extends State<CallScreen> {
           const SizedBox(height: 30),
           _reassurance(
             widget.isVideo ? Icons.videocam_outlined : Icons.call_outlined,
-            AppColors.tealLight,
             AppColors.teal,
             widget.isVideo
                 ? 'Caméra et micro seront demandés à l\'ouverture.'
@@ -282,7 +311,6 @@ class _CallScreenState extends State<CallScreen> {
           ),
           _reassurance(
             Icons.lock_outline,
-            AppColors.sand,
             AppColors.text,
             'Salle privée, réservée à ce rendez-vous.',
           ),
@@ -322,6 +350,21 @@ class _CallScreenState extends State<CallScreen> {
                       : 'Démarrer l\'appel',
             ),
           ),
+          if (sessionAlreadyOpen && _isPsychologist) ...[
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: _finishing ? null : _finishSession,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.text,
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: Text(
+                _finishing ? 'Clôture…' : 'Terminer la séance',
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -357,10 +400,29 @@ class _CallScreenState extends State<CallScreen> {
                 fontSize: 16, color: AppColors.textSecondary),
           ),
           const Spacer(),
+          if (_isPsychologist) ...[
+            FilledButton(
+              onPressed: () => Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => SessionRecommendationsScreen(
+                    appointmentId: widget.appointmentId,
+                    patientName: name,
+                  ),
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+              child: const Text('Écrire mes recommandations'),
+            ),
+            const SizedBox(height: 10),
+          ],
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
+              backgroundColor: _isPsychologist ? AppColors.white : null,
+              foregroundColor: _isPsychologist ? AppColors.text : null,
             ),
             child: const Text('Retour'),
           ),

@@ -142,8 +142,7 @@ class _JournalScreenState extends State<JournalScreen> {
             child: AppEmptyState(
               icon: Icons.book_outlined,
               title: 'Votre journal est vide',
-              message: 'Écrire quelques lignes sur votre journée aide à '
-                  'repérer ce qui revient. Vous seul y avez accès.',
+              message: 'Vous seul y avez accès.',
               actionLabel: 'Écrire ma première entrée',
               onAction: () => _openEditor(),
             ),

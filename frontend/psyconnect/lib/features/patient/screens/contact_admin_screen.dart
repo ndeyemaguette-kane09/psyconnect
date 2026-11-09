@@ -65,8 +65,7 @@ class _ContactAdminScreenState extends State<ContactAdminScreen> {
         builder: (_) => AlertDialog(
           title: const Text('Message envoyé'),
           content: const Text(
-            'Votre message a bien été transmis à l\'administrateur. '
-            'Il vous recontactera si nécessaire.',
+            'Message envoyé.',
           ),
           actions: [
             TextButton(
@@ -104,9 +103,7 @@ class _ContactAdminScreenState extends State<ContactAdminScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Une question, un souci technique, ou un problème qui ne '
-              'concerne pas un psychologue précis ? L\'équipe PsyConnect vous '
-              'répond ici.',
+              'Une question ou un souci ? Écrivez-nous.',
               style: TextStyle(
                 fontSize: 16,
                 height: 1.5,

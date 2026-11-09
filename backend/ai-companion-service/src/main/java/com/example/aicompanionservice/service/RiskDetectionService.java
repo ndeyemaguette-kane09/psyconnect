@@ -11,11 +11,17 @@ import java.util.regex.Pattern;
 public class RiskDetectionService {
 
     private static final List<Pattern> RISK_PATTERNS = List.of(
-            "me suicider", "me suicide", "envie de me suicider",
+            "suicid", "me suicider", "me suicide", "envie de me suicider",
             "me tuer", "envie de me tuer", "me donner la mort",
             "en finir avec (ma vie|tout|cette vie|l'existence|mes jours)",
             "en finir une bonne fois pour toutes",
             "envie de mourir", "veux mourir", "j'aimerais mourir",
+            "(veux|voudrais|aimerais|envie de|souhaite) (juste |seulement |vraiment |simplement |tellement |tout simplement |bien )?(mourir|disparaitre|en finir)",
+            "envies? de (mort|mourir|me tuer|en finir)",
+            "(ne )?veux plus vivre", "plus envie d'etre (la|en vie)",
+            "mettre fin a (mes jours|ma vie)", "me supprimer",
+            "idees? noires", "pensees? (noires|de mort)",
+            "(mieux|plus simple) (si j'etais|d'etre) morte?",
             "plus envie de vivre", "ca ne vaut plus le coup de vivre",
             "(veux|vais|voudrais) en finir",
             "me faire du mal", "me blesser volontairement",

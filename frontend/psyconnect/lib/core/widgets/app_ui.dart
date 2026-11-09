@@ -57,7 +57,6 @@ class AppNoticeCard extends StatelessWidget {
     required this.title,
     this.message,
     this.accent = AppColors.gold,
-    this.background = AppColors.goldLight,
     this.onTap,
   });
 
@@ -65,14 +64,13 @@ class AppNoticeCard extends StatelessWidget {
   final String title;
   final String? message;
   final Color accent;
-  final Color background;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: background,
+        color: AppColors.white,
         borderRadius: AppRadius.mdAll,
       ),
       child: Material(
@@ -724,6 +722,103 @@ class AppListRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class LogoutTile extends StatelessWidget {
+  const LogoutTile({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.logout_rounded, color: AppColors.text, size: 22),
+              SizedBox(height: 2),
+              Text(
+                'Déconnexion',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<bool> confirmLogout(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Se déconnecter ?'),
+      content: const Text(
+          'Vous devrez vous reconnecter pour accéder à votre compte.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Annuler'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Se déconnecter'),
+        ),
+      ],
+    ),
+  );
+  return confirmed == true;
+}
+
+class AlertBlock extends StatelessWidget {
+  const AlertBlock(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      decoration: BoxDecoration(
+        color: AppColors.alert,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.warning_amber_rounded,
+                color: Colors.white, size: 19),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

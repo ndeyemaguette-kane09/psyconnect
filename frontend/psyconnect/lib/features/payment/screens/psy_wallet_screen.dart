@@ -7,6 +7,7 @@ import '../../../core/widgets/app_ui.dart';
 import '../../psychologist/screens/psy_transaction_history_screen.dart';
 import '../models/payment_models.dart';
 import '../services/payment_service.dart';
+import '../widgets/balance_card.dart';
 
 const String _waveLogoAsset = 'assets/images/wave.png';
 const String _orangeMoneyLogoAsset = 'assets/images/orange_money.png';
@@ -111,61 +112,21 @@ class _PsyWalletScreenState extends State<PsyWalletScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 4, 24, 36),
           children: [
-            const Text(
-              'Disponible à retirer',
-              style: TextStyle(fontSize: 16, color: AppColors.muted),
+            BalanceCard(
+              label: 'Solde',
+              amount: formatAmount(balance),
+              loading: _loading,
             ),
-            const SizedBox(height: 6),
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: 30,
-                    height: 30,
-                    child: CircularProgressIndicator(strokeWidth: 2.4),
-                  ),
-                ),
-              )
-            else
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(text: formatAmount(balance)),
-                    const TextSpan(
-                      text: ' F CFA',
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: AppColors.muted,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                  ],
-                ),
-                style: const TextStyle(
-                  fontSize: 50,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.5,
-                  height: 1,
-                  color: AppColors.text,
-                ),
-              ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             if (wallet != null)
               Text(
-                'Après la commission PsyConnect de '
+                'Commission PsyConnect : '
                 '${wallet.commissionRatePercent.toStringAsFixed(0)} %',
                 style: const TextStyle(fontSize: 14.5, color: AppColors.muted),
               ),
-            const Text(
-              'Mode démonstration : aucun virement réel',
-              style: TextStyle(fontSize: 14, color: AppColors.goldDark),
-            ),
             if (_error != null) ...[
               const SizedBox(height: 16),
               AppCard(
-                color: AppColors.dangerBg,
                 child: Row(
                   children: [
                     Expanded(
@@ -213,8 +174,7 @@ class _PsyWalletScreenState extends State<PsyWalletScreen> {
             if (!_loading && _error == null && balance <= 0) ...[
               const SizedBox(height: 14),
               const Text(
-                'Rien à retirer pour l\'instant. Votre solde se remplit à '
-                'chaque consultation payée par un patient.',
+                'Rien à retirer pour l\'instant.',
                 style: TextStyle(
                   fontSize: 14.5,
                   height: 1.45,
@@ -294,7 +254,7 @@ class _WalletAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     final bg = primary
-        ? (enabled ? AppColors.teal : AppColors.borderStrong)
+        ? (enabled ? AppColors.text : AppColors.borderStrong)
         : AppColors.white;
     final ink = primary ? AppColors.background : AppColors.text;
 
@@ -676,7 +636,6 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 AppCard(
-                  color: AppColors.dangerBg,
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -750,7 +709,7 @@ class _PayoutOption extends StatelessWidget {
     return AppCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
-      color: selected ? AppColors.tealSoft : AppColors.white,
+      color: AppColors.white,
       borderColor: selected ? AppColors.teal : null,
       child: Row(
         children: [

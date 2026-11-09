@@ -58,6 +58,30 @@ void main() {
       expect(q.signalsImmediateRisk, isFalse);
     });
 
+    test('alerte sur l\'EPDS dès « Presque jamais » à l\'item 10', () {
+      final q = questionnaire(
+        QuestionnaireType.EPDS,
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+      );
+
+      expect(q.signalsImmediateRisk, isTrue);
+    });
+
+    test('n\'alerte pas sur l\'EPDS quand l\'item 10 est « Jamais »', () {
+      final q = questionnaire(
+        QuestionnaireType.EPDS,
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 3],
+      );
+
+      expect(q.signalsImmediateRisk, isFalse);
+    });
+
+    test('n\'alerte jamais sur un PSS-10', () {
+      final q = questionnaire(QuestionnaireType.PSS10, List.filled(10, 4));
+
+      expect(q.signalsImmediateRisk, isFalse);
+    });
+
     test('ne plante pas sur une liste de réponses incomplète', () {
       final q = questionnaire(QuestionnaireType.PHQ9, [3, 3]);
 
@@ -86,6 +110,26 @@ void main() {
 
     test('l\'item surveillé est bien celui des idées suicidaires', () {
       expect(kPhq9Questions[kPhq9RiskItemIndex].question, contains('mort'));
+    });
+
+    test('le PSS-10 a 10 questions notées de 0 à 4, maximum 40', () {
+      final q = questionnaire(QuestionnaireType.PSS10, null);
+
+      expect(q.questions, hasLength(10));
+      expect(q.answerLabelsFor(0), hasLength(5));
+      expect(q.maxScore, 40);
+      expect(q.typeName, 'PSS-10');
+    });
+
+    test('l\'EPDS a 10 questions notées de 0 à 3, maximum 30', () {
+      final q = questionnaire(QuestionnaireType.EPDS, null);
+
+      expect(q.questions, hasLength(10));
+      for (var i = 0; i < 10; i++) {
+        expect(q.answerLabelsFor(i), hasLength(4));
+      }
+      expect(q.maxScore, 30);
+      expect(q.typeName, 'EPDS');
     });
   });
 
@@ -129,6 +173,21 @@ void main() {
       expect(q.answers, isNull);
       expect(q.appointmentId, isNull);
       expect(q.completedAt, isNull);
+    });
+
+    test('lit un PSS-10 et un EPDS', () {
+      final base = {
+        'id': 8,
+        'status': 'SENT',
+        'psychologistId': 7,
+        'patientId': 4,
+        'sentAt': '2026-09-20T10:00:00',
+      };
+
+      expect(Questionnaire.fromJson({...base, 'type': 'PSS10'}).type,
+          QuestionnaireType.PSS10);
+      expect(Questionnaire.fromJson({...base, 'type': 'EPDS'}).type,
+          QuestionnaireType.EPDS);
     });
   });
 }

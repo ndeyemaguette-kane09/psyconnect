@@ -25,7 +25,7 @@ FRENCH_STOPWORDS = frozenset(
 )
 
 def normalize_text(text: str) -> str:
-    # minuscule + retire les accents (ex: "Anxiete" -> "anxiete")
+    # minuscule + retire les accents 
 
     if not text:
         return ""
@@ -43,7 +43,7 @@ def tokenize(text: str) -> List[str]:
     return [t for t in tokens if t not in FRENCH_STOPWORDS and len(t) > 1]
 
 def build_tfidf_matrix(documents: Sequence[str]) -> Tuple[np.ndarray, List[str]]:
-    # matrice TF-IDF (documents x vocabulaire).
+    # matrice TF-IDF 
     # TF = freq du mot, normalisée par la taille du texte
     # IDF = formule smooth, comme scikit-learn
 

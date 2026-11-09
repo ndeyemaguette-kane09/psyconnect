@@ -184,16 +184,12 @@ class _EditPsychologistProfileScreenState
             ),
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.dangerBg,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  _error!,
-                  style:
-                      const TextStyle(color: AppColors.danger, fontSize: 14.5),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  color: AppColors.danger,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

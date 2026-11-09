@@ -98,8 +98,7 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
         builder: (_) => AlertDialog(
           title: const Text('Signalement envoyé'),
           content: const Text(
-            'Votre signalement a bien été transmis à l\'administrateur. '
-            'Il sera examiné dans les meilleurs délais.',
+            'Signalement envoyé.',
           ),
           actions: [
             TextButton(
@@ -137,8 +136,7 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Vous signalez ${widget.psychologistName}. L\'équipe PsyConnect '
-              'examinera votre signalement, et vous resterez anonyme.',
+              'Vous signalez ${widget.psychologistName}. Vous restez anonyme.',
               style: const TextStyle(
                 fontSize: 16,
                 height: 1.5,
@@ -248,16 +246,8 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: const BoxDecoration(
-                        color: AppColors.tealLight,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.attach_file,
-                          color: AppColors.teal, size: 19),
-                    ),
+                    const Icon(Icons.attach_file,
+                        color: AppColors.teal, size: 21),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(

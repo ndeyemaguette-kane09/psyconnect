@@ -7,6 +7,7 @@ import '../../../core/widgets/app_ui.dart';
 import '../models/payment_models.dart';
 import '../models/wallet_models.dart';
 import '../services/wallet_service.dart';
+import '../widgets/balance_card.dart';
 import 'wallet_transactions_screen.dart';
 
 const String _waveLogoAsset = 'assets/images/wave.png';
@@ -136,51 +137,10 @@ class _WalletScreenState extends State<WalletScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 4, 24, 32),
           children: [
-            const Text(
-              'Mon solde',
-              style: TextStyle(fontSize: 16, color: AppColors.muted),
-            ),
-            const SizedBox(height: 4),
-            _loading && _wallet == null
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: SizedBox(
-                      height: 30,
-                      width: 30,
-                      child: CircularProgressIndicator(strokeWidth: 2.4),
-                    ),
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          formatAmount(_wallet?.balance ?? 0),
-                          style: const TextStyle(
-                            color: AppColors.text,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 50,
-                            letterSpacing: -1.5,
-                            height: 1.05,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'F CFA',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 22,
-                        ),
-                      ),
-                    ],
-                  ),
-            const SizedBox(height: 8),
-            const Text(
-              'Mode démonstration : aucune somme réelle n\'est débitée.',
-              style: TextStyle(fontSize: 14, color: AppColors.goldDark),
+            BalanceCard(
+              label: 'Solde',
+              amount: formatAmount(_wallet?.balance ?? 0),
+              loading: _loading && _wallet == null,
             ),
             if (_error != null) ...[
               const SizedBox(height: 16),
@@ -189,7 +149,6 @@ class _WalletScreenState extends State<WalletScreen> {
                 title: 'Solde indisponible',
                 message: _error,
                 accent: AppColors.danger,
-                background: AppColors.dangerBg,
               ),
             ],
             const SizedBox(height: 28),
@@ -278,7 +237,7 @@ class _WalletAction extends StatelessWidget {
               width: 58,
               height: 58,
               decoration: BoxDecoration(
-                color: primary ? AppColors.teal : AppColors.white,
+                color: primary ? AppColors.text : AppColors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -339,13 +298,9 @@ class WalletTransactionRow extends StatelessWidget {
       leading = BrandMark(method: method, size: 44);
     } else {
       final refund = transaction.type == WalletTransactionType.credit;
-      leading = Container(
+      leading = SizedBox(
         width: 44,
         height: 44,
-        decoration: BoxDecoration(
-          color: refund ? AppColors.tealLight : AppColors.sand,
-          borderRadius: BorderRadius.circular(44 * 0.28),
-        ),
         child: Icon(
           refund ? Icons.undo_rounded : Icons.event_outlined,
           size: 21,
@@ -672,7 +627,6 @@ class _WalletAmountSheetState extends State<_WalletAmountSheet> {
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 AppCard(
-                  color: AppColors.dangerBg,
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

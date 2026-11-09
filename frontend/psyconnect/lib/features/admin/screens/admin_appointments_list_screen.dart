@@ -152,7 +152,12 @@ class _AdminAppointmentsListScreenState
                           child: ChoiceChip(
                             label: const Text('Tous'),
                             selected: _filter == null,
-                            selectedColor: AppColors.tealLight,
+                            selectedColor: AppColors.teal,
+                            showCheckmark: false,
+                            labelStyle: TextStyle(
+                              color: _filter == null ? Colors.white : AppColors.text,
+                              fontWeight: FontWeight.w700,
+                            ),
                             onSelected: (_) => _setFilter(null),
                           ),
                         ),
@@ -162,7 +167,12 @@ class _AdminAppointmentsListScreenState
                             child: ChoiceChip(
                               label: Text(s.label),
                               selected: _filter == s,
-                              selectedColor: AppColors.tealLight,
+                              selectedColor: AppColors.teal,
+                              showCheckmark: false,
+                              labelStyle: TextStyle(
+                                color: _filter == s ? Colors.white : AppColors.text,
+                                fontWeight: FontWeight.w700,
+                              ),
                               onSelected: (_) => _setFilter(s),
                             ),
                           ),

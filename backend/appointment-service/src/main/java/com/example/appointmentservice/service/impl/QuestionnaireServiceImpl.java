@@ -57,7 +57,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 
         QuestionnaireResponseDto saved = mapToResponse(questionnaireRepository.save(q));
 
-        String typeName = q.getType() == QuestionnaireType.PHQ9 ? "PHQ-9 (dépression)" : "GAD-7 (anxiété)";
+        String typeName = q.getType().getLabel() + " (" + q.getType().getTheme() + ")";
         try {
             notificationClient.send(
                     q.getPatientId(),
@@ -147,25 +147,26 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             );
         }
 
-        int expected = q.getType() == QuestionnaireType.PHQ9 ? 9 : 7;
+        int expected = q.getType().getItemCount();
+        int maxAnswer = q.getType().getMaxAnswer();
         List<Integer> answers = request.getAnswers();
 
         if (answers == null || answers.size() != expected) {
             throw new IllegalArgumentException(
-                    "Le questionnaire " + q.getType().name() + " requiert exactement "
-                    + expected + " réponses (0 à 3 chacune)"
+                    "Le questionnaire " + q.getType().getLabel() + " requiert exactement "
+                    + expected + " réponses (0 à " + maxAnswer + " chacune)"
             );
         }
 
         for (Integer a : answers) {
-            if (a == null || a < 0 || a > 3) {
+            if (a == null || a < 0 || a > maxAnswer) {
                 throw new IllegalArgumentException(
-                        "Chaque réponse doit être comprise entre 0 et 3"
+                        "Chaque réponse doit être comprise entre 0 et " + maxAnswer
                 );
             }
         }
 
-        int score = answers.stream().mapToInt(Integer::intValue).sum();
+        int score = q.getType().score(answers);
         String answersStr = answers.stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
@@ -177,8 +178,8 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 
         QuestionnaireResponseDto result = mapToResponse(questionnaireRepository.save(q));
 
-        String typeName = q.getType() == QuestionnaireType.PHQ9 ? "PHQ-9" : "GAD-7";
-        int maxScore = q.getType() == QuestionnaireType.PHQ9 ? 27 : 21;
+        String typeName = q.getType().getLabel();
+        int maxScore = q.getType().getMaxScore();
         String severity = computeSeverity(q.getType(), score);
         try {
             notificationClient.send(
@@ -229,12 +230,21 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             if (score <= 14) return "Dépression modérée";
             if (score <= 19) return "Dépression modérément sévère";
             return "Dépression sévère";
-        } else {
+        }
+        if (type == QuestionnaireType.GAD7) {
             if (score <= 4)  return "Anxiété minimale";
             if (score <= 9)  return "Anxiété légère";
             if (score <= 14) return "Anxiété modérée";
             return "Anxiété sévère";
         }
+        if (type == QuestionnaireType.PSS10) {
+            if (score <= 13) return "Stress perçu faible";
+            if (score <= 26) return "Stress perçu modéré";
+            return "Stress perçu élevé";
+        }
+        if (score <= 9)  return "Risque de dépression post-natale faible";
+        if (score <= 11) return "Risque de dépression post-natale à surveiller";
+        return "Risque de dépression post-natale élevé";
     }
 
     private QuestionnaireResponseDto mapToResponse(Questionnaire q) {

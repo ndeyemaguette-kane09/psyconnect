@@ -7,6 +7,8 @@ import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
 import '../../call/screens/call_screen.dart';
+import '../../call/screens/finish_session_dialog.dart';
+import '../../call/services/session_service.dart';
 import '../../patient/models/appointment_models.dart';
 import '../../patient/services/appointment_service.dart';
 import '../../payment/models/payment_models.dart';
@@ -201,6 +203,7 @@ class _AgendaTabState extends State<AgendaTab> {
       builder: (_) => _AppointmentDetailSheet(
         appointment: a,
         patient: _patientsById[a.patientId],
+        onFinished: _load,
       ),
     );
   }
@@ -549,7 +552,7 @@ class _DateTile extends StatelessWidget {
       width: 46,
       height: 54,
       decoration: BoxDecoration(
-        color: pending ? AppColors.goldLight : AppColors.tealLight,
+        color: AppColors.background,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(23),
           bottom: Radius.circular(7),
@@ -1072,10 +1075,15 @@ class _DayCell extends StatelessWidget {
 }
 
 class _AppointmentDetailSheet extends StatefulWidget {
-  const _AppointmentDetailSheet({required this.appointment, this.patient});
+  const _AppointmentDetailSheet({
+    required this.appointment,
+    this.patient,
+    this.onFinished,
+  });
 
   final Appointment appointment;
   final PatientProfile? patient;
+  final VoidCallback? onFinished;
 
   @override
   State<_AppointmentDetailSheet> createState() =>
@@ -1084,8 +1092,36 @@ class _AppointmentDetailSheet extends StatefulWidget {
 
 class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
   final _paymentService = PaymentService();
+  final _sessionService = SessionService();
   bool _loadingPayment = true;
   Payment? _payment;
+  bool _finishing = false;
+  late AppointmentStatus _status = widget.appointment.status;
+
+  bool get _canFinish =>
+      _status == AppointmentStatus.confirmed &&
+      _payment != null &&
+      widget.appointment.startTime.isBefore(DateTime.now());
+
+  Future<void> _finish() async {
+    if (!await confirmFinishSession(context) || !mounted) return;
+    setState(() => _finishing = true);
+    try {
+      await _sessionService.finishAppointment(widget.appointment.id);
+      if (!mounted) return;
+      setState(() {
+        _status = AppointmentStatus.completed;
+        _finishing = false;
+      });
+      widget.onFinished?.call();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _finishing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible de terminer la séance.')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -1208,7 +1244,7 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
                             TextStyle(fontSize: 16, color: AppColors.muted),
                       ),
                     ),
-                    _StatusLabel(status: appointment.status),
+                    _StatusLabel(status: _status),
                   ],
                 ),
               ),
@@ -1225,7 +1261,18 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
                   label: 'Moyen de paiement',
                   value: _payment!.method!.label,
                 ),
-              if (appointment.status == AppointmentStatus.completed) ...[
+              if (_canFinish) ...[
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: _finishing ? null : _finish,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                  child: Text(
+                      _finishing ? 'Clôture…' : 'Terminer la séance'),
+                ),
+              ],
+              if (_status == AppointmentStatus.completed) ...[
                 const SizedBox(height: 18),
                 Material(
                   color: AppColors.white,

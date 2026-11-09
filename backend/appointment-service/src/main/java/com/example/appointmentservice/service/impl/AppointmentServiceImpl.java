@@ -315,6 +315,28 @@ public class AppointmentServiceImpl
                     "Seul le psychologue peut confirmer ou refuser ce rendez-vous"
             );
         }
+        if (newStatus == AppointmentStatus.COMPLETED && !SecurityUtils.hasRole("SERVICE")) {
+            if (!callerIsPsychologist) {
+                throw new ForbiddenOperationException(
+                        "Seul le psychologue peut terminer la séance"
+                );
+            }
+            if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
+                throw new ForbiddenOperationException(
+                        "Seule une séance confirmée peut être terminée"
+                );
+            }
+            if (appointment.getStartTime().isAfter(LocalDateTime.now())) {
+                throw new ForbiddenOperationException(
+                        "La séance n'a pas encore commencé"
+                );
+            }
+            if (!paymentClient.hasCompletedPayment(appointment.getId())) {
+                throw new ForbiddenOperationException(
+                        "Cette séance n'a pas été payée"
+                );
+            }
+        }
         if (newStatus == AppointmentStatus.CANCELLED && callerIsPsychologist) {
             throw new ForbiddenOperationException(
                     "Seul le patient peut annuler ce rendez-vous"

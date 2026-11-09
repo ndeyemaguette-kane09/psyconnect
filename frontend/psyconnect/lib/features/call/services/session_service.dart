@@ -23,6 +23,17 @@ class SessionService {
     return CallSession.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<void> finishAppointment(int appointmentId) async {
+    final sessions = await getSessionsByAppointment(appointmentId);
+    final open =
+        sessions.where((s) => s.status == SessionStatus.inProgress).toList();
+    if (open.isNotEmpty) {
+      await endSession(open.first.id);
+      return;
+    }
+    await _api.put(ApiConstants.appointmentStatus(appointmentId, 'COMPLETED'));
+  }
+
   Future<List<CallSession>> getSessionsByAppointment(int appointmentId) async {
     final json = await _api.get(ApiConstants.sessionByAppointment(appointmentId));
     return (json as List)

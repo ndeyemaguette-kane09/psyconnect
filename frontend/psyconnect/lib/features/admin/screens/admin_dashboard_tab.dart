@@ -164,7 +164,6 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                       if (_pendingReports.isNotEmpty)
                         _InboxRow(
                           icon: Icons.flag_outlined,
-                          tint: AppColors.goldLight,
                           ink: AppColors.goldDark,
                           title: 'Signalements',
                           subtitle:
@@ -175,7 +174,6 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                       if (_pendingMessages.isNotEmpty)
                         _InboxRow(
                           icon: Icons.chat_bubble_outline,
-                          tint: AppColors.sand,
                           ink: AppColors.text,
                           title: 'Messages des utilisateurs',
                           subtitle: '${_pendingMessages.length} en attente · '
@@ -339,7 +337,6 @@ class _ValidationsPanel extends StatelessWidget {
 class _InboxRow extends StatelessWidget {
   const _InboxRow({
     required this.icon,
-    required this.tint,
     required this.ink,
     required this.title,
     required this.subtitle,
@@ -348,7 +345,6 @@ class _InboxRow extends StatelessWidget {
   });
 
   final IconData icon;
-  final Color tint;
   final Color ink;
   final String title;
   final String subtitle;
@@ -363,12 +359,7 @@ class _InboxRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 13),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-              child: Icon(icon, size: 19, color: ink),
-            ),
+            Icon(icon, size: 21, color: ink),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

@@ -35,6 +35,7 @@ const _messagesTabIndex = 3;
 class _PatientShellState extends State<PatientShell>
     with WidgetsBindingObserver {
   int _index = 0;
+  bool _fabDown = false;
   final _messagingService = MessagingService();
   final _questionnaireService = QuestionnaireService();
   final _notificationService = NotificationService();
@@ -250,19 +251,29 @@ class _PatientShellState extends State<PatientShell>
       body: IndexedStack(index: _index, children: tabs),
 
       // FAB central : Chercher un psychologue
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _selectTab(_fabTabIndex),
-        backgroundColor:
-            _index == _fabTabIndex ? AppColors.tealDark : AppColors.teal,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(28),
-            bottom: Radius.circular(12),
+      floatingActionButton: Listener(
+        onPointerDown: (_) => setState(() => _fabDown = true),
+        onPointerUp: (_) => setState(() => _fabDown = false),
+        onPointerCancel: (_) => setState(() => _fabDown = false),
+        child: AnimatedScale(
+          scale: _fabDown ? 0.92 : 1,
+          duration: const Duration(milliseconds: 120),
+          child: SizedBox(
+            width: 66,
+            height: 66,
+            child: FloatingActionButton(
+              onPressed: () => _selectTab(_fabTabIndex),
+              backgroundColor:
+                  _index == _fabTabIndex ? AppColors.tealDark : AppColors.teal,
+              elevation: 0,
+              shape: const CircleBorder(
+                side: BorderSide(color: AppColors.background, width: 5),
+              ),
+              tooltip: 'Trouver un psy',
+              child: const Icon(Icons.search, color: Colors.white, size: 32),
+            ),
           ),
         ),
-        tooltip: 'Trouver un psy',
-        child: const Icon(Icons.search, color: Colors.white, size: 26),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
@@ -355,14 +366,19 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Badge(
-              isLabelVisible: badge > 0,
-              label: Text('$badge', style: const TextStyle(fontSize: 10)),
-              backgroundColor: AppColors.teal,
-              child: Icon(
-                selected ? selectedIcon : icon,
-                color: color,
-                size: 24,
+            AnimatedScale(
+              scale: selected ? 1.1 : 1,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: Badge(
+                isLabelVisible: badge > 0,
+                label: Text('$badge', style: const TextStyle(fontSize: 10)),
+                backgroundColor: AppColors.teal,
+                child: Icon(
+                  selected ? selectedIcon : icon,
+                  color: color,
+                  size: 24,
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -476,16 +492,7 @@ class _NotifPopupState extends State<_NotifPopup>
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(_icon, color: Colors.white, size: 19),
-                      ),
+                      Icon(_icon, color: Colors.white, size: 21),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(

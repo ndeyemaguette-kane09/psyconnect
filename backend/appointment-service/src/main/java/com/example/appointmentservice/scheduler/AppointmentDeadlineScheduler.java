@@ -28,6 +28,7 @@ public class AppointmentDeadlineScheduler {
 
     private static final long CONFIRMATION_DEADLINE_HOURS = 1;
     private static final long PAYMENT_REMINDER_HOURS = 1;
+    private static final long COMPLETION_GRACE_MINUTES = 30;
 
     private final AppointmentRepository appointmentRepository;
     private final NotificationClient notificationClient;
@@ -67,6 +68,44 @@ public class AppointmentDeadlineScheduler {
                         appointment.getId(), e);
             }
         }
+
+        for (Appointment appointment : appointmentRepository.findByStatusAndStartTimeBefore(
+                AppointmentStatus.CONFIRMED, now)) {
+            try {
+                completeIfOver(appointment, now);
+            } catch (Exception e) {
+                LOGGER.warn("Clôture automatique impossible pour le rendez-vous {}",
+                        appointment.getId(), e);
+            }
+        }
+    }
+
+    private void completeIfOver(Appointment appointment, LocalDateTime now) {
+
+        if (appointment.getEndTime() == null
+                || now.isBefore(appointment.getEndTime().plusMinutes(COMPLETION_GRACE_MINUTES))) {
+            return;
+        }
+
+        if (!paymentClient.hasCompletedPayment(appointment.getId())) {
+            return;
+        }
+
+        appointment.setStatus(AppointmentStatus.COMPLETED);
+        appointmentRepository.save(appointment);
+
+        LOGGER.info("Rendez-vous {} clôturé automatiquement (créneau terminé)",
+                appointment.getId());
+
+        notificationClient.sendAboutAppointment(
+                appointment.getPatientId(),
+                "Séance terminée",
+                "Votre séance du " + appointment.getStartTime().format(DATE_TIME)
+                        + " est terminée. Vous pouvez laisser un avis sur votre psychologue.",
+                "APPOINTMENT",
+                "PATIENT",
+                appointment.getId()
+        );
     }
 
     private void cancelUnanswered(Appointment appointment, LocalDateTime now) {
