@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../call/models/session_models.dart';
+import '../../call/screens/emergency_call_screen.dart';
 import '../../call/services/session_service.dart';
 import '../models/psychologist_models.dart';
 import '../services/psychologist_service.dart';
@@ -73,7 +72,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => _EmergencyJitsiLauncher(
+          builder: (_) => EmergencyCallScreen(
             session: session,
             peerName: psy.fullName,
           ),
@@ -295,184 +294,6 @@ class _PsychologistSosRow extends StatelessWidget {
 
 // lance directement Jitsi pour une session d'urgence déjà créée côté backend.
 // pas besoin de passer par la logique startSession (session déjà IN_PROGRESS).
-class _EmergencyJitsiLauncher extends StatefulWidget {
-  const _EmergencyJitsiLauncher({
-    required this.session,
-    required this.peerName,
-  });
-
-  final CallSession session;
-  final String peerName;
-
-  @override
-  State<_EmergencyJitsiLauncher> createState() =>
-      _EmergencyJitsiLauncherState();
-}
-
-class _EmergencyJitsiLauncherState extends State<_EmergencyJitsiLauncher> {
-  final _jitsi = JitsiMeet();
-  final _sessionService = SessionService();
-  bool _joining = true;
-  bool _ended = false;
-  int? _durationSeconds;
-
-  @override
-  void initState() {
-    super.initState();
-    _launchJitsi();
-  }
-
-  Future<void> _launchJitsi() async {
-    final userName =
-        context.read<AuthProvider>().session?.pseudo ?? 'Patient';
-
-    final options = JitsiMeetConferenceOptions(
-      serverURL: 'https://meet.ffmuc.net',
-      room: widget.session.meetingToken,
-      configOverrides: {
-        'startWithAudioMuted': false,
-        'startWithVideoMuted': false,
-        'subject': 'PsyConnect SOS',
-        'enableWelcomePage': false,
-        'disableInviteFunctions': true,
-        'disableReactions': true,
-        'prejoinPageEnabled': false,
-        'lobby.enabled': false,
-        'enableLobbyChat': false,
-        'disableLobbyPassword': true,
-      },
-      featureFlags: {
-        'add-people.enabled': false,
-        'calendar.enabled': false,
-        'call-integration.enabled': false,
-        'invite.enabled': false,
-        'live-streaming.enabled': false,
-        'meeting-name.enabled': false,
-        'meeting-password.enabled': false,
-        'pip.enabled': true,
-        'raise-hand.enabled': false,
-        'recording.enabled': false,
-        'tile-view.enabled': true,
-        'toolbox.alwaysVisible': false,
-        'chat.enabled': false,
-        'lobby-enabled': false,
-      },
-      userInfo: JitsiMeetUserInfo(displayName: userName, email: ''),
-    );
-
-    final listener = JitsiMeetEventListener(
-      conferenceTerminated: (url, error) async {
-        await _onEnded();
-      },
-      conferenceWillJoin: (url) {
-        if (mounted) setState(() => _joining = false);
-      },
-      participantLeft: (id) {},
-    );
-
-    await _jitsi.join(options, listener);
-  }
-
-  Future<void> _onEnded() async {
-    if (!mounted || _ended) return;
-    final start = widget.session.startedAt;
-    final end = DateTime.now();
-    final dur = start != null ? end.difference(start).inSeconds : 0;
-
-    try {
-      await _sessionService.endSession(widget.session.id);
-    } catch (_) {
-      // l'autre participant a peut-être déjà appelé endSession
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _ended = true;
-      _durationSeconds = dur;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_ended) {
-      final d = Duration(seconds: _durationSeconds ?? 0);
-      final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-      final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-
-      return Scaffold(
-        backgroundColor: AppColors.tealDark,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.favorite, color: Colors.white70, size: 48),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Session terminée',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  if ((_durationSeconds ?? 0) > 0) ...[
-                    const SizedBox(height: 8),
-                    Text('Durée : $m:$s',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 14)),
-                  ],
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Prenez soin de vous. Vous n\'êtes pas seul(e).',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white54, fontSize: 13),
-                  ),
-                  const SizedBox(height: 28),
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context)
-                      ..pop()
-                      ..pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 14),
-                    ),
-                    child: const Text('Retour à l\'accueil'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: AppColors.tealDark,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: Colors.white),
-              const SizedBox(height: 16),
-              Text(
-                _joining
-                    ? 'Connexion à ${widget.peerName}…'
-                    : 'Appel en cours…',
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _EmergencyNumber extends StatelessWidget {
   const _EmergencyNumber({required this.number, required this.label});
 

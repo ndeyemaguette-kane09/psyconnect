@@ -23,6 +23,24 @@ class SessionService {
     return CallSession.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<CallSession> joinEmergencySession(int sessionId) async {
+    final json = await _api.put(ApiConstants.sessionJoin(sessionId));
+    return CallSession.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<CallSession> getSession(int sessionId) async {
+    final json = await _api.get(ApiConstants.sessionById(sessionId));
+    return CallSession.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<void> declineEmergencySession(int sessionId) async {
+    await _api.put(ApiConstants.sessionDecline(sessionId));
+  }
+
+  Future<void> cancelEmergencySession(int sessionId) async {
+    await _api.put(ApiConstants.sessionCancel(sessionId));
+  }
+
   Future<void> finishAppointment(int appointmentId) async {
     final sessions = await getSessionsByAppointment(appointmentId);
     final open =
@@ -51,5 +69,12 @@ class SessionService {
       body: {'patientId': patientId, 'psychologistId': psychologistId},
     );
     return CallSession.fromJson(json as Map<String, dynamic>);
+  }
+
+  Future<List<CallSession>> getIncomingEmergencySessions() async {
+    final json = await _api.get(ApiConstants.sessionsEmergencyIncoming);
+    return (json as List)
+        .map((e) => CallSession.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

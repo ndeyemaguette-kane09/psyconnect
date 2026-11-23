@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/support_message_models.dart';
@@ -315,7 +316,7 @@ class _SupportMessageDetailSheetState
         const SnackBar(content: Text('Réponse envoyée à l\'expéditeur.')),
       );
     } catch (e) {
-      setState(() => _actionError = 'Envoi impossible : $e');
+      setState(() => _actionError = 'Envoi impossible : ${userMessage(e)}');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -338,7 +339,7 @@ class _SupportMessageDetailSheetState
         const SnackBar(content: Text('Message rouvert.')),
       );
     } catch (e) {
-      setState(() => _actionError = 'Action impossible : $e');
+      setState(() => _actionError = 'Action impossible : ${userMessage(e)}');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

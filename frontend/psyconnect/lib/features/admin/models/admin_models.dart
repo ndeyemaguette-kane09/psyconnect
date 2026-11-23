@@ -259,3 +259,44 @@ class Payment {
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 }
+
+class EmergencyCallRecord {
+  final int id;
+  final int? psychologistId;
+  final String status;
+  final DateTime? requestedAt;
+  final DateTime? answeredAt;
+  final DateTime? endedAt;
+  final int? durationSeconds;
+  final bool declined;
+
+  EmergencyCallRecord({
+    required this.id,
+    required this.psychologistId,
+    required this.status,
+    this.requestedAt,
+    this.answeredAt,
+    this.endedAt,
+    this.durationSeconds,
+    this.declined = false,
+  });
+
+  bool get answered => answeredAt != null;
+  bool get cancelled => status == 'CANCELLED';
+  bool get inProgress => status == 'IN_PROGRESS';
+
+  factory EmergencyCallRecord.fromJson(Map<String, dynamic> json) {
+    DateTime? date(String key) =>
+        json[key] != null ? DateTime.parse(json[key] as String) : null;
+    return EmergencyCallRecord(
+      id: (json['id'] as num).toInt(),
+      psychologistId: (json['psychologistId'] as num?)?.toInt(),
+      status: json['status'] as String? ?? '',
+      requestedAt: date('requestedAt'),
+      answeredAt: date('answeredAt'),
+      endedAt: date('endedAt'),
+      durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+      declined: json['declinedByPsychologist'] as bool? ?? false,
+    );
+  }
+}

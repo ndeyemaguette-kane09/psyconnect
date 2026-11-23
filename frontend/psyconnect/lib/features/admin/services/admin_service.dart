@@ -113,6 +113,13 @@ class AdminService {
         .toList();
   }
 
+  Future<List<EmergencyCallRecord>> listEmergencyCalls() async {
+    final json = await _api.get(ApiConstants.adminEmergencySessions);
+    return (json as List)
+        .map((e) => EmergencyCallRecord.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // stats RDV (appointment-service) et paiement (payment-service),
   // chargées en parallèle puis fusionnées
   Future<AdminAppointmentStats> getAppointmentStats() async {

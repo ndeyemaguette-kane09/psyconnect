@@ -7,6 +7,9 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
+import '../../call/models/session_models.dart';
+import '../../call/screens/emergency_call_screen.dart';
+import '../../call/services/session_service.dart';
 import '../../messaging/models/messaging_models.dart';
 import '../../messaging/screens/chat_screen.dart';
 import '../../messaging/services/messaging_service.dart';
@@ -42,7 +45,10 @@ class _PsychologistShellState extends State<PsychologistShell>
   int _unreadCount = 0;
   Timer? _unreadTimer;
 
-  // Pop-up notifications : suivi des IDs déjà vus dans cette session
+  final _sessionService = SessionService();
+  final _answeredEmergencyIds = <int>{};
+  bool _emergencyDialogOpen = false;
+
   final _seenNotifIds = <int>{};
   bool _notifInitialLoadDone = false;
   OverlayEntry? _notifPopupEntry;
@@ -59,10 +65,13 @@ class _PsychologistShellState extends State<PsychologistShell>
       (_) {
         _refreshUnreadCount();
         _pollNotifications();
+        _pollEmergencyCalls();
       },
     );
-    // Premier chargement : initialise la liste des IDs vus (sans pop-up)
-    WidgetsBinding.instance.addPostFrameCallback((_) => _pollNotifications());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pollNotifications();
+      _pollEmergencyCalls();
+    });
   }
 
   @override
@@ -78,7 +87,70 @@ class _PsychologistShellState extends State<PsychologistShell>
     if (state == AppLifecycleState.resumed) {
       _refreshUnreadCount();
       _pollNotifications();
+      _pollEmergencyCalls();
     }
+  }
+
+  Future<void> _pollEmergencyCalls() async {
+    if (_emergencyDialogOpen) return;
+    List<CallSession> calls;
+    try {
+      calls = await _sessionService.getIncomingEmergencySessions();
+    } catch (_) {
+      return;
+    }
+    final call = calls
+        .where((c) => !_answeredEmergencyIds.contains(c.id))
+        .cast<CallSession?>()
+        .firstWhere((_) => true, orElse: () => null);
+    if (call == null || !mounted) return;
+
+    _answeredEmergencyIds.add(call.id);
+    _emergencyDialogOpen = true;
+    HapticFeedback.heavyImpact();
+    final join = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.phone_in_talk, color: AppColors.emergency),
+        title: const Text("Appel d'urgence"),
+        content: const Text(
+          'Un patient a besoin de vous maintenant. '
+          "Il vous attend dans l'appel.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Indisponible'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.emergency,
+            ),
+            child: const Text('Rejoindre'),
+          ),
+        ],
+      ),
+    );
+    _emergencyDialogOpen = false;
+    if (join != true) {
+      try {
+        await _sessionService.declineEmergencySession(call.id);
+      } catch (_) {}
+      return;
+    }
+    if (!mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EmergencyCallScreen(
+          session: call,
+          peerName: 'Un patient',
+          forPsychologist: true,
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshUnreadCount() async {

@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
+import '../../../core/files/document_opener.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/psychologist_models.dart';
@@ -490,19 +487,11 @@ class _PsychologistDetailPageState extends State<_PsychologistDetailPage> {
       _documentError = null;
     });
     try {
-      final file = await widget.adminService
-          .downloadLicenseDocument(widget.psychologist.id);
-      final extension = file.contentType.contains('pdf')
-          ? 'pdf'
-          : file.contentType.contains('png')
-              ? 'png'
-              : 'jpg';
-      final dir = await getTemporaryDirectory();
-      final localFile = File(
-        '${dir.path}/justificatif_${widget.psychologist.id}.$extension',
+      await openDocument(
+        () => widget.adminService
+            .downloadLicenseDocument(widget.psychologist.id),
+        'justificatif_${widget.psychologist.id}',
       );
-      await localFile.writeAsBytes(file.bytes, flush: true);
-      await OpenFilex.open(localFile.path);
     } catch (_) {
       setState(() => _documentError = "Impossible d'ouvrir le justificatif.");
     } finally {

@@ -70,6 +70,10 @@ class _AdminShellState extends State<AdminShell> {
       const AdminConfigTab(),
     ];
 
+    if (MediaQuery.sizeOf(context).width >= 900) {
+      return _buildWide(tabs);
+    }
+
     return Scaffold(
       body: IndexedStack(index: _index, children: tabs),
 
@@ -157,6 +161,89 @@ class _AdminShellState extends State<AdminShell> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildWide(List<Widget> tabs) {
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldOuter,
+      body: Row(
+        children: [
+          NavigationRail(
+            selectedIndex: _index,
+            onDestinationSelected: _selectTab,
+            backgroundColor: AppColors.white,
+            labelType: NavigationRailLabelType.all,
+            minWidth: 104,
+            indicatorColor: AppColors.tealLight,
+            selectedIconTheme: const IconThemeData(color: AppColors.teal),
+            unselectedIconTheme: const IconThemeData(color: AppColors.muted),
+            selectedLabelTextStyle: const TextStyle(
+                color: AppColors.teal, fontWeight: FontWeight.w600),
+            unselectedLabelTextStyle: const TextStyle(color: AppColors.muted),
+            leading: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                'PsyConnect',
+                style: TextStyle(
+                  color: AppColors.teal,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            destinations: [
+              const NavigationRailDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: Text('Accueil'),
+              ),
+              const NavigationRailDestination(
+                icon: Icon(Icons.people_outline),
+                selectedIcon: Icon(Icons.people),
+                label: Text('Utilisateurs'),
+              ),
+              NavigationRailDestination(
+                icon: Badge(
+                  isLabelVisible: _pendingValidations > 0,
+                  label: Text('$_pendingValidations'),
+                  backgroundColor: AppColors.gold,
+                  textColor: AppColors.text,
+                  child: const Icon(Icons.fact_check_outlined),
+                ),
+                selectedIcon: const Icon(Icons.fact_check),
+                label: const Text('Validations'),
+              ),
+              const NavigationRailDestination(
+                icon: Icon(Icons.bar_chart_outlined),
+                selectedIcon: Icon(Icons.bar_chart),
+                label: Text('Stats'),
+              ),
+              NavigationRailDestination(
+                icon: Badge(
+                  isLabelVisible: _pendingReports > 0,
+                  label: Text('$_pendingReports'),
+                  backgroundColor: AppColors.gold,
+                  textColor: AppColors.text,
+                  child: const Icon(Icons.settings_outlined),
+                ),
+                selectedIcon: const Icon(Icons.settings),
+                label: const Text('Réglages'),
+              ),
+            ],
+          ),
+          const VerticalDivider(width: 1, color: AppColors.border),
+          Expanded(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: IndexedStack(index: _index, children: tabs),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

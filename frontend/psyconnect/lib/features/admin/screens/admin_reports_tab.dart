@@ -1,9 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 
+import '../../../core/network/api_exception.dart';
+import '../../../core/files/document_opener.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../patient/models/psychologist_models.dart';
@@ -401,7 +399,7 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
         ),
       );
     } catch (e) {
-      setState(() => _actionError = 'Action impossible : $e');
+      setState(() => _actionError = 'Action impossible : ${userMessage(e)}');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -413,18 +411,10 @@ class _ReportDetailSheetState extends State<_ReportDetailSheet> {
       _evidenceError = null;
     });
     try {
-      final file =
-          await widget.adminService.downloadReportEvidence(_report.id);
-      final ext = file.contentType.contains('pdf')
-          ? 'pdf'
-          : file.contentType.contains('png')
-              ? 'png'
-              : 'jpg';
-      final dir = await getTemporaryDirectory();
-      final localFile =
-          File('${dir.path}/preuve_signalement_${_report.id}.$ext');
-      await localFile.writeAsBytes(file.bytes, flush: true);
-      await OpenFilex.open(localFile.path);
+      await openDocument(
+        () => widget.adminService.downloadReportEvidence(_report.id),
+        'preuve_signalement_${_report.id}',
+      );
     } catch (_) {
       setState(() => _evidenceError = "Impossible d'ouvrir la preuve.");
     } finally {

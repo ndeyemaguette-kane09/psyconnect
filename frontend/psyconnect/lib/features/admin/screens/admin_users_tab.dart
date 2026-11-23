@@ -165,10 +165,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             obscureText: true,
             decoration: const InputDecoration(
               labelText: 'Nouveau mot de passe',
-              helperText: '6 caractères minimum',
+              helperText: '8 caractères minimum',
             ),
             validator: (value) =>
-                (value == null || value.length < 6) ? 'Trop court (min. 6)' : null,
+                (value == null || value.length < 8) ? 'Trop court (min. 8)' : null,
           ),
         ),
         actions: [

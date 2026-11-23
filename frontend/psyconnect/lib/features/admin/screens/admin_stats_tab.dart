@@ -6,6 +6,7 @@ import '../../patient/models/appointment_models.dart';
 import '../models/admin_models.dart';
 import '../services/admin_service.dart';
 import 'admin_appointments_list_screen.dart';
+import 'admin_emergency_calls_screen.dart';
 import 'admin_payments_list_screen.dart';
 
 // onglet "Stats", vue globale RDV + paiements, via
@@ -225,6 +226,16 @@ class _AdminStatsTabState extends State<AdminStatsTab> {
                 value: '${stats.rejectedAppointments}',
                 onTap: () =>
                     _openAppointments(context, AppointmentStatus.rejected),
+              ),
+              const SizedBox(height: 28),
+              InkWell(
+                onTap: () => _push(const AdminEmergencyCallsScreen()),
+                child: const _Heading('Appels d\'urgence', trailing: true),
+              ),
+              const Text(
+                'Écoute gratuite assurée par chaque psychologue, '
+                'sans l\'identité des patients.',
+                style: TextStyle(fontSize: 15, color: AppColors.muted),
               ),
             ],
           ],

@@ -27,6 +27,7 @@ class CallSession {
   final DateTime? endedAt;
   final int? durationSeconds;
   final bool emergencyMode;
+  final bool declinedByPsychologist;
 
   CallSession({
     required this.id,
@@ -37,6 +38,7 @@ class CallSession {
     this.endedAt,
     this.durationSeconds,
     this.emergencyMode = false,
+    this.declinedByPsychologist = false,
   });
 
   factory CallSession.fromJson(Map<String, dynamic> json) => CallSession(
@@ -52,5 +54,7 @@ class CallSession {
             : null,
         durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
         emergencyMode: json['emergencyMode'] as bool? ?? false,
+        declinedByPsychologist:
+            json['declinedByPsychologist'] as bool? ?? false,
       );
 }

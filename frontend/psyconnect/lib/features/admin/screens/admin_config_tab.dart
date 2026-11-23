@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../../auth/models/user_role.dart';
@@ -158,9 +159,9 @@ class _AdminConfigTabState extends State<AdminConfigTab> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    final navigator = Navigator.of(context);
     await context.read<AuthProvider>().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
+    navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const SplashScreen()),
       (route) => false,
     );
@@ -402,7 +403,7 @@ class _BroadcastPageState extends State<_BroadcastPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _sendError = 'Envoi échoué : $e');
+      setState(() => _sendError = 'Envoi échoué : ${userMessage(e)}');
     } finally {
       if (mounted) setState(() => _sending = false);
     }
