@@ -37,6 +37,11 @@ public class Session {
 
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
+
+    private LocalDateTime psychologistJoinedAt;
+
+    @Column(columnDefinition = "boolean default false")
+    private Boolean declinedByPsychologist = false;
     private LocalDateTime createdAt;
 
     @PrePersist

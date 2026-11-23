@@ -1,5 +1,6 @@
 package com.example.sessionservice.service;
 
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -74,6 +75,29 @@ public class OwnershipResolver {
             throw new ForbiddenOperationException("Accès refusé lors de la résolution du profil " + label);
         } catch (RestClientException ex) {
             throw new ServiceUnavailableException("user-service indisponible (" + label + ")", ex);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public boolean isOnEmergencyDuty(Long psychologistId) {
+        HttpHeaders headers = new HttpHeaders();
+        String auth = SecurityUtils.currentAuthorizationHeader();
+        if (auth != null) headers.set("Authorization", auth);
+
+        try {
+            List<Map<String, Object>> onDuty = restTemplate.exchange(
+                    userServiceUrl + "/psychologists/emergency",
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    List.class
+            ).getBody();
+
+            if (onDuty == null) return false;
+            return onDuty.stream()
+                    .anyMatch(p -> p.get("id") != null
+                            && psychologistId.equals(Long.valueOf(p.get("id").toString())));
+        } catch (RestClientException ex) {
+            throw new ServiceUnavailableException("user-service indisponible (psychologues de garde)", ex);
         }
     }
 

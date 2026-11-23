@@ -21,4 +21,6 @@ public class SessionResponse {
     private Boolean emergencyMode;
     private Long emergencyPatientId;
     private Long emergencyPsychologistId;
+    private LocalDateTime psychologistJoinedAt;
+    private Boolean declinedByPsychologist;
 }

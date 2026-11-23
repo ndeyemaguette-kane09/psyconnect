@@ -2,6 +2,7 @@ package com.example.sessionservice.service;
 
 import java.util.List;
 
+import com.example.sessionservice.dto.AdminEmergencySessionResponse;
 import com.example.sessionservice.dto.SessionResponse;
 import com.example.sessionservice.dto.StartEmergencySessionRequest;
 import com.example.sessionservice.dto.StartSessionRequest;
@@ -13,4 +14,9 @@ public interface SessionService {
     SessionResponse endSession(Long id);
     SessionResponse getSessionById(Long id);
     List<SessionResponse> getSessionsByAppointmentId(Long appointmentId);
+    List<SessionResponse> getIncomingEmergencySessions();
+    SessionResponse joinEmergencySession(Long id);
+    SessionResponse cancelEmergencySession(Long id);
+    SessionResponse declineEmergencySession(Long id);
+    List<AdminEmergencySessionResponse> listEmergencySessionsForAdmin();
 }

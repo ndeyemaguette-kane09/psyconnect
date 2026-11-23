@@ -43,6 +43,26 @@ public class SessionController {
         return ResponseEntity.ok(sessionService.startEmergencySession(request));
     }
 
+    @GetMapping("/emergency/incoming")
+    public ResponseEntity<List<SessionResponse>> getIncomingEmergencySessions() {
+        return ResponseEntity.ok(sessionService.getIncomingEmergencySessions());
+    }
+
+    @PutMapping("/{id}/join")
+    public ResponseEntity<SessionResponse> joinEmergencySession(@PathVariable Long id) {
+        return ResponseEntity.ok(sessionService.joinEmergencySession(id));
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<SessionResponse> cancelEmergencySession(@PathVariable Long id) {
+        return ResponseEntity.ok(sessionService.cancelEmergencySession(id));
+    }
+
+    @PutMapping("/{id}/decline")
+    public ResponseEntity<SessionResponse> declineEmergencySession(@PathVariable Long id) {
+        return ResponseEntity.ok(sessionService.declineEmergencySession(id));
+    }
+
     @PutMapping("/{id}/end")
     public ResponseEntity<SessionResponse> endSession(@PathVariable Long id) {
         return ResponseEntity.ok(sessionService.endSession(id));

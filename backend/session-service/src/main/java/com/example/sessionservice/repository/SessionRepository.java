@@ -1,5 +1,6 @@
 package com.example.sessionservice.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,4 +17,9 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     boolean existsByAppointmentIdAndStatus(Long appointmentId, SessionStatus status);
 List<Session> findByStatusAndAppointmentIdIsNotNull(SessionStatus status);
+
+    List<Session> findByEmergencyModeTrueOrderByStartedAtDesc();
+
+    List<Session> findByEmergencyModeTrueAndEmergencyPsychologistIdAndStatusAndStartedAtAfter(
+            Long psychologistId, SessionStatus status, LocalDateTime after);
 }
