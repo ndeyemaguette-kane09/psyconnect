@@ -189,5 +189,20 @@ void main() {
       expect(Questionnaire.fromJson({...base, 'type': 'EPDS'}).type,
           QuestionnaireType.EPDS);
     });
+
+    test('un type inconnu reste marqué comme inconnu', () {
+      final q = Questionnaire.fromJson({
+        'id': 9,
+        'type': 'BECK',
+        'status': 'SENT',
+        'psychologistId': 7,
+        'patientId': 4,
+        'sentAt': '2026-09-20T10:00:00',
+      });
+      expect(q.type, QuestionnaireType.UNKNOWN);
+      expect(q.typeName, 'Type inconnu');
+      expect(q.questions, isEmpty);
+      expect(q.signalsImmediateRisk, isFalse);
+    });
   });
 }

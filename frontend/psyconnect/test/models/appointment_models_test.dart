@@ -126,4 +126,35 @@ void main() {
       expect(appointment.createdAt, appointment.startTime);
     });
   });
+
+  group('Appointment.fromJson', () {
+    Map<String, dynamic> base() => {
+          'id': 12,
+          'patientId': 4,
+          'psychologistId': 7,
+          'startTime': '2026-11-25T10:00:00',
+          'endTime': '2026-11-25T11:00:00',
+          'consultationType': 'PHYSICAL',
+          'status': 'PENDING',
+        };
+
+    test('lit un passage de l\'audio au cabinet en attente', () {
+      final appointment = Appointment.fromJson({
+        ...base(),
+        'previousConsultationType': 'AUDIO',
+        'modalityChangePending': true,
+      });
+
+      expect(appointment.consultationType, ConsultationType.physical);
+      expect(appointment.previousConsultationType, ConsultationType.audio);
+      expect(appointment.modalityChangePending, isTrue);
+    });
+
+    test('reste compatible avec un rendez-vous sans changement', () {
+      final appointment = Appointment.fromJson(base());
+
+      expect(appointment.previousConsultationType, isNull);
+      expect(appointment.modalityChangePending, isFalse);
+    });
+  });
 }
