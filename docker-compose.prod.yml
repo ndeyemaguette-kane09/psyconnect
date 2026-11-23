@@ -1,0 +1,225 @@
+# PsyConnect en production (serveur Oracle Cloud, ARM)
+#
+#   ./deploy/build-jars.sh
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Seul Caddy est exposé (80 et 443). Eureka, Zipkin et Mailpit restent
+# accessibles par un tunnel SSH.
+
+x-java: &java
+  restart: unless-stopped
+  mem_limit: 512m
+  environment: &java-env
+    JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k"
+    EUREKA_URL: http://eureka-server:8761/eureka/
+    ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
+    DB_USERNAME: ${POSTGRES_USER:-postgres}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
+
+x-depends: &depends
+  postgres:
+    condition: service_healthy
+  eureka-server:
+    condition: service_healthy
+
+services:
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: psyconnect-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN manquant dans .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: psyconnect-postgres
+    mem_limit: 512m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: psyconnect-zipkin
+    mem_limit: 512m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx256m"
+    ports:
+      - "127.0.0.1:9411:9411"
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: psyconnect-mailpit
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: psyconnect-ollama
+    mem_limit: 4g
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  eureka-server:
+    <<: *java
+    build:
+      context: backend/eureka-server
+    container_name: psyconnect-eureka
+    ports:
+      - "127.0.0.1:8761:8761"
+    environment:
+      <<: *java-env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 150s
+    depends_on:
+      - zipkin
+
+  auth-service:
+    <<: *java
+    build:
+      context: backend/auth-service
+    container_name: psyconnect-auth
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_auth
+      USER_SERVICE_URL: http://user-service:8082
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD manquant dans .env}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@psyconnect.sn}
+    depends_on: *depends
+
+  user-service:
+    <<: *java
+    build:
+      context: backend/user-service
+    container_name: psyconnect-user
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_user
+      LICENSE_DOCS_DIR: uploads/license-documents
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
+    volumes:
+      - user_uploads:/app/uploads
+    depends_on: *depends
+
+  appointment-service:
+    <<: *java
+    build:
+      context: backend/appointment-service
+    container_name: psyconnect-appointment
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_appointment
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
+      USER_SERVICE_URL: http://user-service:8082
+    depends_on: *depends
+
+  payment-service:
+    <<: *java
+    build:
+      context: backend/payment-service
+    container_name: psyconnect-payment
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_payment
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
+    depends_on: *depends
+
+  notification-service:
+    <<: *java
+    build:
+      context: backend/notification-service
+    container_name: psyconnect-notification
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_notification
+      USER_SERVICE_URL: http://user-service:8082
+    depends_on: *depends
+
+  session-service:
+    <<: *java
+    build:
+      context: backend/session-service
+    container_name: psyconnect-session
+    environment:
+      <<: *java-env
+      DB_URL: jdbc:postgresql://postgres:5432/psyconnect_session
+    depends_on: *depends
+
+  ai-companion-service:
+    <<: *java
+    build:
+      context: backend/ai-companion-service
+    container_name: psyconnect-ai-companion
+    environment:
+      <<: *java-env
+      OLLAMA_URL: http://ollama:11434
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  api-gateway:
+    <<: *java
+    build:
+      context: backend/api-gateway
+    container_name: psyconnect-gateway
+    environment:
+      <<: *java-env
+      ML_SERVICE_URL: http://ml-service:8000
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  ml-service:
+    build:
+      context: backend/ml-service
+    container_name: psyconnect-ml
+    mem_limit: 512m
+    environment:
+      GATEWAY_URL: http://api-gateway:8080
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  user_uploads:
+  ollama_data:
+  caddy_data:
+  caddy_config:
