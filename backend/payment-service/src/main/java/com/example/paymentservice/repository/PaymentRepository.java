@@ -1,5 +1,6 @@
 package com.example.paymentservice.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,4 +25,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByPsychologistIdAndStatus(Long psychologistId, PaymentStatus status);
 
     List<Payment> findByPsychologistId(Long psychologistId);
+
+    List<Payment> findByStatusAndCreatedAtBefore(PaymentStatus status, LocalDateTime before);
 }

@@ -28,6 +28,7 @@ import com.example.paymentservice.entity.PaymentMethod;
 import com.example.paymentservice.entity.PaymentStatus;
 import com.example.paymentservice.entity.PlatformSettings;
 import com.example.paymentservice.entity.PsychologistWithdrawal;
+import com.example.paymentservice.entity.WalletOperation;
 import com.example.paymentservice.exception.ForbiddenOperationException;
 import com.example.paymentservice.exception.InsufficientBalanceException;
 import com.example.paymentservice.exception.ResourceNotFoundException;
@@ -37,6 +38,7 @@ import com.example.paymentservice.repository.PsychologistWithdrawalRepository;
 import com.example.paymentservice.security.SecurityUtils;
 import com.example.paymentservice.service.OwnershipResolver;
 import com.example.paymentservice.service.PaymentService;
+import com.example.paymentservice.service.WalletOutbox;
 
 @Service
 public class PaymentServiceImpl implements PaymentService {
@@ -53,6 +55,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final NotificationClient notificationClient;
     private final OwnershipResolver ownershipResolver;
     private final WalletClient walletClient;
+    private final WalletOutbox walletOutbox;
 
     public PaymentServiceImpl(
             PaymentRepository paymentRepository,
@@ -61,7 +64,8 @@ public class PaymentServiceImpl implements PaymentService {
             AppointmentClient appointmentClient,
             NotificationClient notificationClient,
             OwnershipResolver ownershipResolver,
-            WalletClient walletClient
+            WalletClient walletClient,
+            WalletOutbox walletOutbox
     ) {
         this.paymentRepository = paymentRepository;
         this.platformSettingsRepository = platformSettingsRepository;
@@ -70,6 +74,7 @@ public class PaymentServiceImpl implements PaymentService {
         this.notificationClient = notificationClient;
         this.ownershipResolver = ownershipResolver;
         this.walletClient = walletClient;
+        this.walletOutbox = walletOutbox;
     }
 
     private void checkParticipant(AppointmentSummary appointment) {
@@ -120,7 +125,8 @@ public class PaymentServiceImpl implements PaymentService {
         // Bloque si un paiement existe déjà pour ce rendez-vous
         boolean alreadyPaid = paymentRepository.findByAppointmentId(appointment.getId())
                 .stream()
-                .anyMatch(p -> p.getStatus() == PaymentStatus.COMPLETED);
+                .anyMatch(p -> p.getStatus() == PaymentStatus.COMPLETED
+                        || p.getStatus() == PaymentStatus.PENDING);
         if (alreadyPaid) {
             throw new RuntimeException(
                     "Ce rendez-vous a déjà été payé."
@@ -135,53 +141,50 @@ public class PaymentServiceImpl implements PaymentService {
             );
         }
 
-        walletClient.debit(appointment.getPatientId(), amount.doubleValue());
+        // saga : PENDING -> débit -> COMPLETED, sinon débit annulé via WalletOutbox
+        String operationKey = "pay-" + UUID.randomUUID();
 
-        // Si la sauvegarde échoue après le débit, on recrédit manuellement
+        Payment payment = new Payment();
+        payment.setAppointmentId(appointment.getId());
+        payment.setAmount(amount);
+        payment.setMethod(PaymentMethod.WALLET);
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setTransactionReference("SIM-" + UUID.randomUUID());
+        payment.setWalletOperationKey(operationKey);
+        // copiés depuis le RDV pour ne pas rappeler appointment-service ensuite
+        payment.setPsychologistId(appointment.getPsychologistId());
+        payment.setPatientId(appointment.getPatientId());
+        payment.setAppointmentStartTime(appointment.getStartTime());
+
+        Payment pendingPayment = paymentRepository.save(payment);
+
         try {
-            Payment payment = new Payment();
-            payment.setAppointmentId(appointment.getId());
-            payment.setAmount(amount);
-            payment.setMethod(PaymentMethod.WALLET);
-            payment.setStatus(PaymentStatus.COMPLETED);
-            payment.setTransactionReference(
-                    "SIM-" + UUID.randomUUID()
-            );
-            // copiés depuis le RDV pour ne pas rappeler appointment-service ensuite
-            payment.setPsychologistId(appointment.getPsychologistId());
-            payment.setPatientId(appointment.getPatientId());
-            payment.setAppointmentStartTime(appointment.getStartTime());
-
-            Payment savedPayment = paymentRepository.save(payment);
-
-            // non bloquant : un échec de notification n'annule pas le paiement
-            try {
-                sendPaymentNotification(appointment);
-            } catch (Exception notifEx) {
-                LOGGER.warn(
-                        "Notification de paiement non envoyée pour RDV {} : {}",
-                        appointment.getId(), notifEx.getMessage()
-                );
-            }
-
-            return mapToResponse(savedPayment);
+            walletClient.debit(appointment.getPatientId(), amount.doubleValue(), operationKey);
+        } catch (InsufficientBalanceException ex) {
+            pendingPayment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(pendingPayment);
+            throw ex;
         } catch (RuntimeException ex) {
-            try {
-                walletClient.credit(
-                        appointment.getPatientId(),
-                        amount.doubleValue()
-                );
-            } catch (RuntimeException compensationFailure) {
-                // Le recrédit compensatoire a échoué : on logge et on relance l'erreur initiale
-                LOGGER.error(
-                        "Échec du recrédit compensatoire après un débit non "
-                                + "suivi d'un paiement enregistré (RDV {})",
-                        appointment.getId(),
-                        compensationFailure
-                );
-            }
+            // on ne sait pas si le débit a été appliqué : on l'annule dans tous les cas
+            WalletOperation reversal = walletOutbox.failAndScheduleReversal(pendingPayment);
+            walletOutbox.tryProcess(reversal);
             throw ex;
         }
+
+        pendingPayment.setStatus(PaymentStatus.COMPLETED);
+        Payment savedPayment = paymentRepository.save(pendingPayment);
+
+        // non bloquant : un échec de notification n'annule pas le paiement
+        try {
+            sendPaymentNotification(appointment);
+        } catch (Exception notifEx) {
+            LOGGER.warn(
+                    "Notification de paiement non envoyée pour RDV {} : {}",
+                    appointment.getId(), notifEx.getMessage()
+            );
+        }
+
+        return mapToResponse(savedPayment);
     }
 
     @Override
@@ -354,21 +357,17 @@ public class PaymentServiceImpl implements PaymentService {
             );
         }
 
-        List<Payment> payments = paymentRepository.findByAppointmentId(appointmentId);
+        List<Payment> completed = paymentRepository.findByAppointmentId(appointmentId)
+                .stream()
+                .filter(p -> p.getStatus() == PaymentStatus.COMPLETED)
+                .collect(Collectors.toList());
 
-        BigDecimal totalRefunded = BigDecimal.ZERO;
+        BigDecimal totalRefunded = completed.stream()
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        for (Payment payment : payments) {
-            if (payment.getStatus() == PaymentStatus.COMPLETED) {
-                payment.setStatus(PaymentStatus.REFUNDED);
-                paymentRepository.save(payment);
-                totalRefunded = totalRefunded.add(payment.getAmount());
-            }
-        }
-
-        if (totalRefunded.compareTo(BigDecimal.ZERO) > 0) {
-            // credite le solde, pas juste un changement de statut
-            walletClient.credit(patientId, totalRefunded.doubleValue());
+        if (!completed.isEmpty()) {
+            walletOutbox.refundAndScheduleCredits(completed).forEach(walletOutbox::tryProcess);
         }
 
         return totalRefunded;

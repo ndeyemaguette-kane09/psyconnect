@@ -27,16 +27,22 @@ import com.example.paymentservice.entity.Payment;
 import com.example.paymentservice.entity.PaymentMethod;
 import com.example.paymentservice.entity.PaymentStatus;
 import com.example.paymentservice.exception.ForbiddenOperationException;
+import com.example.paymentservice.exception.InsufficientBalanceException;
+import com.example.paymentservice.exception.ServiceUnavailableException;
 import com.example.paymentservice.repository.PaymentRepository;
 import com.example.paymentservice.repository.PlatformSettingsRepository;
 import com.example.paymentservice.repository.PsychologistWithdrawalRepository;
 import com.example.paymentservice.service.OwnershipResolver;
+import com.example.paymentservice.service.WalletOutbox;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -68,6 +74,9 @@ class PaymentServiceImplTest {
     @Mock
     private WalletClient walletClient;
 
+    @Mock
+    private WalletOutbox walletOutbox;
+
     private PaymentServiceImpl paymentService;
 
     @BeforeEach
@@ -79,7 +88,8 @@ class PaymentServiceImplTest {
                 appointmentClient,
                 notificationClient,
                 ownershipResolver,
-                walletClient
+                walletClient,
+                walletOutbox
         );
 
         RequestContextHolder.setRequestAttributes(
@@ -142,7 +152,7 @@ class PaymentServiceImplTest {
         assertEquals(PaymentStatus.COMPLETED, response.getStatus());
         assertNotNull(response.getTransactionReference());
 
-        verify(walletClient).debit(10L, 15000.0);
+        verify(walletClient).debit(eq(10L), eq(15000.0), any(String.class));
         verify(notificationClient).send(
                 eq(10L),
                 eq("Paiement confirmé"),
@@ -150,6 +160,51 @@ class PaymentServiceImplTest {
                 eq("PAYMENT"),
                 eq("PATIENT")
         );
+    }
+
+    @Test
+    void createPayment_walletUnreachable_schedulesDebitReversal() {
+
+        AppointmentSummary appointment = buildAppointment(1L, 10L, "CONFIRMED");
+
+        authenticateAsPatientOwning(10L);
+
+        when(appointmentClient.getAppointmentById(1L)).thenReturn(appointment);
+        when(paymentRepository.findByAppointmentId(1L)).thenReturn(List.of());
+        when(ownershipResolver.getConsultationPrice(any())).thenReturn(new BigDecimal("15000"));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new ServiceUnavailableException("indisponible"))
+                .when(walletClient).debit(any(), any(), any());
+
+        assertThrows(ServiceUnavailableException.class, () -> paymentService.createPayment(
+                buildRequest(1L, "15000", PaymentMethod.SIMULATED_WAVE)
+        ));
+
+        verify(walletOutbox).failAndScheduleReversal(any(Payment.class));
+        verify(notificationClient, never()).send(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void createPayment_insufficientBalance_marksFailedWithoutReversal() {
+
+        AppointmentSummary appointment = buildAppointment(1L, 10L, "CONFIRMED");
+
+        authenticateAsPatientOwning(10L);
+
+        when(appointmentClient.getAppointmentById(1L)).thenReturn(appointment);
+        when(paymentRepository.findByAppointmentId(1L)).thenReturn(List.of());
+        when(ownershipResolver.getConsultationPrice(any())).thenReturn(new BigDecimal("15000"));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new InsufficientBalanceException("Solde insuffisant"))
+                .when(walletClient).debit(any(), any(), any());
+
+        assertThrows(InsufficientBalanceException.class, () -> paymentService.createPayment(
+                buildRequest(1L, "15000", PaymentMethod.SIMULATED_WAVE)
+        ));
+
+        verify(paymentRepository, atLeastOnce()).save(argThat(
+                p -> p.getStatus() == PaymentStatus.FAILED));
+        verify(walletOutbox, never()).failAndScheduleReversal(any());
     }
 
     @Test
@@ -169,7 +224,7 @@ class PaymentServiceImplTest {
         );
 
         assertEquals(new BigDecimal("15000"), response.getAmount());
-        verify(walletClient).debit(10L, 15000.0);
+        verify(walletClient).debit(eq(10L), eq(15000.0), any(String.class));
     }
 
     @Test
@@ -187,7 +242,7 @@ class PaymentServiceImplTest {
                 paymentService.createPayment(buildRequest(1L, "15000", PaymentMethod.SIMULATED_WAVE))
         );
 
-        verify(walletClient, never()).debit(any(), any());
+        verify(walletClient, never()).debit(any(), any(), any());
         verify(paymentRepository, never()).save(any());
     }
 
@@ -209,7 +264,7 @@ class PaymentServiceImplTest {
         );
 
         verify(paymentRepository, never()).save(any());
-        verify(walletClient, never()).debit(any(), any());
+        verify(walletClient, never()).debit(any(), any(), any());
     }
 
     @Test
@@ -235,7 +290,7 @@ class PaymentServiceImplTest {
                 )
         );
 
-        verify(walletClient, never()).debit(any(), any());
+        verify(walletClient, never()).debit(any(), any(), any());
         verify(paymentRepository, never()).save(any());
     }
 
@@ -380,13 +435,12 @@ class PaymentServiceImplTest {
         when(appointmentClient.getAppointmentById(5L))
                 .thenReturn(buildCancelledAppointment(5L, 10L, LocalDateTime.now().plusHours(72)));
         when(paymentRepository.findByAppointmentId(5L)).thenReturn(List.of(completed));
-        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(walletOutbox.refundAndScheduleCredits(any())).thenReturn(List.of());
 
         BigDecimal refunded = paymentService.refundCompletedPayments(5L, 10L);
 
         assertEquals(new BigDecimal("15000"), refunded);
-        assertEquals(PaymentStatus.REFUNDED, completed.getStatus());
-        verify(walletClient).credit(10L, 15000.0);
+        verify(walletOutbox).refundAndScheduleCredits(List.of(completed));
     }
 
     @Test
@@ -406,7 +460,7 @@ class PaymentServiceImplTest {
         BigDecimal refunded = paymentService.refundCompletedPayments(5L, 10L);
 
         assertEquals(BigDecimal.ZERO, refunded);
-        verify(walletClient, never()).credit(any(), any());
+        verify(walletOutbox, never()).refundAndScheduleCredits(any());
     }
 
     @Test
@@ -419,7 +473,7 @@ class PaymentServiceImplTest {
 
         assertThrows(RuntimeException.class, () -> paymentService.refundCompletedPayments(5L, 10L));
 
-        verify(walletClient, never()).credit(any(), any());
+        verify(walletOutbox, never()).refundAndScheduleCredits(any());
         verify(paymentRepository, never()).save(any());
     }
 
@@ -432,7 +486,7 @@ class PaymentServiceImplTest {
 
         assertThrows(RuntimeException.class, () -> paymentService.refundCompletedPayments(5L, 10L));
 
-        verify(walletClient, never()).credit(any(), any());
+        verify(walletOutbox, never()).refundAndScheduleCredits(any());
         verify(paymentRepository, never()).save(any());
     }
 
@@ -445,7 +499,7 @@ class PaymentServiceImplTest {
 
         assertThrows(ForbiddenOperationException.class, () -> paymentService.refundCompletedPayments(5L, 10L));
 
-        verify(walletClient, never()).credit(any(), any());
+        verify(walletOutbox, never()).refundAndScheduleCredits(any());
     }
 
     private AppointmentSummary buildCancelledAppointment(Long id, Long patientId, LocalDateTime startTime) {

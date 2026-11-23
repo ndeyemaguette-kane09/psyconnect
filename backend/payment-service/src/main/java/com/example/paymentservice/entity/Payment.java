@@ -34,6 +34,10 @@ public class Payment {
     @Column(nullable = false, unique = true)
     private String transactionReference;
 
+    // clé du débit envoyé à user-service, sert à l'annuler si le paiement échoue
+    @Column(unique = true)
+    private String walletOperationKey;
+
     // dupliqués depuis AppointmentSummary au moment du paiement pour éviter
     // d'appeler appointment-service lors du calcul du revenu/wallet/transactions
     @Column

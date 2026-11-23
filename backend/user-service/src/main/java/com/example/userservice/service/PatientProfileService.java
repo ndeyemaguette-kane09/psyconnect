@@ -47,12 +47,19 @@ public interface PatientProfileService {
     );
 
     // Débite pour payer un rendez-vous, échoue si le solde est insuffisant
-    WalletResponse debitWallet(Long patientId, Double amount, Long callerAuthUserId);
+    WalletResponse debitWallet(
+            Long patientId, Double amount, String operationKey, Long callerAuthUserId
+    );
 
     // credite quand un RDV est remboursé
-    WalletResponse creditWallet(Long patientId, Double amount, Long callerAuthUserId);
+    WalletResponse creditWallet(
+            Long patientId, Double amount, String operationKey, Long callerAuthUserId
+    );
 
-    WalletResponse creditWalletAsService(Long patientId, Double amount);
+    WalletResponse creditWalletAsService(Long patientId, Double amount, String operationKey);
+
+    // annule un débit de paiement s'il a eu lieu, et empêche qu'il soit appliqué plus tard
+    WalletResponse reverseDebitAsService(Long patientId, String operationKey);
 
     // relevé des mouvements, plus recent en premier, proprietaire uniquement
     java.util.List<WalletTransactionResponse> getWalletTransactions(

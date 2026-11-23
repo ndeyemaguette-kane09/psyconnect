@@ -12,4 +12,6 @@ public class WalletAmountRequest {
     private Double amount;
 
     private String method;
+
+    private String operationKey;
 }

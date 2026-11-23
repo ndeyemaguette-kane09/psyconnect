@@ -36,6 +36,10 @@ public class WalletTransaction {
     // (pas de mouvement réel d'argent dans ce cas).
     private String method;
 
+    // clé fournie par payment-service : une même opération n'est jamais appliquée deux fois
+    @Column(unique = true)
+    private String operationKey;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

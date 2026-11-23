@@ -7,6 +7,7 @@ import com.example.userservice.dto.CreatePatientProfileRequest;
 import com.example.userservice.dto.PatientProfileResponse;
 import com.example.userservice.dto.WalletResponse;
 import com.example.userservice.dto.WalletTransactionResponse;
+import com.example.userservice.entity.CancelledWalletOperation;
 import com.example.userservice.entity.PatientProfile;
 import com.example.userservice.entity.UserProfile;
 import com.example.userservice.entity.WalletTransaction;
@@ -14,6 +15,7 @@ import com.example.userservice.entity.WalletTransactionType;
 import com.example.userservice.exception.ForbiddenOperationException;
 import com.example.userservice.exception.InsufficientBalanceException;
 import com.example.userservice.exception.ResourceNotFoundException;
+import com.example.userservice.repository.CancelledWalletOperationRepository;
 import com.example.userservice.repository.PatientProfileRepository;
 import com.example.userservice.repository.PsychologistProfileRepository;
 import com.example.userservice.repository.UserProfileRepository;
@@ -21,6 +23,7 @@ import com.example.userservice.repository.WalletTransactionRepository;
 import com.example.userservice.service.PatientProfileService;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PatientProfileServiceImpl
@@ -38,6 +41,8 @@ public class PatientProfileServiceImpl
 
     private final WalletTransactionRepository walletTransactionRepository;
 
+    private final CancelledWalletOperationRepository cancelledWalletOperationRepository;
+
     private final PsychologistProfileRepository psychologistProfileRepository;
 
     private final AppointmentClient appointmentClient;
@@ -49,7 +54,8 @@ public class PatientProfileServiceImpl
             NotificationClient notificationClient,
             WalletTransactionRepository walletTransactionRepository,
             PsychologistProfileRepository psychologistProfileRepository,
-            AppointmentClient appointmentClient
+            AppointmentClient appointmentClient,
+            CancelledWalletOperationRepository cancelledWalletOperationRepository
     ) {
 
         this.patientProfileRepository =
@@ -67,6 +73,8 @@ public class PatientProfileServiceImpl
         this.psychologistProfileRepository = psychologistProfileRepository;
 
         this.appointmentClient = appointmentClient;
+
+        this.cancelledWalletOperationRepository = cancelledWalletOperationRepository;
     }
 
     @Override
@@ -299,7 +307,7 @@ public class PatientProfileServiceImpl
         patientProfileRepository.save(patientProfile);
 
         recordTransaction(
-                patientProfile, WalletTransactionType.DEPOSIT, amount, newBalance, method
+                patientProfile, WalletTransactionType.DEPOSIT, amount, newBalance, method, null
         );
 
         notificationClient.send(
@@ -337,7 +345,7 @@ public class PatientProfileServiceImpl
         patientProfileRepository.save(patientProfile);
 
         recordTransaction(
-                patientProfile, WalletTransactionType.WITHDRAWAL, amount, newBalance, method
+                patientProfile, WalletTransactionType.WITHDRAWAL, amount, newBalance, method, null
         );
 
         notificationClient.send(
@@ -354,11 +362,23 @@ public class PatientProfileServiceImpl
     }
 
     @Override
-    public WalletResponse debitWallet(Long patientId, Double amount, Long callerAuthUserId) {
+    @Transactional
+    public WalletResponse debitWallet(
+            Long patientId, Double amount, String operationKey, Long callerAuthUserId
+    ) {
 
         validatePositiveAmount(amount);
 
         PatientProfile patientProfile = findOwnedPatientProfile(patientId, callerAuthUserId);
+
+        if (operationKey != null) {
+            if (cancelledWalletOperationRepository.existsById(operationKey)) {
+                throw new RuntimeException("Ce paiement a été annulé, veuillez réessayer.");
+            }
+            if (walletTransactionRepository.existsByOperationKey(operationKey)) {
+                return mapToWalletResponse(patientProfile);
+            }
+        }
 
         double balance = currentBalance(patientProfile);
         if (balance < amount) {
@@ -374,34 +394,63 @@ public class PatientProfileServiceImpl
         patientProfileRepository.save(patientProfile);
 
         recordTransaction(
-                patientProfile, WalletTransactionType.DEBIT, amount, newBalance, null
+                patientProfile, WalletTransactionType.DEBIT, amount, newBalance, null, operationKey
         );
 
         return mapToWalletResponse(patientProfile);
     }
 
     @Override
-    public WalletResponse creditWallet(Long patientId, Double amount, Long callerAuthUserId) {
-        return credit(findOwnedPatientProfile(patientId, callerAuthUserId), amount);
+    @Transactional
+    public WalletResponse creditWallet(
+            Long patientId, Double amount, String operationKey, Long callerAuthUserId
+    ) {
+        return credit(findOwnedPatientProfile(patientId, callerAuthUserId), amount, operationKey);
     }
 
     @Override
-    public WalletResponse creditWalletAsService(Long patientId, Double amount) {
+    @Transactional
+    public WalletResponse creditWalletAsService(Long patientId, Double amount, String operationKey) {
         PatientProfile patientProfile = patientProfileRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
-        return credit(patientProfile, amount);
+        return credit(patientProfile, amount, operationKey);
     }
 
-    private WalletResponse credit(PatientProfile patientProfile, Double amount) {
+    @Override
+    @Transactional
+    public WalletResponse reverseDebitAsService(Long patientId, String operationKey) {
+        PatientProfile patientProfile = patientProfileRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient profile not found"));
+
+        if (operationKey == null || operationKey.isBlank()) {
+            throw new IllegalArgumentException("La clé de l'opération à annuler est obligatoire.");
+        }
+
+        if (!cancelledWalletOperationRepository.existsById(operationKey)) {
+            cancelledWalletOperationRepository.save(new CancelledWalletOperation(operationKey));
+        }
+
+        return walletTransactionRepository.findByOperationKey(operationKey)
+                .filter(debit -> debit.getType() == WalletTransactionType.DEBIT
+                        && debit.getPatientProfile().getId().equals(patientProfile.getId()))
+                .map(debit -> credit(patientProfile, debit.getAmount(), "reversal-" + operationKey))
+                .orElseGet(() -> mapToWalletResponse(patientProfile));
+    }
+
+    private WalletResponse credit(PatientProfile patientProfile, Double amount, String operationKey) {
 
         validatePositiveAmount(amount);
+
+        if (operationKey != null && walletTransactionRepository.existsByOperationKey(operationKey)) {
+            return mapToWalletResponse(patientProfile);
+        }
 
         double newBalance = currentBalance(patientProfile) + amount;
         patientProfile.setWalletBalance(newBalance);
         patientProfileRepository.save(patientProfile);
 
         recordTransaction(
-                patientProfile, WalletTransactionType.CREDIT, amount, newBalance, null
+                patientProfile, WalletTransactionType.CREDIT, amount, newBalance, null, operationKey
         );
 
         return mapToWalletResponse(patientProfile);
@@ -426,7 +475,8 @@ public class PatientProfileServiceImpl
             WalletTransactionType type,
             double amount,
             double balanceAfter,
-            String method
+            String method,
+            String operationKey
     ) {
 
         WalletTransaction transaction = new WalletTransaction();
@@ -435,6 +485,7 @@ public class PatientProfileServiceImpl
         transaction.setAmount(amount);
         transaction.setBalanceAfter(balanceAfter);
         transaction.setMethod(method);
+        transaction.setOperationKey(operationKey);
 
         walletTransactionRepository.save(transaction);
     }

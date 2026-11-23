@@ -5,6 +5,7 @@ import com.example.userservice.dto.PatientProfileResponse;
 import com.example.userservice.dto.WalletAmountRequest;
 import com.example.userservice.dto.WalletResponse;
 import com.example.userservice.dto.WalletTransactionResponse;
+import com.example.userservice.exception.ForbiddenOperationException;
 import com.example.userservice.service.PatientProfileService;
 
 import org.springframework.http.HttpStatus;
@@ -145,7 +146,8 @@ public class PatientProfileController {
     ) {
         return ResponseEntity.ok(
                 patientProfileService.debitWallet(
-                        id, request.getAmount(), currentAuthUserId(httpRequest)
+                        id, request.getAmount(), request.getOperationKey(),
+                        currentAuthUserId(httpRequest)
                 )
         );
     }
@@ -158,13 +160,29 @@ public class PatientProfileController {
     ) {
         if (httpRequest.isUserInRole("SERVICE")) {
             return ResponseEntity.ok(
-                    patientProfileService.creditWalletAsService(id, request.getAmount())
+                    patientProfileService.creditWalletAsService(
+                            id, request.getAmount(), request.getOperationKey())
             );
         }
         return ResponseEntity.ok(
                 patientProfileService.creditWallet(
-                        id, request.getAmount(), currentAuthUserId(httpRequest)
+                        id, request.getAmount(), request.getOperationKey(),
+                        currentAuthUserId(httpRequest)
                 )
+        );
+    }
+
+    @PostMapping("/{id}/wallet/reverse")
+    public ResponseEntity<WalletResponse> reverseWalletDebit(
+            HttpServletRequest httpRequest,
+            @PathVariable Long id,
+            @RequestBody WalletAmountRequest request
+    ) {
+        if (!httpRequest.isUserInRole("SERVICE")) {
+            throw new ForbiddenOperationException("Opération réservée aux services internes");
+        }
+        return ResponseEntity.ok(
+                patientProfileService.reverseDebitAsService(id, request.getOperationKey())
         );
     }
 
