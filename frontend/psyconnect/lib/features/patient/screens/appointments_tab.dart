@@ -5,6 +5,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/auto_refresh.dart';
 import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../call/screens/call_screen.dart';
@@ -15,6 +16,7 @@ import '../models/appointment_models.dart';
 import '../models/psychologist_models.dart';
 import '../services/appointment_service.dart';
 import '../services/psychologist_service.dart';
+import 'psychologist_profile_screen.dart';
 
 class AppointmentsTab extends StatefulWidget {
   const AppointmentsTab({super.key});
@@ -23,7 +25,8 @@ class AppointmentsTab extends StatefulWidget {
   State<AppointmentsTab> createState() => _AppointmentsTabState();
 }
 
-class _AppointmentsTabState extends State<AppointmentsTab> {
+class _AppointmentsTabState extends State<AppointmentsTab>
+    with AutoRefresh<AppointmentsTab> {
   final _appointmentService = AppointmentService();
   final _psychologistService = PsychologistService();
   final _paymentService = PaymentService();
@@ -113,11 +116,16 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     _weekStart = _mondayOf(day);
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  Future<void> autoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     final patientId = context.read<AuthProvider>().session?.profileId;
     if (patientId == null) {
@@ -152,15 +160,16 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
 
       if (!mounted) return;
       setState(() {
+        _error = null;
         _appointments = appointments;
         _psychologistsById = {for (final p in psychologists) p.id: p};
         _paidAppointmentIds = paidIds;
         _reviewedPsychologistIds = reviewedIds;
-        _focusRelevantDay(appointments);
+        if (!silent) _focusRelevantDay(appointments);
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _error = 'Impossible de charger vos rendez-vous.';
         _loading = false;
@@ -319,6 +328,55 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
     }
   }
 
+  Future<void> _changeConsultationType(
+      Appointment appointment, PsychologistProfile? psychologist) async {
+    final receivesAtOffice =
+        psychologist?.address?.trim().isNotEmpty ?? false;
+    final newType = await showModalBottomSheet<ConsultationType>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ConsultationTypeSheet(
+        current: appointment.consultationType,
+        receivesAtOffice: receivesAtOffice,
+      ),
+    );
+    if (newType == null || newType == appointment.consultationType || !mounted) {
+      return;
+    }
+
+    try {
+      final updated = await _appointmentService.changeConsultationType(
+          appointment.id, newType);
+      if (!mounted) return;
+      final backToPending = appointment.status == AppointmentStatus.confirmed &&
+          updated.status == AppointmentStatus.pending;
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Modalité modifiée'),
+          content: Text(
+            backToPending
+                ? 'Séance au cabinet demandée : le psychologue doit la reconfirmer.'
+                : newType == ConsultationType.physical
+                    ? 'Votre séance se fera désormais au cabinet.'
+                    : 'Votre séance se fera désormais en ${newType.label.toLowerCase()}.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(userMessage(e))));
+    }
+  }
+
   Future<void> _cancel(Appointment appointment) async {
     final hoursUntilStart =
         appointment.startTime.difference(DateTime.now()).inHours;
@@ -424,6 +482,9 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         psychologist: psychologist,
         onPay: canPay ? () => _pay(appointment, psychologist) : null,
         onReschedule: modifiable ? () => _reschedule(appointment) : null,
+        onChangeType: modifiable
+            ? () => _changeConsultationType(appointment, psychologist)
+            : null,
         onCancel: modifiable ? () => _cancel(appointment) : null,
         onDelete: deletable ? () => _delete(appointment) : null,
         onReview: appointment.status == AppointmentStatus.completed
@@ -1363,6 +1424,7 @@ class _AppointmentDetailSheet extends StatefulWidget {
     this.psychologist,
     this.onPay,
     this.onReschedule,
+    this.onChangeType,
     this.onCancel,
     this.onDelete,
     this.onReview,
@@ -1373,6 +1435,7 @@ class _AppointmentDetailSheet extends StatefulWidget {
   final PsychologistProfile? psychologist;
   final VoidCallback? onPay;
   final VoidCallback? onReschedule;
+  final VoidCallback? onChangeType;
   final VoidCallback? onCancel;
   final VoidCallback? onDelete;
   final VoidCallback? onReview;
@@ -1486,6 +1549,14 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
               const SizedBox(height: 20),
               AppCard(
                 padding: const EdgeInsets.all(14),
+                onTap: psychologist == null
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PsychologistProfileScreen(
+                                psychologistId: psychologist.id),
+                          ),
+                        ),
                 child: Row(
                   children: [
                     AppAvatar(name: name, size: 54),
@@ -1514,6 +1585,8 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
                         ],
                       ),
                     ),
+                    if (psychologist != null)
+                      const Icon(Icons.chevron_right, color: AppColors.muted),
                   ],
                 ),
               ),
@@ -1592,6 +1665,7 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
                 ),
               ],
               if (widget.onReschedule != null ||
+                  widget.onChangeType != null ||
                   widget.onCancel != null ||
                   widget.onDelete != null) ...[
                 const SizedBox(height: 18),
@@ -1599,6 +1673,11 @@ class _AppointmentDetailSheetState extends State<_AppointmentDetailSheet> {
                   _SheetLink(
                     label: 'Déplacer la séance',
                     onTap: () => _runAndClose(widget.onReschedule!),
+                  ),
+                if (widget.onChangeType != null)
+                  _SheetLink(
+                    label: 'Changer de modalité',
+                    onTap: () => _runAndClose(widget.onChangeType!),
                   ),
                 if (widget.onCancel != null) ...[
                   _SheetLink(
@@ -1815,6 +1894,75 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
   static String _weekdayShort(int weekday) {
     const labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     return labels[weekday - 1];
+  }
+}
+
+class _ConsultationTypeSheet extends StatelessWidget {
+  const _ConsultationTypeSheet({
+    required this.current,
+    required this.receivesAtOffice,
+  });
+
+  final ConsultationType current;
+  final bool receivesAtOffice;
+
+  @override
+  Widget build(BuildContext context) {
+    final types = [
+      ConsultationType.video,
+      ConsultationType.audio,
+      ConsultationType.physical,
+    ];
+    return Container(
+      color: AppColors.white,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                color: AppColors.tealMid,
+              ),
+            ),
+            Text('Changer de modalité',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(
+              'Possible jusqu\'à 24 h avant la séance.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            for (final type in types)
+              _typeTile(context, type),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _typeTile(BuildContext context, ConsultationType type) {
+    final available = type != ConsultationType.physical || receivesAtOffice;
+    final selected = type == current;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      enabled: available,
+      title: Text(type == ConsultationType.physical ? 'Au cabinet' : type.label),
+      subtitle: available
+          ? null
+          : const Text('Ce psychologue ne reçoit pas au cabinet'),
+      trailing: selected
+          ? const Icon(Icons.check, color: AppColors.teal)
+          : null,
+      onTap: available && !selected
+          ? () => Navigator.of(context).pop(type)
+          : null,
+    );
   }
 }
 

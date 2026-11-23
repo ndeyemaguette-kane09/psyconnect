@@ -67,6 +67,17 @@ class AppointmentService {
     return Appointment.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<Appointment> changeConsultationType(
+    int appointmentId,
+    ConsultationType type,
+  ) async {
+    final json = await _api.put(
+      ApiConstants.appointmentConsultationType(appointmentId),
+      body: {'consultationType': type.apiValue},
+    );
+    return Appointment.fromJson(json as Map<String, dynamic>);
+  }
+
   // supprime definitivement un RDV annule/refuse, rejette tout autre statut
   Future<void> deleteAppointment(int appointmentId) async {
     await _api.delete(ApiConstants.appointmentById(appointmentId));

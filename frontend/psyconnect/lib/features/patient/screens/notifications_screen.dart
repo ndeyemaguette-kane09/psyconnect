@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/auto_refresh.dart';
 import '../../auth/models/user_role.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../payment/screens/psy_wallet_screen.dart';
 import '../../payment/screens/wallet_screen.dart';
 import '../../psychologist/screens/agenda_tab.dart';
+import '../../psychologist/screens/appointment_detail_screen.dart';
 import '../../psychologist/screens/patients_tab.dart';
 import '../../psychologist/screens/psychologist_messages_tab.dart';
 import '../models/appointment_models.dart';
@@ -29,7 +31,8 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with AutoRefresh<NotificationsScreen> {
   final _notificationService = NotificationService();
   final _appointmentService = AppointmentService();
 
@@ -46,22 +49,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  Future<void> autoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final notifications =
           await _notificationService.getNotificationsByUserId(widget.userId);
       notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       if (!mounted) return;
       setState(() {
+        _error = null;
         _notifications = notifications;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _error = 'Impossible de charger les notifications.';
         _loading = false;
@@ -162,6 +171,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (cancelled != null) {
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => cancelled),
+      );
+      return;
+    }
+    final appointmentId = n.appointmentId;
+    if (_role == UserRole.psychologist &&
+        appointmentId != null &&
+        (n.type == AppNotificationType.appointment ||
+            n.type == AppNotificationType.reminder ||
+            n.type == AppNotificationType.session)) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AppointmentDetailScreen(appointmentId: appointmentId),
+        ),
       );
       return;
     }

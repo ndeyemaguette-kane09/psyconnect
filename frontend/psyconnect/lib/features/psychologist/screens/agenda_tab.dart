@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/auto_refresh.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -14,6 +15,7 @@ import '../../patient/services/appointment_service.dart';
 import '../../payment/models/payment_models.dart';
 import '../../payment/services/payment_service.dart';
 import '../utils/patient_name.dart';
+import 'appointment_detail_screen.dart';
 import 'session_recommendations_screen.dart';
 
 class AgendaTab extends StatefulWidget {
@@ -23,7 +25,8 @@ class AgendaTab extends StatefulWidget {
   State<AgendaTab> createState() => _AgendaTabState();
 }
 
-class _AgendaTabState extends State<AgendaTab> {
+class _AgendaTabState extends State<AgendaTab>
+    with AutoRefresh<AgendaTab> {
   final _appointmentService = AppointmentService();
   final _profileService = ProfileService();
 
@@ -109,11 +112,16 @@ class _AgendaTabState extends State<AgendaTab> {
     _weekStart = _mondayOf(day);
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  Future<void> autoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     final psychologistId = context.read<AuthProvider>().session?.profileId;
     if (psychologistId == null) {
@@ -135,16 +143,17 @@ class _AgendaTabState extends State<AgendaTab> {
 
       if (!mounted) return;
       setState(() {
+        _error = null;
         _appointments = appointments;
         _patientsById = {
           for (final p in patients)
             if (p != null) p.id: p,
         };
-        _focusRelevantDay(appointments);
+        if (!silent) _focusRelevantDay(appointments);
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _error = 'Impossible de charger votre agenda.';
         _loading = false;
@@ -195,6 +204,13 @@ class _AgendaTabState extends State<AgendaTab> {
         callWindowOpen;
   }
 
+  Future<void> _openRequest(Appointment a) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => AppointmentDetailScreen(appointmentId: a.id),
+    ));
+    if (mounted) _load(silent: true);
+  }
+
   void _openDetail(Appointment a) {
     showModalBottomSheet(
       context: context,
@@ -236,7 +252,7 @@ class _AgendaTabState extends State<AgendaTab> {
         patientName: _displayName(_patientsById[a.patientId]),
         onConfirm: () => _updateStatus(a, AppointmentStatus.confirmed),
         onReject: () => _updateStatus(a, AppointmentStatus.rejected),
-        onTap: () => _openDetail(a),
+        onTap: () => _openRequest(a),
       );
 
   Widget _rowsGroup(List<Appointment> list) => AppCard(
@@ -721,6 +737,12 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final start = appointment.startTime;
     final future = start.isAfter(DateTime.now());
+    final previous = appointment.modalityChangePending
+        ? appointment.previousConsultationType
+        : null;
+    final rejectLabel = previous != null
+        ? 'Garder ${previous.label.toLowerCase()}'
+        : 'Refuser';
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(22),
@@ -753,6 +775,7 @@ class _RequestCard extends StatelessWidget {
                         Text(
                           '${_capitalize(_kWeekdayNames[start.weekday - 1])}, '
                           '${_hour(start)} · '
+                          '${previous != null ? '${previous.label.toLowerCase()} → ' : ''}'
                           '${appointment.consultationType.label.toLowerCase()}',
                           style: const TextStyle(
                             fontSize: 14,
@@ -762,6 +785,7 @@ class _RequestCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const Icon(Icons.chevron_right, color: AppColors.muted),
                 ],
               ),
               const SizedBox(height: 12),
@@ -782,7 +806,7 @@ class _RequestCard extends StatelessWidget {
                           backgroundColor: AppColors.sand,
                           foregroundColor: AppColors.text,
                         ),
-                        child: const Text('Refuser'),
+                        child: Text(rejectLabel),
                       ),
                     ),
                   ],
@@ -802,7 +826,7 @@ class _RequestCard extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: onReject,
-                      child: const Text('Refuser'),
+                      child: Text(rejectLabel),
                     ),
                   ],
                 ),

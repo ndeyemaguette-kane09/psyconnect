@@ -161,6 +161,8 @@ class Appointment {
   final DateTime createdAt;
   final CancellationReason? cancellationReason;
   final DateTime? cancelledAt;
+  final ConsultationType? previousConsultationType;
+  final bool modalityChangePending;
 
   Appointment({
     required this.id,
@@ -173,6 +175,8 @@ class Appointment {
     required this.createdAt,
     this.cancellationReason,
     this.cancelledAt,
+    this.previousConsultationType,
+    this.modalityChangePending = false,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -194,6 +198,11 @@ class Appointment {
       cancelledAt: json['cancelledAt'] != null
           ? DateTime.parse(json['cancelledAt'] as String)
           : null,
+      previousConsultationType: json['previousConsultationType'] != null
+          ? ConsultationTypeX.fromApiValue(
+              json['previousConsultationType'] as String)
+          : null,
+      modalityChangePending: json['modalityChangePending'] as bool? ?? false,
     );
   }
 }
