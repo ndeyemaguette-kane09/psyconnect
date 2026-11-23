@@ -5,6 +5,7 @@ import com.example.authservice.dto.UserAdminResponse;
 import com.example.authservice.entity.Role;
 import com.example.authservice.entity.User;
 import com.example.authservice.repository.UserRepository;
+import com.example.authservice.service.AccessRevocationService;
 import com.example.authservice.service.AdminService;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,10 +19,14 @@ public class AdminServiceImpl implements AdminService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AccessRevocationService accessRevocationService;
 
-    public AdminServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AdminServiceImpl(UserRepository userRepository,
+                            PasswordEncoder passwordEncoder,
+                            AccessRevocationService accessRevocationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.accessRevocationService = accessRevocationService;
     }
 
     // Un administrateur ne peut pas agir sur un autre admin ni sur son propre compte
@@ -71,6 +76,10 @@ public class AdminServiceImpl implements AdminService {
 
         User saved = userRepository.save(user);
 
+        if (!enabled) {
+            accessRevocationService.revoke(saved.getId());
+        }
+
         return mapToResponse(saved);
     }
 
@@ -83,6 +92,7 @@ public class AdminServiceImpl implements AdminService {
         checkActionableTarget(user, callerEmail);
 
         userRepository.delete(user);
+        accessRevocationService.revoke(user.getId());
     }
 
     @Override
@@ -96,6 +106,7 @@ public class AdminServiceImpl implements AdminService {
         user.setPassword(passwordEncoder.encode(newPassword));
 
         User saved = userRepository.save(user);
+        accessRevocationService.revoke(saved.getId());
 
         return mapToResponse(saved);
     }

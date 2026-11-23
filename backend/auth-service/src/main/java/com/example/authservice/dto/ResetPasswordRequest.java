@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 public class ResetPasswordRequest {
 
     @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must contain at least 6 characters")
+    @Size(min = 8, message = "Password must contain at least 8 characters")
     private String newPassword;
 
     public ResetPasswordRequest() {

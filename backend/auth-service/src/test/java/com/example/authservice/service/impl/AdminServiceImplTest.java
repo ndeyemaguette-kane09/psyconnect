@@ -15,6 +15,7 @@ import com.example.authservice.dto.UserAdminResponse;
 import com.example.authservice.entity.Role;
 import com.example.authservice.entity.User;
 import com.example.authservice.repository.UserRepository;
+import com.example.authservice.service.AccessRevocationService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,11 +33,14 @@ class AdminServiceImplTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private AccessRevocationService accessRevocationService;
+
     private AdminServiceImpl adminService;
 
     @BeforeEach
     void setUp() {
-        adminService = new AdminServiceImpl(userRepository, passwordEncoder);
+        adminService = new AdminServiceImpl(userRepository, passwordEncoder, accessRevocationService);
     }
 
     private User buildUser(Long id, String email, Role role, boolean enabled) {
@@ -78,6 +82,20 @@ class AdminServiceImplTest {
 
         assertEquals(false, response.isEnabled());
         verify(userRepository).save(target);
+        verify(accessRevocationService).revoke(2L);
+    }
+
+    @Test
+    void setUserEnabled_reactivation_doesNotRevokeTokens() {
+
+        User target = buildUser(2L, "patient@psyconnect.sn", Role.PATIENT, false);
+
+        when(userRepository.findById(2L)).thenReturn(Optional.of(target));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        adminService.setUserEnabled(2L, true, "admin@psyconnect.sn");
+
+        verify(accessRevocationService, never()).revoke(any());
     }
 
     @Test
@@ -129,6 +147,7 @@ class AdminServiceImplTest {
         adminService.deleteUser(2L, "admin@psyconnect.sn");
 
         verify(userRepository).delete(target);
+        verify(accessRevocationService).revoke(2L);
     }
 
     @Test

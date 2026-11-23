@@ -39,13 +39,15 @@ public class AuthService {
 
     private final PasswordResetMailer passwordResetMailer;
     private final ResetRequestThrottle resetRequestThrottle;
+    private final AccessRevocationService accessRevocationService;
 
     public AuthService(UserRepository userRepository,
                        PasswordResetCodeRepository passwordResetCodeRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        PasswordResetMailer passwordResetMailer,
-                       ResetRequestThrottle resetRequestThrottle) {
+                       ResetRequestThrottle resetRequestThrottle,
+                       AccessRevocationService accessRevocationService) {
 
         this.userRepository = userRepository;
         this.passwordResetCodeRepository = passwordResetCodeRepository;
@@ -53,6 +55,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.passwordResetMailer = passwordResetMailer;
         this.resetRequestThrottle = resetRequestThrottle;
+        this.accessRevocationService = accessRevocationService;
     }
 
     public MessageResponse register(RegisterRequest request) {
@@ -223,6 +226,7 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+        accessRevocationService.revoke(user.getId());
 
         resetCode.setUsed(true);
         passwordResetCodeRepository.save(resetCode);

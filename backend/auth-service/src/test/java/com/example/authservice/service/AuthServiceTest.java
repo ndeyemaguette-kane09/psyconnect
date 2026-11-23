@@ -49,6 +49,9 @@ class AuthServiceTest {
     @Mock
     private ResetRequestThrottle resetRequestThrottle;
 
+    @Mock
+    private AccessRevocationService accessRevocationService;
+
     private AuthService authService;
 
     @BeforeEach
@@ -59,7 +62,8 @@ class AuthServiceTest {
                 passwordEncoder,
                 jwtService,
                 passwordResetMailer,
-                resetRequestThrottle
+                resetRequestThrottle,
+                accessRevocationService
         );
     }
 
