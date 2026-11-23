@@ -1,6 +1,7 @@
 package com.example.appointmentservice.controller;
 
 import com.example.appointmentservice.dto.AppointmentResponse;
+import com.example.appointmentservice.dto.ChangeConsultationTypeRequest;
 import com.example.appointmentservice.dto.CreateAppointmentRequest;
 import com.example.appointmentservice.dto.RescheduleAppointmentRequest;
 import com.example.appointmentservice.service.AppointmentService;
@@ -83,6 +84,21 @@ public class AppointmentController {
         return ResponseEntity.ok(
                 appointmentService
                         .rescheduleAppointment(id, request)
+        );
+    }
+
+    @PutMapping("/{id}/consultation-type")
+    public ResponseEntity<AppointmentResponse>
+    changeConsultationType(
+            @PathVariable Long id,
+
+            @Valid @RequestBody
+            ChangeConsultationTypeRequest request
+    ) {
+
+        return ResponseEntity.ok(
+                appointmentService
+                        .changeConsultationType(id, request.getConsultationType())
         );
     }
 

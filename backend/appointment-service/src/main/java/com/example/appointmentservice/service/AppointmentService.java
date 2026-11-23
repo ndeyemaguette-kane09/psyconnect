@@ -5,6 +5,7 @@ import java.util.List;
 import com.example.appointmentservice.dto.AppointmentResponse;
 import com.example.appointmentservice.dto.CreateAppointmentRequest;
 import com.example.appointmentservice.dto.RescheduleAppointmentRequest;
+import com.example.appointmentservice.entity.ConsultationType;
 
 public interface AppointmentService {
 
@@ -26,6 +27,12 @@ public interface AppointmentService {
     AppointmentResponse rescheduleAppointment(
             Long id,
             RescheduleAppointmentRequest request
+    );
+
+    // passage en ligne <-> cabinet ; vers le cabinet, un RDV confirmé repasse en attente
+    AppointmentResponse changeConsultationType(
+            Long id,
+            ConsultationType consultationType
     );
 
     List<AppointmentResponse>

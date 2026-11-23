@@ -26,4 +26,7 @@ public class AppointmentResponse {
 
     private CancellationReason cancellationReason;
     private LocalDateTime cancelledAt;
+
+    private ConsultationType previousConsultationType;
+    private Boolean modalityChangePending;
 }

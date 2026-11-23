@@ -54,6 +54,23 @@ public class Appointment {
 
     private LocalDateTime cancelledAt;
 
+    @Enumerated(EnumType.STRING)
+    private ConsultationType previousConsultationType;
+
+    @Column(columnDefinition = "boolean default false")
+    private Boolean modalityChangePending = Boolean.FALSE;
+
+    public boolean hasPendingModalityChange() {
+        return Boolean.TRUE.equals(modalityChangePending) && previousConsultationType != null;
+    }
+
+    public void revertModalityChange() {
+        this.consultationType = this.previousConsultationType;
+        this.previousConsultationType = null;
+        this.modalityChangePending = Boolean.FALSE;
+        this.status = AppointmentStatus.CONFIRMED;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

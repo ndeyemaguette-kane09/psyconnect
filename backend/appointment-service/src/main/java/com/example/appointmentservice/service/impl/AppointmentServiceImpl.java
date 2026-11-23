@@ -15,6 +15,7 @@ import com.example.appointmentservice.dto.RescheduleAppointmentRequest;
 import com.example.appointmentservice.entity.Appointment;
 import com.example.appointmentservice.entity.AppointmentStatus;
 import com.example.appointmentservice.entity.CancellationReason;
+import com.example.appointmentservice.entity.ConsultationType;
 import com.example.appointmentservice.exception.ForbiddenOperationException;
 import com.example.appointmentservice.exception.ResourceNotFoundException;
 import com.example.appointmentservice.repository.AppointmentRepository;
@@ -25,6 +26,7 @@ import com.example.appointmentservice.service.OwnershipResolver;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -192,6 +194,10 @@ public class AppointmentServiceImpl
                 request.getEndTime()
         );
 
+        if (request.getConsultationType() == ConsultationType.PHYSICAL) {
+            checkReceivesAtOffice(request.getPsychologistId());
+        }
+
         appointment.setConsultationType(
                 request.getConsultationType()
         );
@@ -355,9 +361,17 @@ public class AppointmentServiceImpl
             }
         }
 
+        if (newStatus == AppointmentStatus.REJECTED && appointment.hasPendingModalityChange()) {
+            return declineModalityChange(appointment);
+        }
+
+        boolean modalityConfirmation = newStatus == AppointmentStatus.CONFIRMED
+                && appointment.hasPendingModalityChange();
+
         appointment.setStatus(
                 newStatus
         );
+        appointment.setModalityChangePending(Boolean.FALSE);
 
         if (newStatus == AppointmentStatus.CANCELLED) {
             appointment.setCancellationReason(CancellationReason.PATIENT);
@@ -388,9 +402,11 @@ public class AppointmentServiceImpl
 
         switch (newStatus) {
             case CONFIRMED:
-                title = "Rendez-vous confirmé";
-                message = "Votre rendez-vous a été confirmé par le psychologue. "
-                        + "Vous pouvez maintenant procéder au paiement.";
+                title = modalityConfirmation ? "Séance au cabinet confirmée" : "Rendez-vous confirmé";
+                message = modalityConfirmation
+                        ? "Votre psychologue vous recevra au cabinet pour cette séance."
+                        : "Votre rendez-vous a été confirmé par le psychologue. "
+                                + "Vous pouvez maintenant procéder au paiement.";
                 break;
             case REJECTED:
                 title = "Rendez-vous refusé";
@@ -546,6 +562,124 @@ public class AppointmentServiceImpl
     }
 
     @Override
+    public AppointmentResponse changeConsultationType(
+            Long id,
+            ConsultationType consultationType
+    ) {
+
+        Appointment appointment =
+                appointmentRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Rendez-vous non trouvé"
+                                )
+                        );
+
+        if (!SecurityUtils.hasRole("PATIENT")
+                || !ownershipResolver.resolveOwnPatientId().equals(appointment.getPatientId())) {
+            throw new ForbiddenOperationException(
+                    "Seul le patient à l'origine du rendez-vous peut changer sa modalité"
+            );
+        }
+
+        if (appointment.getStatus() != AppointmentStatus.PENDING
+                && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
+            throw new RuntimeException(
+                    "Seul un rendez-vous en attente ou confirmé peut être modifié"
+            );
+        }
+
+        if (consultationType == ConsultationType.CHAT) {
+            throw new RuntimeException("Cette modalité n'est pas proposée");
+        }
+
+        if (consultationType == appointment.getConsultationType()) {
+            return mapToResponse(appointment);
+        }
+
+        if (appointment.getStartTime().isBefore(LocalDateTime.now().plusHours(24))) {
+            throw new RuntimeException(
+                    "La modalité ne peut plus être changée moins de 24 heures avant la séance"
+            );
+        }
+
+        if (consultationType == ConsultationType.PHYSICAL) {
+            checkReceivesAtOffice(appointment.getPsychologistId());
+        }
+
+        ConsultationType previousType = appointment.getConsultationType();
+        boolean wasConfirmed = appointment.getStatus() == AppointmentStatus.CONFIRMED
+                || appointment.hasPendingModalityChange();
+        boolean needsReconfirmation = consultationType == ConsultationType.PHYSICAL && wasConfirmed;
+
+        appointment.setPreviousConsultationType(previousType);
+        appointment.setConsultationType(consultationType);
+        appointment.setModalityChangePending(needsReconfirmation);
+        if (needsReconfirmation) {
+            appointment.setStatus(AppointmentStatus.PENDING);
+        } else if (wasConfirmed) {
+            appointment.setStatus(AppointmentStatus.CONFIRMED);
+        }
+
+        Appointment updatedAppointment = appointmentRepository.save(appointment);
+
+        String when = updatedAppointment.getStartTime().format(
+                java.time.format.DateTimeFormatter.ofPattern("dd/MM 'à' HH:mm"));
+
+        notifyPsychologist(
+                updatedAppointment.getId(),
+                updatedAppointment.getPsychologistId(),
+                needsReconfirmation ? "Séance au cabinet demandée" : "Modalité de séance modifiée",
+                "Un patient souhaite que sa séance du " + when + " se fasse "
+                        + modalityLabel(consultationType) + " plutôt qu'" + modalityLabel(previousType)
+                        + (needsReconfirmation
+                                ? ". Ouvrez la notification pour confirmer votre disponibilité."
+                                : ".")
+        );
+
+        return mapToResponse(updatedAppointment);
+    }
+
+    private void checkReceivesAtOffice(Long psychologistId) {
+        Map<String, Object> psychologist = ownershipResolver.getPsychologistProfile(psychologistId);
+        Object address = psychologist == null ? null : psychologist.get("address");
+        if (address == null || address.toString().isBlank()) {
+            throw new RuntimeException("Ce psychologue ne reçoit pas au cabinet");
+        }
+    }
+
+    private AppointmentResponse declineModalityChange(Appointment appointment) {
+        ConsultationType declined = appointment.getConsultationType();
+        appointment.revertModalityChange();
+        Appointment saved = appointmentRepository.save(appointment);
+
+        notifyPatient(
+                saved.getId(),
+                saved.getPatientId(),
+                "Changement de modalité refusé",
+                "Votre psychologue ne peut pas vous recevoir " + modalityLabel(declined)
+                        + " à cette date : votre séance reste confirmée "
+                        + modalityLabel(saved.getConsultationType()) + "."
+        );
+
+        return mapToResponse(saved);
+    }
+
+    private String modalityLabel(ConsultationType type) {
+        if (type == null) return "";
+        switch (type) {
+            case VIDEO:
+                return "en vidéo";
+            case AUDIO:
+                return "en audio";
+            case PHYSICAL:
+                return "au cabinet";
+            default:
+                return "par messagerie";
+        }
+    }
+
+    @Override
     public List<AppointmentResponse>
     getAppointmentsByPsychologistId(
             Long psychologistId
@@ -669,6 +803,14 @@ public class AppointmentServiceImpl
 
         response.setCancelledAt(
                 appointment.getCancelledAt()
+        );
+
+        response.setPreviousConsultationType(
+                appointment.getPreviousConsultationType()
+        );
+
+        response.setModalityChangePending(
+                appointment.hasPendingModalityChange()
         );
 
         return response;

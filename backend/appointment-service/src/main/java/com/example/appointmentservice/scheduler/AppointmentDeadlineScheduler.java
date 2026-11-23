@@ -110,6 +110,11 @@ public class AppointmentDeadlineScheduler {
 
     private void cancelUnanswered(Appointment appointment, LocalDateTime now) {
 
+        if (appointment.hasPendingModalityChange()) {
+            keepInitialModality(appointment);
+            return;
+        }
+
         boolean paid = paymentClient.hasCompletedPayment(appointment.getId());
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
@@ -146,6 +151,34 @@ public class AppointmentDeadlineScheduler {
                 "Rendez-vous annulé",
                 "La demande de rendez-vous du " + when + " a été annulée automatiquement, "
                         + "faute de réponse de votre part au moins 1 heure avant la séance.",
+                "APPOINTMENT",
+                "PSYCHOLOGIST",
+                appointment.getId()
+        );
+    }
+
+    private void keepInitialModality(Appointment appointment) {
+
+        appointment.revertModalityChange();
+        appointmentRepository.save(appointment);
+
+        String when = appointment.getStartTime().format(DATE_TIME);
+
+        notificationClient.sendAboutAppointment(
+                appointment.getPatientId(),
+                "Changement de modalité non confirmé",
+                "Le psychologue n'a pas confirmé la séance au cabinet du " + when
+                        + " : elle se fera comme prévu initialement.",
+                "APPOINTMENT",
+                "PATIENT",
+                appointment.getId()
+        );
+
+        notificationClient.sendAboutAppointment(
+                appointment.getPsychologistId(),
+                "Changement de modalité expiré",
+                "Faute de réponse, la séance du " + when
+                        + " garde sa modalité d'origine.",
                 "APPOINTMENT",
                 "PSYCHOLOGIST",
                 appointment.getId()
