@@ -134,9 +134,9 @@ class _PsychologistStatsTabState extends State<PsychologistStatsTab> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    final navigator = Navigator.of(context);
     await context.read<AuthProvider>().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
+    navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const SplashScreen()),
       (route) => false,
     );

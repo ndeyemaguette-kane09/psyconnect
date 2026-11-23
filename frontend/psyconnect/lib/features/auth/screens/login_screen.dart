@@ -223,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
 // coordonnées admin à remplacer avant la prod
 const _adminEmail = 'admin@psyconnect.sn';
-const _adminPhone = '+221 78 000 00 00';
+const _adminPhone = '+221 77 125 36 82';
 
 class _BannedAccountCard extends StatelessWidget {
   const _BannedAccountCard();

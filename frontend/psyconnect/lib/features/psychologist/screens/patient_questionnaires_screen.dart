@@ -149,7 +149,6 @@ class _PatientQuestionnairesScreenState
     }
   }
 
-  // Mesures complétées d'un type, du plus ancien au plus récent.
   List<Questionnaire> _completedOfType(QuestionnaireType type) {
     final list = _questionnaires
         .where((q) => q.type == type && !q.isPending && q.score != null)
@@ -159,10 +158,10 @@ class _PatientQuestionnairesScreenState
     return list;
   }
 
-  // Une carte de suivi par type, à partir de deux mesures.
   List<Widget> _trendCards() {
     final cards = <Widget>[];
     for (final type in QuestionnaireType.values) {
+      if (type == QuestionnaireType.UNKNOWN) continue;
       final entries = _completedOfType(type);
       if (entries.length < 2) continue;
       cards.add(_TrendCard(entries: entries));
@@ -211,13 +210,12 @@ class _PatientQuestionnairesScreenState
         _shortDate(risky.first.completedAt ?? risky.first.sentAt).endsWith('.');
     final trends = [
       for (final type in QuestionnaireType.values)
-        if (_completedOfType(type).length >= 2) _completedOfType(type),
+        if (type != QuestionnaireType.UNKNOWN &&
+            _completedOfType(type).length >= 2) _completedOfType(type),
     ];
 
     return Scaffold(
       appBar: AppBar(),
-      // Barre d'action fixe : le bouton d'envoi reste atteignable quel que soit
-      // le nombre de questionnaires déjà présents dans la liste.
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
@@ -461,7 +459,6 @@ class _EvolutionScreen extends StatelessWidget {
 class _TrendCard extends StatelessWidget {
   const _TrendCard({required this.entries});
 
-  // Du plus ancien au plus récent, uniquement des mesures complétées.
   final List<Questionnaire> entries;
 
   static const int _maxRows = 8;

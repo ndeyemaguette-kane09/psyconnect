@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/storage/offline_cache.dart';
 import '../../../core/storage/token_storage.dart';
 import '../models/auth_models.dart';
 import '../models/profile_models.dart';
@@ -75,7 +76,7 @@ class AuthProvider extends ChangeNotifier {
       fieldErrors = error.fieldErrors;
       isBannedAccount = error.errorCode == 'ACCOUNT_BANNED';
     } else {
-      errorMessage = error.toString();
+      errorMessage = userMessage(error);
       fieldErrors = {};
       isBannedAccount = false;
     }
@@ -207,7 +208,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Même flux que le patient, avec les champs supplémentaires du psychologue.
   Future<bool> completePsychologistOnboarding({
     required String email,
     required String password,
@@ -376,6 +376,7 @@ class AuthProvider extends ChangeNotifier {
     session = null;
     status = AuthStatus.unauthenticated;
     await TokenStorage.clear();
+    await OfflineCache.clear();
     notifyListeners();
   }
 }

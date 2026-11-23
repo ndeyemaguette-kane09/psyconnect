@@ -107,9 +107,9 @@ class _PsychologistProfileScreenState
     if (!mounted) return;
 
     final authProvider = context.read<AuthProvider>();
+    final navigator = Navigator.of(context);
     await authProvider.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
+    navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const SplashScreen()),
       (route) => false,
     );

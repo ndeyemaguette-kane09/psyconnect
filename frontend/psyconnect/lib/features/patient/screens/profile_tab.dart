@@ -47,7 +47,6 @@ class _ProfileTabState extends State<ProfileTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
 
-    // Lu avant l'await pour éviter d'utiliser context après une opération asynchrone.
     final session = context.read<AuthProvider>().session;
     final userProfileId = session?.userProfileId;
     final patientId = session?.profileId;
@@ -62,7 +61,6 @@ class _ProfileTabState extends State<ProfileTab> {
         patientProfile = await _profileService.getPatientProfileById(patientId);
       }
     } catch (_) {
-      // Profil indisponible : on conserve ce qui a déjà été chargé.
     }
 
     // questionnaires en attente, pour le badge sur le bouton profil
@@ -71,7 +69,6 @@ class _ProfileTabState extends State<ProfileTab> {
       final pending = await _questionnaireService.getMyPendingQuestionnaires();
       pendingCount = pending.length;
     } catch (_) {
-      // Échec silencieux : le badge reste à 0.
     }
 
     Wallet? wallet;
@@ -113,9 +110,9 @@ class _ProfileTabState extends State<ProfileTab> {
   Future<void> _logout() async {
     if (!await confirmLogout(context) || !mounted) return;
     final authProvider = context.read<AuthProvider>();
+    final navigator = Navigator.of(context);
     await authProvider.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
+    navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const SplashScreen()),
       (route) => false,
     );
@@ -453,12 +450,10 @@ class _TextLink extends StatelessWidget {
   const _TextLink({
     required this.label,
     required this.onTap,
-    this.color = AppColors.text,
   });
 
   final String label;
   final VoidCallback? onTap;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -471,7 +466,7 @@ class _TextLink extends StatelessWidget {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: onTap == null ? AppColors.faint : color,
+            color: onTap == null ? AppColors.faint : AppColors.text,
           ),
         ),
       ),

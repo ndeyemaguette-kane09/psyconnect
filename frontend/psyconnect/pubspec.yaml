@@ -35,42 +35,31 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  # Gestion d'état (choisi pour ce projet : simple à expliquer dans le mémoire)
   provider: ^6.1.2
 
-  # Appels HTTP vers l'API Gateway (Spring Cloud Gateway, port 8080)
   http: ^1.2.2
 
-  # Deja une dependance transitive de http, declaree ici explicitement pour
-  # construire le Content-Type (MediaType) du justificatif psy a l'upload
   http_parser: ^4.0.2
 
-  # Stockage sécurisé du token JWT sur l'appareil
+  # jeton JWT et copies hors-ligne
   flutter_secure_storage: ^9.2.2
 
-  # Polices Playfair Display (titres) + DM Sans (texte) de la charte graphique
   google_fonts: ^8.1.0
 
-  # Affiche le logo vectoriel (assets/images/psyconnect_mark.svg) sans perte
-  # de qualité, quelle que soit la résolution de l'écran.
   flutter_svg: ^2.0.10+1
 
-  # Sélection du justificatif (diplôme/carte pro, PDF ou photo) à
-  # l'inscription d'un psychologue.
+  # justificatif du psychologue
   file_picker: ^8.1.6
 
-  # Dossier temporaire de l'appareil, utilisé pour écrire le justificatif
-  # téléchargé avant de l'ouvrir avec la visionneuse système (admin).
   path_provider: ^2.1.4
 
-  # Ouvre le justificatif téléchargé (PDF ou image) avec la visionneuse
-  # native de l'appareil — évite de réimplémenter un lecteur PDF maison.
   open_filex: ^4.5.0
 
-  # Appels vidéo/audio réels via Jitsi Meet (WebRTC). Le backend génère un nom
-  # de room unique (psyconnect-{appointmentId}-{uuid8}), le SDK ouvre
-  # l'interface native Jitsi sur meet.jit.si. Remplace la simulation Agora.
+  # visio et audio
   jitsi_meet_flutter_sdk: ^10.2.0
+
+  # espace admin web
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -83,8 +72,6 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
-  # Génère les icônes natives (iOS/Android/web/macOS) à partir d'une seule
-  # image source. Lancer : `dart run flutter_launcher_icons`.
   flutter_launcher_icons: ^0.14.1
 
 # For information on the generic Dart part of this file, see the
@@ -131,10 +118,7 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# Configuration de flutter_launcher_icons (package:flutter_launcher_icons).
-# Génère les icônes natives iOS/Android/web/macOS à partir de
-# assets/icon/app_icon.png. Après `flutter pub get`, lancer :
-#   dart run flutter_launcher_icons
+# dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
   ios: true

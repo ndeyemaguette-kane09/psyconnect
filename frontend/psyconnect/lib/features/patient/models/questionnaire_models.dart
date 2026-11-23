@@ -1,9 +1,11 @@
-
+// noms identiques aux enums Java : .name est envoyé et relu tel quel par l'API
+// ignore_for_file: constant_identifier_names
 enum QuestionnaireType {
   PHQ9('PHQ-9', 'Dépression'),
   GAD7('GAD-7', 'Anxiété généralisée'),
   PSS10('PSS-10', 'Stress perçu'),
-  EPDS('EPDS', 'Dépression post-natale');
+  EPDS('EPDS', 'Dépression post-natale'),
+  UNKNOWN('Type inconnu', 'Questionnaire non reconnu par cette version');
 
   const QuestionnaireType(this.label, this.description);
 
@@ -217,6 +219,7 @@ class Questionnaire {
         QuestionnaireType.GAD7 => kGad7Questions,
         QuestionnaireType.PSS10 => kPss10Questions,
         QuestionnaireType.EPDS => kEpdsQuestions,
+        QuestionnaireType.UNKNOWN => const [],
       };
 
   List<String> answerLabelsFor(int index) =>
@@ -251,7 +254,7 @@ class Questionnaire {
       id: json['id'] as int,
       type: QuestionnaireType.values.firstWhere(
         (t) => t.name == json['type'],
-        orElse: () => QuestionnaireType.GAD7,
+        orElse: () => QuestionnaireType.UNKNOWN,
       ),
       status: json['status'] == 'COMPLETED'
           ? QuestionnaireStatus.COMPLETED

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/auto_refresh.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -23,7 +24,8 @@ class PatientsTab extends StatefulWidget {
   State<PatientsTab> createState() => _PatientsTabState();
 }
 
-class _PatientsTabState extends State<PatientsTab> {
+class _PatientsTabState extends State<PatientsTab>
+    with AutoRefresh<PatientsTab> {
   final _appointmentService = AppointmentService();
   final _profileService = ProfileService();
   final _linkService = PsyPatientLinkService();
@@ -39,11 +41,16 @@ class _PatientsTabState extends State<PatientsTab> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  Future<void> autoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     final psychologistId = context.read<AuthProvider>().session?.profileId;
     if (psychologistId == null) {
@@ -85,6 +92,7 @@ class _PatientsTabState extends State<PatientsTab> {
 
       if (!mounted) return;
       setState(() {
+        _error = null;
         _patients = entries;
         _loading = false;
       });
@@ -95,7 +103,7 @@ class _PatientsTabState extends State<PatientsTab> {
         setState(() => _followedIds = followed.toSet());
       } catch (_) {}
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _error = 'Impossible de charger vos patients.';
         _loading = false;

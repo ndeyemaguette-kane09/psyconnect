@@ -51,6 +51,9 @@ class _BookingScreenState extends State<BookingScreen> {
   TimeOfDay? _selectedSlot;
   ConsultationType _selectedType = ConsultationType.video;
 
+  bool get _receivesAtOffice =>
+      widget.psychologist.address?.trim().isNotEmpty ?? false;
+
   List<TimeOfDay> _availableSlots = [];
   int _slotDurationMinutes = 60;
 
@@ -248,10 +251,10 @@ class _BookingScreenState extends State<BookingScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: const [
+                    children: [
                       ConsultationType.video,
                       ConsultationType.audio,
-                      ConsultationType.physical,
+                      if (_receivesAtOffice) ConsultationType.physical,
                     ]
                         .map((type) => _SelectableChip(
                               label: type.label,

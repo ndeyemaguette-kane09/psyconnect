@@ -9,6 +9,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/auto_refresh.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -28,7 +29,8 @@ class PsychologistHomeTab extends StatefulWidget {
   State<PsychologistHomeTab> createState() => _PsychologistHomeTabState();
 }
 
-class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
+class _PsychologistHomeTabState extends State<PsychologistHomeTab>
+    with AutoRefresh<PsychologistHomeTab> {
   final _appointmentService = AppointmentService();
   final _psychologistService = PsychologistService();
   final _profileService = ProfileService();
@@ -53,11 +55,16 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  Future<void> autoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     final psychologistId = context.read<AuthProvider>().session?.profileId;
     if (psychologistId == null) {
@@ -83,6 +90,7 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
 
       if (!mounted) return;
       setState(() {
+        _error = null;
         _me = me;
         _appointments = appointments;
         _patientsById = {
@@ -92,7 +100,7 @@ class _PsychologistHomeTabState extends State<PsychologistHomeTab> {
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _error = 'Impossible de charger le tableau de bord.';
         _loading = false;
@@ -709,7 +717,7 @@ class _ApprovalStatusBanner extends StatelessWidget {
   final bool rejected;
 
   static const _adminEmail = 'admin@psyconnect.sn';
-  static const _adminPhone = '+221 78 000 00 00';
+  static const _adminPhone = '+221 77 125 36 82';
 
   @override
   Widget build(BuildContext context) {

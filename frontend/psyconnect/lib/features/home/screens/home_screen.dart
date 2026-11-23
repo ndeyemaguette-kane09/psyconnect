@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -19,6 +20,11 @@ class HomeScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final session = auth.session;
 
+    // la version web ne sert que d'espace d'administration
+    if (kIsWeb && session != null && session.role != UserRole.admin) {
+      return const _WebAdminOnly();
+    }
+
     if (session?.role == UserRole.patient) {
       return const PatientShell();
     }
@@ -29,67 +35,57 @@ class HomeScreen extends StatelessWidget {
       return const AdminShell();
     }
 
+    return const SplashScreen();
+  }
+}
+
+class _WebAdminOnly extends StatelessWidget {
+  const _WebAdminOnly();
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.teal,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Espace réservé à l\'administration',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                width: double.infinity,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Bienvenue',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session?.pseudo ?? '',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Connecté en tant que '
-                      '${session == null ? '' : session.role.label}',
-                      style: const TextStyle(
-                          color: Colors.white60, fontSize: 12),
-                    ),
-                  ],
+                const SizedBox(height: 12),
+                const Text(
+                  'Les patients et les psychologues utilisent '
+                  'l\'application mobile PsyConnect.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.muted, fontSize: 14),
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                "L'authentification fonctionne : le reste de l'app "
-                "(accueil patient, recherche de psy, réservation, etc.) "
-                'sera construit ici, écran par écran, selon les maquettes.',
-                style: TextStyle(color: AppColors.muted, fontSize: 13),
-              ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await auth.logout();
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const SplashScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text('Se déconnecter'),
-              ),
-            ],
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await context.read<AuthProvider>().logout();
+                    if (context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                            builder: (_) => const SplashScreen()),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Se déconnecter'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

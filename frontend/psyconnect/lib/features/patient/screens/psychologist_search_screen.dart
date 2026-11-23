@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_ui.dart';
@@ -59,7 +60,7 @@ class _PsychologistSearchScreenState extends State<PsychologistSearchScreen> {
       final list = await _service.getAllPsychologists();
       setState(() => _all = list);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = userMessage(e));
     } finally {
       setState(() => _loading = false);
     }

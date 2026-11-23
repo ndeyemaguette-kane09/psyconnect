@@ -45,7 +45,6 @@ class _PatientShellState extends State<PatientShell>
   int _pendingQuestCount = 0;
   Timer? _unreadTimer;
 
-  // Pop-up notifications : suivi des IDs déjà vus dans cette session
   final _seenNotifIds = <int>{};
   bool _notifInitialLoadDone = false;
   OverlayEntry? _notifPopupEntry;
@@ -66,7 +65,6 @@ class _PatientShellState extends State<PatientShell>
         _pollNotifications();
       },
     );
-    // Premier chargement : initialise la liste des IDs vus (pas de pop-up)
     WidgetsBinding.instance.addPostFrameCallback((_) => _pollNotifications());
   }
 
@@ -159,8 +157,6 @@ class _PatientShellState extends State<PatientShell>
     } catch (_) {}
   }
 
-  // Poll les notifs. Première exécution -> peuple _seenNotifIds sans pop-up.
-  // Exécutions suivantes -> affiche un pop-up pour chaque nouvel ID.
   Future<void> _pollNotifications() async {
     final profileId = context.read<AuthProvider>().session?.profileId;
     if (profileId == null) return;
@@ -398,7 +394,6 @@ class _NavItem extends StatelessWidget {
 }
 
 // Banner pop-up animé
-// Slide-down depuis le haut de l'écran, auto-dismiss géré par le shell.
 
 class _NotifPopup extends StatefulWidget {
   const _NotifPopup({

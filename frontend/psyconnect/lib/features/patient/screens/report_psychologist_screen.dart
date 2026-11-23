@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/report_models.dart';
@@ -110,7 +111,7 @@ class _ReportPsychologistScreenState extends State<ReportPsychologistScreen> {
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = userMessage(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

@@ -126,6 +126,9 @@ class ApiConstants {
   static String appointmentReschedule(int appointmentId) =>
       '/appointments/$appointmentId/reschedule';
 
+  static String appointmentConsultationType(int appointmentId) =>
+      '/appointments/$appointmentId/consultation-type';
+
   // réservé aux RDV ANNULÉ/REFUSÉ, par le patient propriétaire
   static String appointmentById(int appointmentId) =>
       '/appointments/$appointmentId';
@@ -144,8 +147,12 @@ class ApiConstants {
   // --- session de consultation simulée ---
   static const String sessionsStart = '/sessions/start';
   static const String sessionsEmergency = '/sessions/emergency';
+  static const String sessionsEmergencyIncoming = '/sessions/emergency/incoming';
 
   static String sessionEnd(int sessionId) => '/sessions/$sessionId/end';
+  static String sessionJoin(int sessionId) => '/sessions/$sessionId/join';
+  static String sessionCancel(int sessionId) => '/sessions/$sessionId/cancel';
+  static String sessionDecline(int sessionId) => '/sessions/$sessionId/decline';
 
   static String sessionById(int sessionId) => '/sessions/$sessionId';
 
@@ -172,6 +179,7 @@ class ApiConstants {
   static const String adminPatients = '/admin/patients';
   static const String adminAppointments = '/admin/appointments';
   static const String adminPayments = '/admin/payments';
+  static const String adminEmergencySessions = '/admin/emergency-sessions';
 
   // ici le filtre status est gere par le backend, pas pour les paiements (filtre cote app)
   static String adminAppointmentsByStatus(String? status) =>

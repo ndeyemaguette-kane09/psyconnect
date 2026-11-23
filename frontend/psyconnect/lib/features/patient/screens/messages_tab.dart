@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/auto_refresh.dart';
 import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../messaging/models/messaging_models.dart';
@@ -25,7 +26,8 @@ class MessagesTab extends StatefulWidget {
   State<MessagesTab> createState() => _MessagesTabState();
 }
 
-class _MessagesTabState extends State<MessagesTab> {
+class _MessagesTabState extends State<MessagesTab>
+    with AutoRefresh<MessagesTab> {
   final _messagingService = MessagingService();
   final _appointmentService = AppointmentService();
   final _psychologistService = PsychologistService();
@@ -42,11 +44,16 @@ class _MessagesTabState extends State<MessagesTab> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  Future<void> autoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     final patientId = context.read<AuthProvider>().session?.profileId;
     if (patientId == null) {
@@ -85,13 +92,14 @@ class _MessagesTabState extends State<MessagesTab> {
 
       if (!mounted) return;
       setState(() {
+        _error = null;
         _conversations = conversations;
         _contactsWithoutConversation = contactsWithoutConversation;
         _psychologistsById = psychologistsById;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       setState(() {
         _error = 'Impossible de charger vos messages.';
         _loading = false;

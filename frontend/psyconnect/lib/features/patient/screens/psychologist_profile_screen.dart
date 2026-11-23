@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
 import '../models/psychologist_models.dart';
@@ -47,7 +48,6 @@ class _PsychologistProfileScreenState
       if (!mounted) return;
       setState(() => _reviews = reviews);
     } catch (_) {
-      // Échec silencieux : la section avis reste vide sans bloquer l'écran.
     } finally {
       if (mounted) setState(() => _reviewsLoading = false);
     }
@@ -59,12 +59,11 @@ class _PsychologistProfileScreenState
       _error = null;
     });
     try {
-      // Profil et disponibilités en parallèle.
       final results = await Future.wait([
         _psychologistService.getPsychologistById(widget.psychologistId),
         _psychologistService
             .getAvailabilities(widget.psychologistId)
-            .catchError((_) => <PsyAvailabilitySlot>[]), // best-effort
+            .catchError((_) => <PsyAvailabilitySlot>[]),
       ]);
 
       if (!mounted) return;
@@ -74,7 +73,7 @@ class _PsychologistProfileScreenState
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = userMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

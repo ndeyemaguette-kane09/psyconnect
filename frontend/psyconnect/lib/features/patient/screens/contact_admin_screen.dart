@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/models/user_role.dart';
 import '../services/support_message_service.dart';
@@ -77,7 +78,7 @@ class _ContactAdminScreenState extends State<ContactAdminScreen> {
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = userMessage(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

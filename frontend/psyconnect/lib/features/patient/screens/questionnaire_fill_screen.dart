@@ -436,11 +436,17 @@ const _kEpdsBands = [
       Color(0xFF8E3B2A)),
 ];
 
+const _kUnknownBands = [
+  SeverityBand('Non interprété', 'non interprétable', 0, 1000,
+      AppColors.faint, AppColors.muted),
+];
+
 List<SeverityBand> severityBandsFor(QuestionnaireType type) => switch (type) {
       QuestionnaireType.PHQ9 => _kPhq9Bands,
       QuestionnaireType.GAD7 => _kGad7Bands,
       QuestionnaireType.PSS10 => _kPss10Bands,
       QuestionnaireType.EPDS => _kEpdsBands,
+      QuestionnaireType.UNKNOWN => _kUnknownBands,
     };
 
 SeverityBand severityBandOf(QuestionnaireType type, int score) {

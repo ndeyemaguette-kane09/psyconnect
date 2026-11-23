@@ -6,6 +6,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_ui.dart';
+import '../../../core/widgets/auto_refresh.dart';
 import '../../auth/models/profile_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/services/profile_service.dart';
@@ -45,7 +46,8 @@ class PatientHomeScreen extends StatefulWidget {
   State<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends State<PatientHomeScreen> {
+class _PatientHomeScreenState extends State<PatientHomeScreen>
+    with AutoRefresh<PatientHomeScreen> {
   final _psychologistService = PsychologistService();
   final _appointmentService = AppointmentService();
   final _profileService = ProfileService();
@@ -71,8 +73,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  Future<void> autoRefresh() => _load(silent: true);
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
 
     final patientId = context.read<AuthProvider>().session?.profileId;
 

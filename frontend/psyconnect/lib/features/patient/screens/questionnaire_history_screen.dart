@@ -161,15 +161,20 @@ class _QuestionnaireHistoryScreenState
   }
 
   void _openDetail(Questionnaire q) {
+    if (q.type == QuestionnaireType.UNKNOWN) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            "Ce questionnaire n'est pas pris en charge par cette version de l'application."),
+      ));
+      return;
+    }
     if (q.isPending) {
-      // questionnaire non encore rempli -> ouvrir l'écran de remplissage
       Navigator.of(context)
           .push(MaterialPageRoute(
         builder: (_) => QuestionnaireFillScreen(questionnaire: q),
       ))
-          .then((_) => _load()); // rafraîchir après retour
+          .then((_) => _load());
     } else {
-      // questionnaire complété -> afficher les résultats
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => QuestionnaireResultScreen(questionnaire: q),
       ));

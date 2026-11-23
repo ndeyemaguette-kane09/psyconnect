@@ -50,7 +50,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (!mounted) return;
       setState(() => _wallet = wallet);
     } catch (_) {
-      // Silencieux : le backend refusera de toute façon si le solde est trop bas.
     } finally {
       if (mounted) setState(() => _loadingWallet = false);
     }
@@ -280,7 +279,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ),
 
-            // Barre d'action fixe
             Container(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
               decoration: const BoxDecoration(

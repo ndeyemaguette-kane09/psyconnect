@@ -33,7 +33,6 @@ class _Broadcast {
 
 // ecran "Annonces système" : affiche les broadcasts admin stockés en base
 // dans user-service, filtrés selon le rôle de l'utilisateur connecté.
-// Accessible depuis la home patient et la home psy (icône mégaphone).
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key, this.lastSeen});
 

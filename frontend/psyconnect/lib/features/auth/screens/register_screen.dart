@@ -397,7 +397,7 @@ class _AccountStep extends StatelessWidget {
             obscureText: obscurePassword,
             decoration: InputDecoration(
               labelText: 'Mot de passe',
-              helperText: 'Au moins 6 caractères',
+              helperText: 'Au moins 8 caractères',
               suffixIcon: IconButton(
                 icon: Icon(obscurePassword
                     ? Icons.visibility_outlined
@@ -409,8 +409,8 @@ class _AccountStep extends StatelessWidget {
               if (value == null || value.isEmpty) {
                 return 'Le mot de passe est requis';
               }
-              if (value.length < 6) {
-                return 'Au moins 6 caractères';
+              if (value.length < 8) {
+                return 'Au moins 8 caractères';
               }
               return null;
             },
