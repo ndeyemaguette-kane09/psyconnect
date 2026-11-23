@@ -1,16 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 import '../constants/api_constants.dart';
+import '../storage/offline_cache.dart';
 import '../storage/token_storage.dart';
 import 'api_exception.dart';
 
-// Résultat d'un fichier téléchargé : octets bruts et type MIME associé
-// (permet de distinguer image et PDF avant d'ouvrir le fichier).
 class DownloadedFile {
   const DownloadedFile({required this.bytes, required this.contentType});
 
@@ -23,6 +22,8 @@ class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
+
+  static VoidCallback? onSessionRevoked;
 
   Future<Map<String, String>> _headers({bool withAuth = true}) async {
     final headers = {'Content-Type': 'application/json'};
@@ -38,9 +39,19 @@ class ApiClient {
   Uri _uri(String path) => Uri.parse('${ApiConstants.baseUrl}$path');
 
   Future<dynamic> get(String path, {bool withAuth = true}) async {
-    return _send(() async => _client
-        .get(_uri(path), headers: await _headers(withAuth: withAuth))
-        .timeout(ApiConstants.timeout));
+    try {
+      final data = await _send(() async => _client
+          .get(_uri(path), headers: await _headers(withAuth: withAuth))
+          .timeout(ApiConstants.timeout));
+      unawaited(OfflineCache.save(path, data));
+      return data;
+    } on ApiException catch (e) {
+      if (e.statusCode != null) rethrow;
+      final cached = await OfflineCache.read(path);
+      if (cached == null) rethrow;
+      OfflineCache.isOffline.value = true;
+      return cached;
+    }
   }
 
   Future<dynamic> post(
@@ -137,7 +148,6 @@ class ApiClient {
     return _send(() async {
       final request = http.MultipartRequest('POST', _uri(path));
 
-      // MultipartRequest définit lui-même son Content-Type boundary.
       final headers = await _headers(withAuth: withAuth);
       headers.remove('Content-Type');
       request.headers.addAll(headers);
@@ -166,8 +176,6 @@ class ApiClient {
     return null;
   }
 
-  // Télécharge un fichier binaire (ex : justificatif psy) sans passer par
-  // _send, qui tenterait de le décoder en JSON.
   Future<DownloadedFile> getFile(String path, {bool withAuth = true}) async {
     http.Response response;
     try {
@@ -195,7 +203,9 @@ class ApiClient {
     final dynamic decoded = body.isEmpty
         ? null
         : (body.trim().startsWith('{') ? jsonDecode(body) : null);
-    throw _toApiException(response.statusCode, decoded);
+    final error = _toApiException(response.statusCode, decoded);
+    if (error.errorCode == 'SESSION_REVOKED') onSessionRevoked?.call();
+    throw error;
   }
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {
@@ -221,11 +231,15 @@ class ApiClient {
             ? jsonDecode(response.body)
             : response.body;
 
+    OfflineCache.isOffline.value = false;
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decoded;
     }
 
-    throw _toApiException(response.statusCode, decoded);
+    final error = _toApiException(response.statusCode, decoded);
+    if (error.errorCode == 'SESSION_REVOKED') onSessionRevoked?.call();
+    throw error;
   }
 
   ApiException _toApiException(int statusCode, dynamic decoded) {

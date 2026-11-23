@@ -5,7 +5,6 @@ class ApiException implements Exception {
   final String message;
   final Map<String, String> fieldErrors;
   // Code fonctionnel envoyé par le backend (ex : "ACCOUNT_BANNED").
-  // Permet d'identifier précisément le type d'erreur sans analyser le texte.
   final String? errorCode;
 
   ApiException({
@@ -17,15 +16,17 @@ class ApiException implements Exception {
 
   factory ApiException.network() => ApiException(
         message:
-            "Impossible de contacter le serveur. Vérifiez que l'API Gateway "
-            "et les services sont bien lancés, et que l'adresse configurée "
-            "(ApiConstants.baseUrl) est correcte.",
+            'Connexion impossible. Vérifiez votre connexion internet et réessayez.',
       );
 
   factory ApiException.timeout() => ApiException(
-        message: 'Le serveur ne répond pas (délai dépassé).',
+        message: 'Le service met trop de temps à répondre. Réessayez dans un instant.',
       );
 
   @override
   String toString() => message;
 }
+
+String userMessage(Object error) => error is ApiException
+    ? error.message
+    : 'Une erreur inattendue est survenue. Réessayez.';
