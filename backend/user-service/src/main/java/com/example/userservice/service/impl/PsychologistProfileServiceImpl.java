@@ -10,6 +10,7 @@ import com.example.userservice.exception.ForbiddenOperationException;
 import com.example.userservice.exception.ResourceNotFoundException;
 import com.example.userservice.repository.PsychologistProfileRepository;
 import com.example.userservice.repository.UserProfileRepository;
+import com.example.userservice.service.FileSignatures;
 import com.example.userservice.service.FileStorageService;
 import com.example.userservice.service.PsychologistProfileService;
 
@@ -386,7 +387,7 @@ public class PsychologistProfileServiceImpl
             throw new IllegalArgumentException("Le fichier est vide.");
         }
 
-        String contentType = file.getContentType();
+        String contentType = FileSignatures.detectContentType(file);
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new IllegalArgumentException(
                     "Format non supporté : seuls PDF, PNG et JPEG sont acceptés."

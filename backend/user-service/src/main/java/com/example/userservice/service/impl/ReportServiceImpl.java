@@ -8,6 +8,7 @@ import com.example.userservice.exception.ForbiddenOperationException;
 import com.example.userservice.exception.ResourceNotFoundException;
 import com.example.userservice.repository.*;
 import com.example.userservice.service.EvidenceStorageService;
+import com.example.userservice.service.FileSignatures;
 import com.example.userservice.service.ReportService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -68,15 +69,16 @@ public class ReportServiceImpl implements ReportService {
         report.setDescription(description);
 
         if (evidence != null && !evidence.isEmpty()) {
+            String contentType = FileSignatures.detectContentType(evidence);
+            if (contentType == null) {
+                throw new IllegalArgumentException(
+                        "Format non supporté : seuls PDF, PNG et JPEG sont acceptés."
+                );
+            }
             String stored = evidenceStorage.store(evidence);
             report.setEvidenceFilename(stored);
             // extension pour le Content-Type lors du téléchargement
-            String originalName = evidence.getOriginalFilename();
-            if (originalName != null && originalName.contains(".")) {
-                report.setEvidenceExtension(
-                        originalName.substring(originalName.lastIndexOf('.')).toLowerCase()
-                );
-            }
+            report.setEvidenceExtension(FileSignatures.extensionFor(contentType));
         }
 
         return mapToResponse(reportRepository.save(report));
