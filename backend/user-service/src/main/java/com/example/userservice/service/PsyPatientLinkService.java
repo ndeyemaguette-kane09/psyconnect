@@ -15,7 +15,7 @@ public interface PsyPatientLinkService {
     // le psy peut voir sa propre liste ; l'admin peut aussi (pour la supervision).
     List<Long> getFollowedPatientIds(Long psyProfileId, Long callerAuthUserId);
 
-    // vérifie si le lien existe (endpoint public pour que le frontend sache
-    // quel état afficher sans charger toute la liste).
-    boolean isFollowing(Long psyProfileId, Long patientProfileId);
+    // vérifie si le lien existe, réservé au psy concerné, pour que le frontend
+    // sache quel état afficher sans charger toute la liste.
+    boolean isFollowing(Long psyProfileId, Long patientProfileId, Long callerAuthUserId);
 }

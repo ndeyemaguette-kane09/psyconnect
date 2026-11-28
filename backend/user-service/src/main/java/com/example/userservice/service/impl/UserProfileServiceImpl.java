@@ -130,7 +130,8 @@ public class UserProfileServiceImpl
     @Override
     public UserProfileResponse updateProfile(
             Long id,
-            UpdateUserProfileRequest request
+            UpdateUserProfileRequest request,
+            Long callerAuthUserId
     ) {
 
         UserProfile userProfile =
@@ -141,6 +142,13 @@ public class UserProfileServiceImpl
                                 "User profile not found"
                         )
                 );
+
+        if (userProfile.getAuthUserId() == null
+                || !userProfile.getAuthUserId().equals(callerAuthUserId)) {
+            throw new ForbiddenOperationException(
+                    "Ce profil ne vous appartient pas"
+            );
+        }
 
         userProfile.setFirstName(
                 request.getFirstName()

@@ -74,6 +74,7 @@ public class UserProfileController {
     @PutMapping("/{id}")
     public ResponseEntity<UserProfileResponse>
     updateProfile(
+            HttpServletRequest httpRequest,
             @PathVariable Long id,
 
             @Valid @RequestBody
@@ -81,7 +82,9 @@ public class UserProfileController {
     ) {
 
         UserProfileResponse response =
-                userProfileService.updateProfile(id, request);
+                userProfileService.updateProfile(
+                        id, request, currentAuthUserId(httpRequest)
+                );
 
         return ResponseEntity.ok(response);
     }

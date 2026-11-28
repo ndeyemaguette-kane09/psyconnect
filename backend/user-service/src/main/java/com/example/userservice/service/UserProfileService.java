@@ -23,6 +23,7 @@ public interface UserProfileService {
 
     UserProfileResponse updateProfile(
             Long id,
-            UpdateUserProfileRequest request
+            UpdateUserProfileRequest request,
+            Long callerAuthUserId
     );
 }

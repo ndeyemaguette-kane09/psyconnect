@@ -67,7 +67,8 @@ public class PsyPatientLinkServiceImpl implements PsyPatientLinkService {
     }
 
     @Override
-    public boolean isFollowing(Long psyProfileId, Long patientProfileId) {
+    public boolean isFollowing(Long psyProfileId, Long patientProfileId, Long callerAuthUserId) {
+        ensureCallerOwnsPsychologistProfile(psyProfileId, callerAuthUserId);
         return linkRepository.existsByPsychologistProfileIdAndPatientProfileId(
                 psyProfileId, patientProfileId);
     }

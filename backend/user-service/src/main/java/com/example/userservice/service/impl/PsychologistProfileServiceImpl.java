@@ -351,8 +351,11 @@ public class PsychologistProfileServiceImpl
         PsychologistProfile profile = psychologistProfileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Psychologist profile not found"));
 
-        if (profile.getAuthUserId() == null && callerAuthUserId != null) {
-            profile.setAuthUserId(callerAuthUserId);
+        if (profile.getAuthUserId() == null
+                || !profile.getAuthUserId().equals(callerAuthUserId)) {
+            throw new ForbiddenOperationException(
+                    "Ce profil psychologue ne vous appartient pas"
+            );
         }
 
         profile.setAvailableForEmergency(available);

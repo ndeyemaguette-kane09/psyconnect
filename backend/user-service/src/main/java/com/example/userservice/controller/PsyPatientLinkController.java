@@ -51,9 +51,10 @@ public class PsyPatientLinkController {
     @GetMapping("/{psyId}/followed-patients/{patientId}")
     public ResponseEntity<Boolean> isFollowing(
             @PathVariable Long psyId,
-            @PathVariable Long patientId
+            @PathVariable Long patientId,
+            HttpServletRequest request
     ) {
-        return ResponseEntity.ok(service.isFollowing(psyId, patientId));
+        return ResponseEntity.ok(service.isFollowing(psyId, patientId, currentAuthUserId(request)));
     }
 
     private Long currentAuthUserId(HttpServletRequest request) {
